@@ -24,7 +24,7 @@
 
 ---
 
-CloudCost MCP is an MCP server that lets AI agents parse Terraform codebases, query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS and Azure — no API keys or cloud credentials required. GCP pricing is bundled from public catalog data.
+CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server — a standardized way to give AI assistants like Claude access to external tools — that lets AI agents parse Terraform codebases, query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS and Azure — no API keys or cloud credentials required. GCP pricing is bundled from public catalog data.
 
 ### What it does
 
@@ -54,6 +54,12 @@ Or install from npm:
 npm install -g @jadenrazo/cloudcost-mcp
 ```
 
+Or run directly without installing:
+
+```bash
+npx -y @jadenrazo/cloudcost-mcp
+```
+
 ### Claude Desktop
 
 Add to your Claude Desktop MCP configuration (`claude_desktop_config.json`):
@@ -63,7 +69,7 @@ Add to your Claude Desktop MCP configuration (`claude_desktop_config.json`):
   "mcpServers": {
     "cloudcost": {
       "command": "node",
-      "args": ["/path/to/cloudcost-mcp/dist/index.js"]
+      "args": ["/path/to/CloudCostMCP/dist/index.js"]
     }
   }
 }
@@ -84,7 +90,13 @@ If installed globally via npm:
 ### Claude Code
 
 ```bash
-claude mcp add cloudcost -- node /path/to/cloudcost-mcp/dist/index.js
+claude mcp add cloudcost -- node /path/to/CloudCostMCP/dist/index.js
+```
+
+Or if installed globally via npm:
+
+```bash
+claude mcp add cloudcost -- cloudcost-mcp
 ```
 
 ### As a standalone MCP server (stdio)
@@ -201,7 +213,48 @@ All pricing data is cached in a local SQLite database (`~/.cloudcost/cache.db`) 
 
 ## Example
 
-Running `compare_providers` against a typical AWS Terraform config with 3 web servers (t3.xlarge), 2 app servers (m5.2xlarge), an RDS instance (db.r6g.xlarge), EBS volumes, S3, ALB, NAT Gateway, and an EKS cluster:
+Given this Terraform config:
+
+```hcl
+# infrastructure.tf
+resource "aws_instance" "web" {
+  count         = 3
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t3.xlarge"
+}
+
+resource "aws_instance" "app" {
+  count         = 2
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "m5.2xlarge"
+}
+
+resource "aws_db_instance" "primary" {
+  instance_class    = "db.r6g.xlarge"
+  engine            = "postgres"
+  allocated_storage = 200
+}
+
+resource "aws_ebs_volume" "data" {
+  count = 5
+  size  = 500
+  type  = "gp3"
+}
+
+resource "aws_s3_bucket" "assets" {}
+
+resource "aws_lb" "main" {
+  load_balancer_type = "application"
+}
+
+resource "aws_nat_gateway" "main" {}
+
+resource "aws_eks_cluster" "main" {
+  name = "prod"
+}
+```
+
+Running `compare_providers` against that config produces:
 
 ```
 | Category        | AWS (USD/mo) | Azure (USD/mo) | GCP (USD/mo) |
