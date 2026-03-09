@@ -14,6 +14,10 @@
 </p>
 
 <p align="center">
+  <img src="https://github.com/user-attachments/assets/008c61fa-0562-4c0c-8840-8bb8f372511e" alt="CloudCost MCP demo" width="700" />
+</p>
+
+<p align="center">
   <a href="#installation">Installation</a> &nbsp;&bull;&nbsp;
   <a href="#tools">Tools</a> &nbsp;&bull;&nbsp;
   <a href="#how-pricing-works">Pricing</a> &nbsp;&bull;&nbsp;
