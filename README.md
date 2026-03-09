@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/008c61fa-0562-4c0c-8840-8bb8f372511e" alt="CloudCost MCP demo" width="700" />
+![cloudcost-demo](https://github.com/user-attachments/assets/7d5f613a-851e-4480-900f-438d13f9a56e)
 </p>
 
 <p align="center">
