@@ -1,6 +1,6 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "MCP server for multi-cloud cost analysis of Terraform codebases",
   "type": "module",
   "license": "MIT",
