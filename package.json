@@ -1,17 +1,17 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "MCP server for multi-cloud cost analysis of Terraform codebases",
   "type": "module",
   "license": "MIT",
   "author": "Jaden Razo",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jadenrazo/CloudCostMCP.git"
+    "url": "git+https://github.com/JadenRazo/CloudCostMCP.git"
   },
-  "homepage": "https://github.com/jadenrazo/CloudCostMCP#readme",
+  "homepage": "https://github.com/JadenRazo/CloudCostMCP#readme",
   "bugs": {
-    "url": "https://github.com/jadenrazo/CloudCostMCP/issues"
+    "url": "https://github.com/JadenRazo/CloudCostMCP/issues"
   },
   "keywords": [
     "mcp",
