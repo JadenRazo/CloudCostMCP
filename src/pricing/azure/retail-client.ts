@@ -169,7 +169,7 @@ export class AzureRetailClient {
         return result;
       }
     } catch (err) {
-      logger.debug("Azure Retail API VM fetch failed, using fallback", {
+      logger.warn("Azure Retail API VM fetch failed, using fallback", {
         region,
         vmSize,
         err: err instanceof Error ? err.message : String(err),
@@ -190,18 +190,21 @@ export class AzureRetailClient {
 
     try {
       const armRegion = region.toLowerCase().replace(/\s+/g, "");
-      // Azure DB service names vary: "Azure Database for PostgreSQL", etc.
       const serviceName = `Azure Database for ${engine}`;
-      const filter = this.buildODataFilter(serviceName, armRegion, tier);
-      const items = await this.queryPricing(filter);
+      const result = await this.queryDatabasePrice(tier, armRegion, serviceName);
 
-      if (items.length > 0) {
-        const result = normalizeAzureDatabase(items[0]);
+      if (result) {
         this.cache.set(cacheKey, result, "azure", "db", region, CACHE_TTL);
         return result;
       }
+
+      logger.warn("Azure Retail API returned no matching DB pricing", {
+        region,
+        tier,
+        engine,
+      });
     } catch (err) {
-      logger.debug("Azure Retail API DB fetch failed, using fallback", {
+      logger.warn("Azure Retail API DB fetch failed, using fallback", {
         region,
         tier,
         err: err instanceof Error ? err.message : String(err),
@@ -209,6 +212,87 @@ export class AzureRetailClient {
     }
 
     return this.fallbackDatabasePrice(tier, region, engine, cacheKey);
+  }
+
+  /**
+   * Azure DB flexible server tier names follow the pattern:
+   *   GP_Standard_D2s_v3  →  General Purpose, D-series, 2 vCPUs, v3
+   *   MO_Standard_E4ds_v5 →  Memory Optimized, E-series, 4 vCPUs, v5
+   *
+   * The Retail API prices DB compute in two ways:
+   *   1. Per-instance entries with armSkuName like "Standard_D2ds_v5" (total price)
+   *   2. Per-vCore entries for a series (e.g., Dsv3Series_Compute) × vCPU count
+   *
+   * This method tries approach 1 first, then falls back to approach 2.
+   */
+  private async queryDatabasePrice(
+    tier: string,
+    armRegion: string,
+    serviceName: string
+  ): Promise<NormalizedPrice | null> {
+    // Strip service tier prefix: GP_Standard_D2s_v3 → Standard_D2s_v3
+    const vmName = tier.replace(/^(GP|MO|BC|GEN)_/i, "");
+
+    // Approach 1: exact armSkuName match (works for newer v5 entries)
+    const exactFilter =
+      `serviceName eq '${serviceName}' and armRegionName eq '${armRegion}'` +
+      ` and priceType eq 'Consumption' and armSkuName eq '${vmName}'`;
+    const exactItems = await this.queryPricing(exactFilter);
+    if (exactItems.length > 0) {
+      // Pick a per-hour compute entry (not storage)
+      const match = exactItems.find(
+        (i: any) => (i.meterName ?? "").toLowerCase().includes("vcore")
+      ) ?? exactItems[0];
+      return normalizeAzureDatabase(match);
+    }
+
+    // Approach 2: per-vCore series lookup
+    // Extract vCPU count and series from VM name: Standard_D2s_v3 → { family: D, count: 2, series: Dsv3 }
+    const parsed = this.parseVmSeries(vmName);
+    if (!parsed) return null;
+
+    const tierPrefix = tier.match(/^(GP|MO|BC|GEN)_/i)?.[1]?.toUpperCase();
+    const seriesFamily = tierPrefix === "MO" ? "Memory_Optimized" : "General_Purpose";
+
+    // Search by series pattern in armSkuName
+    const seriesFilter =
+      `serviceName eq '${serviceName}' and armRegionName eq '${armRegion}'` +
+      ` and priceType eq 'Consumption' and contains(armSkuName, '${seriesFamily}')` +
+      ` and contains(armSkuName, '${parsed.series}')`;
+    const seriesItems = await this.queryPricing(seriesFilter);
+
+    if (seriesItems.length > 0) {
+      // These are per-vCore prices — multiply by vCPU count
+      const perVcore = seriesItems[0].retailPrice ?? 0;
+      const totalPrice = perVcore * parsed.vcpus;
+      const adjusted = { ...seriesItems[0], retailPrice: totalPrice };
+      return normalizeAzureDatabase(adjusted);
+    }
+
+    return null;
+  }
+
+  /**
+   * Parse a VM name like "Standard_D2s_v3" into series info.
+   * Returns { series: "Dsv3", vcpus: 2 } or null if unparseable.
+   */
+  private parseVmSeries(
+    vmName: string
+  ): { series: string; vcpus: number } | null {
+    // Match patterns like Standard_D2s_v3, Standard_E4ds_v5, Standard_D16ads_v5
+    const match = vmName.match(
+      /Standard_([A-Z])(\d+)([a-z]*)_v(\d+)/i
+    );
+    if (!match) return null;
+
+    const [, family, vcpuStr, variant, version] = match;
+    const vcpus = parseInt(vcpuStr, 10);
+    if (isNaN(vcpus) || vcpus === 0) return null;
+
+    // Build series name: D + variant-without-count + v + version
+    // e.g., D2s_v3 → Dsv3, E4ds_v5 → Edsv5
+    const series = `${family}${variant}v${version}`;
+    return { series, vcpus };
   }
 
   async getStoragePrice(
@@ -229,8 +313,13 @@ export class AzureRetailClient {
         this.cache.set(cacheKey, result, "azure", "storage", region, CACHE_TTL);
         return result;
       }
+
+      logger.warn("Azure Retail API returned no matching storage pricing", {
+        region,
+        diskType,
+      });
     } catch (err) {
-      logger.debug("Azure Retail API storage fetch failed, using fallback", {
+      logger.warn("Azure Retail API storage fetch failed, using fallback", {
         region,
         diskType,
         err: err instanceof Error ? err.message : String(err),

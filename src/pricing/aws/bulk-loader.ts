@@ -283,7 +283,7 @@ export class AwsBulkLoader {
         if (afterCsv) return afterCsv;
       }
     } catch (err) {
-      logger.debug("AWS EC2 CSV streaming failed", {
+      logger.warn("AWS EC2 CSV streaming failed", {
         region,
         instanceType,
         err: err instanceof Error ? err.message : String(err),
@@ -301,7 +301,7 @@ export class AwsBulkLoader {
         }
       }
     } catch (err) {
-      logger.debug("AWS bulk EC2 JSON fetch failed, using fallback", {
+      logger.warn("AWS bulk EC2 JSON fetch failed, using fallback", {
         region,
         instanceType,
         err: err instanceof Error ? err.message : String(err),
@@ -331,7 +331,7 @@ export class AwsBulkLoader {
         }
       }
     } catch (err) {
-      logger.debug("AWS bulk RDS fetch failed, using fallback", {
+      logger.warn("AWS bulk RDS fetch failed, using fallback", {
         region,
         instanceClass,
         err: err instanceof Error ? err.message : String(err),
@@ -359,7 +359,7 @@ export class AwsBulkLoader {
         }
       }
     } catch (err) {
-      logger.debug("AWS bulk EBS fetch failed, using fallback", {
+      logger.warn("AWS bulk EBS fetch failed, using fallback", {
         region,
         volumeType,
         err: err instanceof Error ? err.message : String(err),

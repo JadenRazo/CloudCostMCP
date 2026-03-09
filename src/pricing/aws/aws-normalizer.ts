@@ -6,6 +6,11 @@ import type { NormalizedPrice } from "../../types/pricing.js";
  * AWS bulk JSON has the shape:
  *   products[sku].attributes  – metadata about the SKU
  *   terms.OnDemand[sku][offerTermCode].priceDimensions[rateCode]  – price info
+ *
+ * The callers wrap the terms as { terms: { OnDemand: { [sku]: termsForSku } } }
+ * so Object.values(OnDemand) yields [ termsForSku ], and each termsForSku is
+ * itself a map of offerTermCode → { priceDimensions }.  We must iterate both
+ * levels to reach the actual priceDimensions.
  */
 
 function extractUsdPrice(priceDimensions: Record<string, any>): number {
@@ -26,6 +31,38 @@ function extractUnit(priceDimensions: Record<string, any>): string {
   return "Hrs";
 }
 
+/**
+ * Walk the nested OnDemand terms structure and extract the first price + unit.
+ *
+ * Structure: { [sku]: { [offerTermCode]: { priceDimensions: { [rateCode]: ... } } } }
+ */
+function extractFromTerms(
+  onDemandTerms: Record<string, any>,
+  defaultUnit: string
+): { price: number; unit: string } {
+  for (const skuTerms of Object.values(onDemandTerms)) {
+    // skuTerms = { "SKU.TERMCODE": { priceDimensions: { ... } } }
+    // If priceDimensions exists directly (single-level), use it.
+    if (skuTerms?.priceDimensions) {
+      return {
+        price: extractUsdPrice(skuTerms.priceDimensions),
+        unit: extractUnit(skuTerms.priceDimensions),
+      };
+    }
+    // Otherwise iterate the nested offerTermCode level.
+    for (const offerTerm of Object.values(skuTerms ?? {})) {
+      const dims = (offerTerm as any)?.priceDimensions;
+      if (dims) {
+        return {
+          price: extractUsdPrice(dims),
+          unit: extractUnit(dims),
+        };
+      }
+    }
+  }
+  return { price: 0, unit: defaultUnit };
+}
+
 export function normalizeAwsCompute(
   rawProduct: any,
   rawPrice: any,
@@ -33,15 +70,7 @@ export function normalizeAwsCompute(
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
-  let price = 0;
-  let unit = "Hrs";
-
-  for (const term of Object.values(terms)) {
-    const dims = (term as any)?.priceDimensions ?? {};
-    price = extractUsdPrice(dims);
-    unit = extractUnit(dims);
-    break; // take the first on-demand term
-  }
+  const { price, unit } = extractFromTerms(terms, "Hrs");
 
   return {
     provider: "aws",
@@ -60,6 +89,7 @@ export function normalizeAwsCompute(
       memory: attrs.memory ?? "",
       operating_system: attrs.operatingSystem ?? "Linux",
       tenancy: attrs.tenancy ?? "Shared",
+      pricing_source: "live",
     },
     effective_date: new Date().toISOString(),
   };
@@ -72,15 +102,7 @@ export function normalizeAwsDatabase(
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
-  let price = 0;
-  let unit = "Hrs";
-
-  for (const term of Object.values(terms)) {
-    const dims = (term as any)?.priceDimensions ?? {};
-    price = extractUsdPrice(dims);
-    unit = extractUnit(dims);
-    break;
-  }
+  const { price, unit } = extractFromTerms(terms, "Hrs");
 
   return {
     provider: "aws",
@@ -99,6 +121,7 @@ export function normalizeAwsDatabase(
       deployment_option: attrs.deploymentOption ?? "Single-AZ",
       vcpu: attrs.vcpu ?? "",
       memory: attrs.memory ?? "",
+      pricing_source: "live",
     },
     effective_date: new Date().toISOString(),
   };
@@ -111,15 +134,7 @@ export function normalizeAwsStorage(
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
-  let price = 0;
-  let unit = "GB-Mo";
-
-  for (const term of Object.values(terms)) {
-    const dims = (term as any)?.priceDimensions ?? {};
-    price = extractUsdPrice(dims);
-    unit = extractUnit(dims);
-    break;
-  }
+  const { price, unit } = extractFromTerms(terms, "GB-Mo");
 
   const volumeType = attrs.volumeApiName ?? attrs.volumeType ?? "gp3";
 
@@ -136,6 +151,7 @@ export function normalizeAwsStorage(
       volume_type: volumeType,
       max_iops: attrs.maxIopsvolume ?? "",
       max_throughput: attrs.maxThroughputvolume ?? "",
+      pricing_source: "live",
     },
     effective_date: new Date().toISOString(),
   };
