@@ -1,0 +1,64 @@
+{
+  "name": "cloudcost-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for multi-cloud cost analysis of Terraform codebases",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jaden Razo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jadenrazo/CloudCostMCP.git"
+  },
+  "homepage": "https://github.com/jadenrazo/CloudCostMCP#readme",
+  "bugs": {
+    "url": "https://github.com/jadenrazo/CloudCostMCP/issues"
+  },
+  "keywords": [
+    "mcp",
+    "terraform",
+    "cloud-cost",
+    "aws",
+    "azure",
+    "gcp",
+    "cost-estimation",
+    "infrastructure"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "data",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cloudcost-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.4",
+    "better-sqlite3": "^11.9.1",
+    "@cdktf/hcl2json": "^0.21.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "tsup": "^8.4.0",
+    "vitest": "^3.1.1",
+    "tsx": "^4.19.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.14.0"
+  }
+}

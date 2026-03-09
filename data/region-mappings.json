@@ -1,0 +1,21 @@
+[
+  { "aws": "us-east-1", "azure": "eastus", "gcp": "us-east1", "display_name": "US East (Virginia)" },
+  { "aws": "us-east-2", "azure": "eastus2", "gcp": "us-east4", "display_name": "US East (Ohio)" },
+  { "aws": "us-west-1", "azure": "westus", "gcp": "us-west1", "display_name": "US West (N. California)" },
+  { "aws": "us-west-2", "azure": "westus2", "gcp": "us-west1", "display_name": "US West (Oregon)" },
+  { "aws": "eu-west-1", "azure": "northeurope", "gcp": "europe-west1", "display_name": "Europe (Ireland)" },
+  { "aws": "eu-west-2", "azure": "uksouth", "gcp": "europe-west2", "display_name": "Europe (London)" },
+  { "aws": "eu-central-1", "azure": "germanywestcentral", "gcp": "europe-west3", "display_name": "Europe (Frankfurt)" },
+  { "aws": "ap-southeast-1", "azure": "southeastasia", "gcp": "asia-southeast1", "display_name": "Asia Pacific (Singapore)" },
+  { "aws": "ap-northeast-1", "azure": "japaneast", "gcp": "asia-northeast1", "display_name": "Asia Pacific (Tokyo)" },
+  { "aws": "ap-south-1", "azure": "centralindia", "gcp": "asia-south1", "display_name": "Asia Pacific (Mumbai)" },
+  { "aws": "sa-east-1", "azure": "brazilsouth", "gcp": "southamerica-east1", "display_name": "South America (São Paulo)" },
+  { "aws": "ca-central-1", "azure": "canadacentral", "gcp": "northamerica-northeast1", "display_name": "Canada (Central)" },
+  { "aws": "ap-southeast-2", "azure": "australiaeast", "gcp": "australia-southeast1", "display_name": "Asia Pacific (Sydney)" },
+  { "aws": "eu-north-1", "azure": "swedencentral", "gcp": "europe-north1", "display_name": "Europe (Stockholm)" },
+  { "aws": "ap-northeast-2", "azure": "koreacentral", "gcp": "asia-northeast3", "display_name": "Asia Pacific (Seoul)" },
+  { "aws": "me-south-1", "azure": "uaenorth", "gcp": "me-west1", "display_name": "Middle East (Bahrain)" },
+  { "aws": "af-south-1", "azure": "southafricanorth", "gcp": "africa-south1", "display_name": "Africa (Cape Town)" },
+  { "aws": "eu-south-1", "azure": "italynorth", "gcp": "europe-west8", "display_name": "Europe (Milan)" },
+  { "aws": "ap-east-1", "azure": "eastasia", "gcp": "asia-east2", "display_name": "Asia Pacific (Hong Kong)" }
+]
