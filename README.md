@@ -9,7 +9,7 @@
 
 <p align="center">
 
-![CI](https://github.com/jadenrazo/CloudCostMCP/actions/workflows/ci.yml/badge.svg) [![npm version](https://img.shields.io/npm/v/cloudcost-mcp.svg)](https://www.npmjs.com/package/cloudcost-mcp) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+![CI](https://github.com/jadenrazo/CloudCostMCP/actions/workflows/ci.yml/badge.svg) [![npm version](https://img.shields.io/npm/v/@jadenrazo/cloudcost-mcp.svg)](https://www.npmjs.com/package/@jadenrazo/cloudcost-mcp) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
 
 </p>
 
@@ -51,7 +51,7 @@ npm run build
 Or install from npm:
 
 ```bash
-npm install -g cloudcost-mcp
+npm install -g @jadenrazo/cloudcost-mcp
 ```
 
 ### Claude Desktop
