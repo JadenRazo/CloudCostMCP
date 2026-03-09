@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen" alt="Node.js" />
 </p>
 
-<p align="center">
+<p align="right">
   <img src="https://github.com/user-attachments/assets/7d5f613a-851e-4480-900f-438d13f9a56e" alt="CloudCost MCP demo" width="700" />
 </p>
 
