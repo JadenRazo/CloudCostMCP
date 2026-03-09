@@ -324,10 +324,10 @@ Configuration priority: environment variables > config file > built-in defaults.
                                        │
               ┌────────────────────────┼───────────────────────┐
               │                        │                       │
-    ┌─────────▼─────────┐   ┌─────────▼─────────┐    ┌─────────▼─────────┐
-    │   Tool Handlers   │   │   HCL Parsers     │    │   Cost Engine     │
-    │ (src/tools/*.ts)  │   │  (src/parsers/)   │    │ (src/calculator/) │
-    └─────────┬─────────┘   └───────────────────┘    └─────────┬─────────┘
+    ┌─────────▼─────────┐    ┌─────────▼─────────┐   ┌─────────▼─────────┐
+    │   Tool Handlers   │    │   HCL Parsers     │   │   Cost Engine     │
+    │ (src/tools/*.ts)  │    │  (src/parsers/)   │   │ (src/calculator/) │
+    └─────────┬─────────┘    └───────────────────┘   └─────────┬─────────┘
               │                                                │
     ┌─────────▼────────────────────────────────────────────────▼─────────┐
     │                       PricingEngine (router)                       │
