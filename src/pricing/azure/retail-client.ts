@@ -6,6 +6,7 @@ import {
   normalizeAzureDatabase,
   normalizeAzureStorage,
 } from "./azure-normalizer.js";
+import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
 
 // ---------------------------------------------------------------------------
 // Fallback pricing data (approximate eastus on-demand prices, 2024)
@@ -399,9 +400,14 @@ export class AzureRetailClient {
 
     let pages = 0;
     while (url && pages < 10) {
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(30_000),
-      });
+      // Use circuit breaker to fast-fail when the endpoint is repeatedly
+      // unavailable. Retry once on transient errors but avoid excessive
+      // latency since callers already have static fallback pricing.
+      const res = await fetchWithRetryAndCircuitBreaker(
+        url,
+        { signal: AbortSignal.timeout(30_000) },
+        { maxRetries: 1, baseDelay: 500, maxDelay: 2_000 }
+      );
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status} from Azure Retail API`);

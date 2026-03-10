@@ -6,6 +6,7 @@ import {
   normalizeAwsDatabase,
   normalizeAwsStorage,
 } from "./aws-normalizer.js";
+import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
 
 // ---------------------------------------------------------------------------
 // CSV parsing helper
@@ -462,7 +463,11 @@ export class AwsBulkLoader {
     const timeoutId = setTimeout(() => controller.abort(), 120_000);
 
     try {
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await fetchWithRetryAndCircuitBreaker(url, { signal: controller.signal }, {
+        maxRetries: 1,
+        baseDelay: 500,
+        maxDelay: 2_000,
+      });
       if (!res.ok) {
         logger.debug("AWS EC2 CSV fetch returned non-OK status", {
           region,
@@ -680,9 +685,12 @@ export class AwsBulkLoader {
     const url = `${BULK_PRICING_BASE}/${service}/current/${region}/index.json`;
     logger.debug("Fetching AWS bulk pricing", { url });
 
-    const res = await fetch(url, {
+    // Use circuit breaker but no retry here — the caller already has a
+    // fallback chain (CSV → JSON → hardcoded). Retrying the JSON bulk fetch
+    // would add excessive latency when the live API is unavailable.
+    const res = await fetchWithRetryAndCircuitBreaker(url, {
       signal: AbortSignal.timeout(30_000),
-    });
+    }, { maxRetries: 0 });
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} from ${url}`);
