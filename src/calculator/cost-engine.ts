@@ -7,6 +7,30 @@ import { calculateDatabaseCost } from "./database.js";
 import { calculateStorageCost } from "./storage.js";
 import { calculateNatGatewayCost, calculateLoadBalancerCost } from "./network.js";
 import { calculateKubernetesCost } from "./kubernetes.js";
+import {
+  calculateLambdaCost,
+  calculateDynamoDbCost,
+  calculateSqsCost,
+} from "./serverless.js";
+import {
+  calculateElastiCacheCost,
+  calculateAzureRedisCacheCost,
+  calculateGcpRedisCost,
+  calculateCloudFrontCost,
+} from "./cache.js";
+import {
+  calculateAppServicePlanCost,
+  calculateCosmosDbCost,
+  calculateAzureFunctionCost,
+  calculateCloudRunCost,
+  calculateBigQueryCost,
+  calculateGcpFunctionCost,
+} from "./paas.js";
+import {
+  calculateAwsDataTransferCost,
+  calculateAzureDataTransferCost,
+  calculateGcpDataTransferCost,
+} from "./data-transfer.js";
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +90,81 @@ const KUBERNETES_TYPES = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
+// New resource type sets
+// ---------------------------------------------------------------------------
+
+const SERVERLESS_LAMBDA_TYPES = new Set([
+  "aws_lambda_function",
+]);
+
+const SERVERLESS_DYNAMODB_TYPES = new Set([
+  "aws_dynamodb_table",
+]);
+
+const SERVERLESS_SQS_TYPES = new Set([
+  "aws_sqs_queue",
+]);
+
+const ELASTICACHE_TYPES = new Set([
+  "aws_elasticache_cluster",
+  "aws_elasticache_replication_group",
+]);
+
+const AZURE_REDIS_TYPES = new Set([
+  "azurerm_redis_cache",
+]);
+
+const GCP_REDIS_TYPES = new Set([
+  "google_redis_instance",
+]);
+
+const CLOUDFRONT_TYPES = new Set([
+  "aws_cloudfront_distribution",
+]);
+
+const AZURE_APP_SERVICE_TYPES = new Set([
+  "azurerm_app_service_plan",
+]);
+
+const AZURE_COSMOS_TYPES = new Set([
+  "azurerm_cosmosdb_account",
+]);
+
+const AZURE_FUNCTION_TYPES = new Set([
+  "azurerm_function_app",
+  "azurerm_linux_function_app",
+  "azurerm_windows_function_app",
+]);
+
+const CLOUD_RUN_TYPES = new Set([
+  "google_cloud_run_service",
+  "google_cloud_run_v2_service",
+]);
+
+const BIGQUERY_TYPES = new Set([
+  "google_bigquery_dataset",
+  "google_bigquery_table",
+]);
+
+const GCP_FUNCTION_TYPES = new Set([
+  "google_cloudfunctions_function",
+  "google_cloudfunctions2_function",
+]);
+
+const AWS_DATA_TRANSFER_TYPES = new Set([
+  "aws_vpc_ipv4_cidr_block_association",
+  "aws_data_transfer",
+]);
+
+const AZURE_DATA_TRANSFER_TYPES = new Set([
+  "azurerm_data_transfer",
+]);
+
+const GCP_DATA_TRANSFER_TYPES = new Set([
+  "google_data_transfer",
+]);
+
+// ---------------------------------------------------------------------------
 // Service label helper (for by_service aggregation)
 // ---------------------------------------------------------------------------
 
@@ -77,6 +176,22 @@ function serviceLabel(resourceType: string): string {
   if (NAT_GATEWAY_TYPES.has(resourceType)) return "network";
   if (LOAD_BALANCER_TYPES.has(resourceType)) return "network";
   if (KUBERNETES_TYPES.has(resourceType)) return "kubernetes";
+  if (SERVERLESS_LAMBDA_TYPES.has(resourceType)) return "serverless";
+  if (SERVERLESS_DYNAMODB_TYPES.has(resourceType)) return "serverless";
+  if (SERVERLESS_SQS_TYPES.has(resourceType)) return "serverless";
+  if (ELASTICACHE_TYPES.has(resourceType)) return "cache";
+  if (AZURE_REDIS_TYPES.has(resourceType)) return "cache";
+  if (GCP_REDIS_TYPES.has(resourceType)) return "cache";
+  if (CLOUDFRONT_TYPES.has(resourceType)) return "cdn";
+  if (AZURE_APP_SERVICE_TYPES.has(resourceType)) return "paas";
+  if (AZURE_COSMOS_TYPES.has(resourceType)) return "database";
+  if (AZURE_FUNCTION_TYPES.has(resourceType)) return "serverless";
+  if (CLOUD_RUN_TYPES.has(resourceType)) return "serverless";
+  if (BIGQUERY_TYPES.has(resourceType)) return "analytics";
+  if (GCP_FUNCTION_TYPES.has(resourceType)) return "serverless";
+  if (AWS_DATA_TRANSFER_TYPES.has(resourceType)) return "network";
+  if (AZURE_DATA_TRANSFER_TYPES.has(resourceType)) return "network";
+  if (GCP_DATA_TRANSFER_TYPES.has(resourceType)) return "network";
   return "other";
 }
 
@@ -174,6 +289,86 @@ export class CostEngine {
         this.pricingEngine,
         this.monthlyHours
       );
+    }
+
+    // ------------------------------------------------------------------
+    // Serverless
+    // ------------------------------------------------------------------
+
+    if (SERVERLESS_LAMBDA_TYPES.has(type)) {
+      return calculateLambdaCost(resource, targetProvider, targetRegion);
+    }
+
+    if (SERVERLESS_DYNAMODB_TYPES.has(type)) {
+      return calculateDynamoDbCost(resource, targetProvider, targetRegion);
+    }
+
+    if (SERVERLESS_SQS_TYPES.has(type)) {
+      return calculateSqsCost(resource, targetProvider, targetRegion);
+    }
+
+    // ------------------------------------------------------------------
+    // Cache / CDN
+    // ------------------------------------------------------------------
+
+    if (ELASTICACHE_TYPES.has(type)) {
+      return calculateElastiCacheCost(resource, targetProvider, targetRegion);
+    }
+
+    if (AZURE_REDIS_TYPES.has(type)) {
+      return calculateAzureRedisCacheCost(resource, targetProvider, targetRegion);
+    }
+
+    if (GCP_REDIS_TYPES.has(type)) {
+      return calculateGcpRedisCost(resource, targetProvider, targetRegion);
+    }
+
+    if (CLOUDFRONT_TYPES.has(type)) {
+      return calculateCloudFrontCost(resource, targetProvider, targetRegion);
+    }
+
+    // ------------------------------------------------------------------
+    // PaaS / Analytics
+    // ------------------------------------------------------------------
+
+    if (AZURE_APP_SERVICE_TYPES.has(type)) {
+      return calculateAppServicePlanCost(resource, targetProvider, targetRegion);
+    }
+
+    if (AZURE_COSMOS_TYPES.has(type)) {
+      return calculateCosmosDbCost(resource, targetProvider, targetRegion);
+    }
+
+    if (AZURE_FUNCTION_TYPES.has(type)) {
+      return calculateAzureFunctionCost(resource, targetProvider, targetRegion);
+    }
+
+    if (CLOUD_RUN_TYPES.has(type)) {
+      return calculateCloudRunCost(resource, targetProvider, targetRegion);
+    }
+
+    if (BIGQUERY_TYPES.has(type)) {
+      return calculateBigQueryCost(resource, targetProvider, targetRegion);
+    }
+
+    if (GCP_FUNCTION_TYPES.has(type)) {
+      return calculateGcpFunctionCost(resource, targetProvider, targetRegion);
+    }
+
+    // ------------------------------------------------------------------
+    // Data transfer
+    // ------------------------------------------------------------------
+
+    if (AWS_DATA_TRANSFER_TYPES.has(type)) {
+      return calculateAwsDataTransferCost(resource, targetProvider, targetRegion);
+    }
+
+    if (AZURE_DATA_TRANSFER_TYPES.has(type)) {
+      return calculateAzureDataTransferCost(resource, targetProvider, targetRegion);
+    }
+
+    if (GCP_DATA_TRANSFER_TYPES.has(type)) {
+      return calculateGcpDataTransferCost(resource, targetProvider, targetRegion);
     }
 
     // Unsupported resource type – return a zero-cost estimate so callers can
