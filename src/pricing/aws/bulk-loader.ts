@@ -714,7 +714,10 @@ export class AwsBulkLoader {
     const products: Record<string, any> = bulk?.products ?? {};
     const onDemand: Record<string, any> = bulk?.terms?.OnDemand ?? {};
 
-    for (const [sku, product] of Object.entries(products)) {
+    // Sort by SKU for deterministic selection when multiple entries match
+    const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
+
+    for (const [sku, product] of sortedEntries) {
       const attrs = product?.attributes ?? {};
       if (
         attrs.instanceType === instanceType &&
@@ -740,7 +743,10 @@ export class AwsBulkLoader {
     const products: Record<string, any> = bulk?.products ?? {};
     const onDemand: Record<string, any> = bulk?.terms?.OnDemand ?? {};
 
-    for (const [sku, product] of Object.entries(products)) {
+    // Sort by SKU for deterministic selection when multiple entries match
+    const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
+
+    for (const [sku, product] of sortedEntries) {
       const attrs = product?.attributes ?? {};
       if (
         attrs.instanceType === instanceClass &&
@@ -764,7 +770,10 @@ export class AwsBulkLoader {
     const products: Record<string, any> = bulk?.products ?? {};
     const onDemand: Record<string, any> = bulk?.terms?.OnDemand ?? {};
 
-    for (const [sku, product] of Object.entries(products)) {
+    // Sort by SKU for deterministic selection when multiple entries match
+    const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
+
+    for (const [sku, product] of sortedEntries) {
       const attrs = product?.attributes ?? {};
       const apiName = (attrs.volumeApiName ?? "").toLowerCase();
       if (
