@@ -42,25 +42,33 @@ export class PricingCache {
    * table self-trims on read.
    */
   get<T>(key: string): T | null {
-    const row = this.db
-      .prepare<[string], CacheEntry>(
-        "SELECT * FROM pricing_cache WHERE key = ?"
-      )
-      .get(key);
+    try {
+      const row = this.db
+        .prepare<[string], CacheEntry>(
+          "SELECT * FROM pricing_cache WHERE key = ?"
+        )
+        .get(key);
 
-    if (!row) return null;
+      if (!row) return null;
 
-    const now = new Date().toISOString();
-    if (row.expires_at <= now) {
-      this.db
-        .prepare("DELETE FROM pricing_cache WHERE key = ?")
-        .run(key);
-      logger.debug("Cache miss (expired)", { key });
+      const now = new Date().toISOString();
+      if (row.expires_at <= now) {
+        this.db
+          .prepare("DELETE FROM pricing_cache WHERE key = ?")
+          .run(key);
+        logger.debug("Cache miss (expired)", { key });
+        return null;
+      }
+
+      logger.debug("Cache hit", { key });
+      return JSON.parse(row.data) as T;
+    } catch (err) {
+      logger.warn("Cache get failed, treating as miss", {
+        key,
+        err: err instanceof Error ? err.message : String(err),
+      });
       return null;
     }
-
-    logger.debug("Cache hit", { key });
-    return JSON.parse(row.data) as T;
   }
 
   /**
@@ -81,12 +89,13 @@ export class PricingCache {
     region: string,
     ttlSeconds: number
   ): void {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
+    try {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
 
-    this.db
-      .prepare(
-        `INSERT INTO pricing_cache (key, data, provider, service, region, created_at, expires_at)
+      this.db
+        .prepare(
+          `INSERT INTO pricing_cache (key, data, provider, service, region, created_at, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (key) DO UPDATE SET
            data       = excluded.data,
@@ -95,37 +104,57 @@ export class PricingCache {
            region     = excluded.region,
            created_at = excluded.created_at,
            expires_at = excluded.expires_at`
-      )
-      .run(
-        key,
-        JSON.stringify(data),
-        provider,
-        service,
-        region,
-        now.toISOString(),
-        expiresAt.toISOString()
-      );
+        )
+        .run(
+          key,
+          JSON.stringify(data),
+          provider,
+          service,
+          region,
+          now.toISOString(),
+          expiresAt.toISOString()
+        );
 
-    logger.debug("Cache set", { key, ttlSeconds });
+      logger.debug("Cache set", { key, ttlSeconds });
+    } catch (err) {
+      logger.warn("Cache set failed, continuing without caching", {
+        key,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   /** Remove a single cache entry. */
   invalidate(key: string): void {
-    const result = this.db
-      .prepare("DELETE FROM pricing_cache WHERE key = ?")
-      .run(key);
-    logger.debug("Cache invalidated", { key, removed: result.changes });
+    try {
+      const result = this.db
+        .prepare("DELETE FROM pricing_cache WHERE key = ?")
+        .run(key);
+      logger.debug("Cache invalidated", { key, removed: result.changes });
+    } catch (err) {
+      logger.warn("Cache invalidate failed", {
+        key,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   /** Remove every cache entry belonging to a provider. */
   invalidateByProvider(provider: string): void {
-    const result = this.db
-      .prepare("DELETE FROM pricing_cache WHERE provider = ?")
-      .run(provider);
-    logger.debug("Cache invalidated by provider", {
-      provider,
-      removed: result.changes,
-    });
+    try {
+      const result = this.db
+        .prepare("DELETE FROM pricing_cache WHERE provider = ?")
+        .run(provider);
+      logger.debug("Cache invalidated by provider", {
+        provider,
+        removed: result.changes,
+      });
+    } catch (err) {
+      logger.warn("Cache invalidateByProvider failed", {
+        provider,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   /**
@@ -133,39 +162,53 @@ export class PricingCache {
    * Returns the number of rows removed.
    */
   cleanup(): number {
-    const now = new Date().toISOString();
-    const result = this.db
-      .prepare("DELETE FROM pricing_cache WHERE expires_at <= ?")
-      .run(now);
-    const removed = result.changes;
-    logger.debug("Cache cleanup complete", { removed });
-    return removed;
+    try {
+      const now = new Date().toISOString();
+      const result = this.db
+        .prepare("DELETE FROM pricing_cache WHERE expires_at <= ?")
+        .run(now);
+      const removed = result.changes;
+      logger.debug("Cache cleanup complete", { removed });
+      return removed;
+    } catch (err) {
+      logger.warn("Cache cleanup failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    }
   }
 
   /** Return aggregate statistics about the current cache state. */
   getStats(): CacheStats {
-    const now = new Date().toISOString();
+    try {
+      const now = new Date().toISOString();
 
-    const totals = this.db
-      .prepare<[], { total_entries: number; size_bytes: number }>(
-        `SELECT
+      const totals = this.db
+        .prepare<[], { total_entries: number; size_bytes: number }>(
+          `SELECT
            COUNT(*)                        AS total_entries,
            COALESCE(SUM(LENGTH(data)), 0)  AS size_bytes
          FROM pricing_cache`
-      )
-      .get()!;
+        )
+        .get()!;
 
-    const expired = this.db
-      .prepare<[string], { expired_entries: number }>(
-        "SELECT COUNT(*) AS expired_entries FROM pricing_cache WHERE expires_at <= ?"
-      )
-      .get(now)!;
+      const expired = this.db
+        .prepare<[string], { expired_entries: number }>(
+          "SELECT COUNT(*) AS expired_entries FROM pricing_cache WHERE expires_at <= ?"
+        )
+        .get(now)!;
 
-    return {
-      total_entries: totals.total_entries,
-      expired_entries: expired.expired_entries,
-      size_bytes: totals.size_bytes,
-    };
+      return {
+        total_entries: totals.total_entries,
+        expired_entries: expired.expired_entries,
+        size_bytes: totals.size_bytes,
+      };
+    } catch (err) {
+      logger.warn("Cache getStats failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return { total_entries: 0, expired_entries: 0, size_bytes: 0 };
+    }
   }
 
   /** Close the underlying database connection. */

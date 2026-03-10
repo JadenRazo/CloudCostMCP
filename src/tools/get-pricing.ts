@@ -11,8 +11,8 @@ export const getPricingSchema = z.object({
     .enum(["aws", "azure", "gcp"])
     .describe("Cloud provider to look up pricing for"),
   service: z
-    .enum(["compute", "database", "storage", "network", "kubernetes"])
-    .describe("Service category"),
+    .enum(["compute", "database", "storage", "network", "load_balancer", "nat_gateway", "kubernetes"])
+    .describe("Service category (network defaults to nat_gateway for backward compatibility)"),
   resource_type: z
     .string()
     .describe(
@@ -45,6 +45,8 @@ export async function getPricing(
     database: "database",
     storage: "storage",
     network: "nat-gateway",
+    load_balancer: "load-balancer",
+    nat_gateway: "nat-gateway",
     kubernetes: "kubernetes",
   };
 
