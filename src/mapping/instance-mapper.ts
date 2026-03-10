@@ -171,7 +171,10 @@ export function findNearestInstance(
       score += SCORE_CATEGORY;
     }
 
-    if (score > bestScore) {
+    if (
+      score > bestScore ||
+      (score === bestScore && bestType !== null && candidate.instance_type < bestType)
+    ) {
       bestScore = score;
       bestType = candidate.instance_type;
     }
