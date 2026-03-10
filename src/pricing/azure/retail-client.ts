@@ -239,6 +239,8 @@ export class AzureRetailClient {
       ` and priceType eq 'Consumption' and armSkuName eq '${vmName}'`;
     const exactItems = await this.queryPricing(exactFilter);
     if (exactItems.length > 0) {
+      // Sort for deterministic selection across runs
+      exactItems.sort((a: any, b: any) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
       // Pick a per-hour compute entry (not storage)
       const match = exactItems.find(
         (i: any) => (i.meterName ?? "").toLowerCase().includes("vcore")
@@ -262,6 +264,8 @@ export class AzureRetailClient {
     const seriesItems = await this.queryPricing(seriesFilter);
 
     if (seriesItems.length > 0) {
+      // Sort for deterministic selection across runs
+      seriesItems.sort((a: any, b: any) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
       // These are per-vCore prices — multiply by vCPU count
       const perVcore = seriesItems[0].retailPrice ?? 0;
       const totalPrice = perVcore * parsed.vcpus;
@@ -309,6 +313,8 @@ export class AzureRetailClient {
       const items = await this.queryPricing(filter);
 
       if (items.length > 0) {
+        // Sort for deterministic selection across runs
+        items.sort((a: any, b: any) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
         const result = normalizeAzureStorage(items[0]);
         this.cache.set(cacheKey, result, "azure", "storage", region, CACHE_TTL);
         return result;
@@ -444,11 +450,17 @@ export class AzureRetailClient {
    */
   private pickVmItem(items: any[], vmSize: string, os: string): any | null {
     if (items.length === 0) return null;
+
+    // Sort by skuId for deterministic selection across runs
+    const sorted = [...items].sort((a, b) =>
+      (a.skuId ?? "").localeCompare(b.skuId ?? "")
+    );
+
     const vmLower = vmSize.toLowerCase();
     const isWindows = os.toLowerCase().includes("windows");
 
     // Prefer exact sku match with the right OS
-    for (const item of items) {
+    for (const item of sorted) {
       const skuLower = (item.skuName ?? "").toLowerCase();
       const hasWindows = skuLower.includes("windows");
       if (
@@ -459,8 +471,8 @@ export class AzureRetailClient {
       }
     }
 
-    // Fallback: return the first item
-    return items[0];
+    // Fallback: return the first sorted item
+    return sorted[0];
   }
 
   // -------------------------------------------------------------------------

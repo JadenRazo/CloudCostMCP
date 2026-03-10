@@ -250,7 +250,9 @@ export class CostEngine {
       total_monthly: Math.round(totalMonthly * 100) / 100,
       total_yearly: Math.round(totalMonthly * 12 * 100) / 100,
       currency: "USD",
-      by_service: byService,
+      by_service: Object.fromEntries(
+        Object.entries(byService).map(([k, v]) => [k, Math.round(v * 100) / 100])
+      ),
       by_resource: estimates,
       generated_at: new Date().toISOString(),
       warnings,
