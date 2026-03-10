@@ -22,10 +22,11 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
   const env = process.env;
 
   if (env.CLOUDCOST_CACHE_TTL || env.CLOUDCOST_CACHE_PATH) {
+    const parsedTtl = env.CLOUDCOST_CACHE_TTL
+      ? parseInt(env.CLOUDCOST_CACHE_TTL, 10)
+      : NaN;
     config.cache = {
-      ttl_seconds: env.CLOUDCOST_CACHE_TTL
-        ? parseInt(env.CLOUDCOST_CACHE_TTL, 10)
-        : DEFAULT_CONFIG.cache.ttl_seconds,
+      ttl_seconds: !isNaN(parsedTtl) ? parsedTtl : DEFAULT_CONFIG.cache.ttl_seconds,
       db_path: env.CLOUDCOST_CACHE_PATH ?? "",
     };
   }
@@ -37,9 +38,10 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
   }
 
   if (env.CLOUDCOST_MONTHLY_HOURS) {
+    const parsedHours = parseInt(env.CLOUDCOST_MONTHLY_HOURS, 10);
     config.pricing = {
       ...DEFAULT_CONFIG.pricing,
-      monthly_hours: parseInt(env.CLOUDCOST_MONTHLY_HOURS, 10),
+      monthly_hours: !isNaN(parsedHours) ? parsedHours : DEFAULT_CONFIG.pricing.monthly_hours,
     };
   }
 

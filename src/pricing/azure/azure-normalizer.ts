@@ -23,7 +23,7 @@ export function normalizeAzureCompute(item: any): NormalizedPrice {
       service_name: item.serviceName ?? "Virtual Machines",
       product_name: item.productName ?? "",
       meter_name: item.meterName ?? "",
-      pricing_source: "azure-retail-api",
+      pricing_source: "live",
     },
     effective_date: item.effectiveStartDate ?? new Date().toISOString(),
   };
@@ -44,7 +44,7 @@ export function normalizeAzureDatabase(item: any): NormalizedPrice {
       service_name: item.serviceName ?? "",
       product_name: item.productName ?? "",
       meter_name: item.meterName ?? "",
-      pricing_source: "azure-retail-api",
+      pricing_source: "live",
     },
     effective_date: item.effectiveStartDate ?? new Date().toISOString(),
   };
@@ -65,7 +65,7 @@ export function normalizeAzureStorage(item: any): NormalizedPrice {
       service_name: item.serviceName ?? "",
       product_name: item.productName ?? "",
       meter_name: item.meterName ?? "",
-      pricing_source: "azure-retail-api",
+      pricing_source: "live",
     },
     effective_date: item.effectiveStartDate ?? new Date().toISOString(),
   };

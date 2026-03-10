@@ -42,7 +42,7 @@ export interface PricingProvider {
 
   getNatGatewayPrice(region: string): Promise<NormalizedPrice | null>;
 
-  getKubernetesPrice(region: string): Promise<NormalizedPrice | null>;
+  getKubernetesPrice(region: string, mode?: string): Promise<NormalizedPrice | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,8 +191,11 @@ class GcpProvider implements PricingProvider {
     return this.loader.getNatGatewayPrice(region);
   }
 
-  getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
-    return this.loader.getKubernetesPrice(region);
+  getKubernetesPrice(region: string, mode?: string): Promise<NormalizedPrice | null> {
+    return this.loader.getKubernetesPrice(
+      region,
+      mode === "autopilot" ? "autopilot" : "standard"
+    );
   }
 }
 
@@ -316,7 +319,7 @@ export class PricingEngine {
       svc === "aks" ||
       svc === "gke"
     ) {
-      return p.getKubernetesPrice(region);
+      return p.getKubernetesPrice(region, attributes.mode);
     }
 
     logger.warn("PricingEngine: unrecognised service", { service, provider });

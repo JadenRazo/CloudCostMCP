@@ -1,8 +1,12 @@
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config.js";
 import { setLogLevel, logger } from "./logger.js";
 import { registerTools } from "./tools/index.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
 
 export async function startServer(): Promise<void> {
   const config = loadConfig();
@@ -10,7 +14,7 @@ export async function startServer(): Promise<void> {
 
   const server = new McpServer({
     name: "cloudcost-mcp",
-    version: "0.1.0",
+    version,
   });
 
   registerTools(server, config);
