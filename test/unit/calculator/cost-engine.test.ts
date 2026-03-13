@@ -264,7 +264,8 @@ describe("CostEngine", () => {
     const breakdown = await engine.calculateBreakdown(resources, "aws", "us-east-1");
 
     expect(breakdown.provider).toBe("aws");
-    expect(breakdown.by_resource).toHaveLength(3);
+    // 3 real resources + 1 synthetic data transfer line item
+    expect(breakdown.by_resource).toHaveLength(4);
     expect(breakdown.total_monthly).toBeGreaterThan(0);
     // total_yearly is rounded independently; allow up to $0.12 rounding gap.
     expect(Math.abs(breakdown.total_yearly - breakdown.total_monthly * 12)).toBeLessThan(0.12);
@@ -272,8 +273,10 @@ describe("CostEngine", () => {
     // The "compute" service bucket should include both VM estimates.
     expect(breakdown.by_service["compute"]).toBeGreaterThan(0);
     expect(breakdown.by_service["block_storage"]).toBeGreaterThan(0);
+    // Data transfer service bucket should appear.
+    expect(breakdown.by_service["data_transfer"]).toBeGreaterThan(0);
 
-    // Verify total = sum of by_resource costs.
+    // Verify total = sum of by_resource costs (including data transfer).
     const manualSum = breakdown.by_resource.reduce(
       (sum, e) => sum + e.monthly_cost,
       0
