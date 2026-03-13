@@ -9,6 +9,7 @@
  *   cloudcost estimate <path> [--provider aws|azure|gcp] [--region <region>]
  *   cloudcost compare <path> [--format markdown|json|csv]
  *   cloudcost optimize <path> [--providers aws,azure,gcp]
+ *   cloudcost what-if <path> --changes <changes.json> [--provider aws|azure|gcp] [--region <region>]
  *
  * Flags:
  *   --json        Output raw JSON instead of formatted text
@@ -25,6 +26,7 @@ import { analyzeTerraform } from "./tools/analyze-terraform.js";
 import { estimateCost } from "./tools/estimate-cost.js";
 import { compareProviders } from "./tools/compare-providers.js";
 import { optimizeCost } from "./tools/optimize-cost.js";
+import { whatIf } from "./tools/what-if.js";
 
 // ---------------------------------------------------------------------------
 // Arg parsing helpers
@@ -37,6 +39,7 @@ interface ParsedArgs {
   region: string | undefined;
   format: string;
   providers: string[];
+  changes: string | undefined;
   json: boolean;
   help: boolean;
 }
@@ -51,6 +54,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     region: undefined,
     format: "markdown",
     providers: ["aws", "azure", "gcp"],
+    changes: undefined,
     json: false,
     help: false,
   };
@@ -71,6 +75,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       parsed.format = args[++i]!;
     } else if (arg === "--providers" && args[i + 1]) {
       parsed.providers = args[++i]!.split(",").map((p) => p.trim());
+    } else if (arg === "--changes" && args[i + 1]) {
+      parsed.changes = args[++i]!;
     } else if (!arg.startsWith("--")) {
       if (!parsed.command) {
         parsed.command = arg;
@@ -173,12 +179,14 @@ Usage:
   cloudcost estimate <path> [options]            Estimate costs on a specific provider
   cloudcost compare <path> [options]             Compare costs across all providers
   cloudcost optimize <path> [options]            Show cost optimization recommendations
+  cloudcost what-if <path> --changes <file>      Simulate attribute changes and show cost impact
 
 Options:
   --provider <aws|azure|gcp>                     Target provider (default: aws)
   --region <region>                              Target region (default: auto-detect)
   --format <markdown|json|csv>                   Report format for compare (default: markdown)
   --providers <aws,azure,gcp>                    Comma-separated providers for compare/optimize
+  --changes <path>                               JSON file with changes array for what-if
   --json                                         Output raw JSON
   --help, -h                                     Show this help
 
@@ -188,6 +196,7 @@ Examples:
   cloudcost compare ./terraform --format markdown
   cloudcost optimize ./terraform --providers aws,gcp
   cloudcost estimate main.tf --provider gcp --json
+  cloudcost what-if ./terraform --changes changes.json --provider aws
 `.trimStart());
 }
 
@@ -196,7 +205,7 @@ Examples:
 // ---------------------------------------------------------------------------
 
 async function runAnalyze(args: ParsedArgs, files: TfFile[], tfvars?: string): Promise<void> {
-  const result = await analyzeTerraform({ files, tfvars });
+  const result = await analyzeTerraform({ files, tfvars, include_dependencies: false });
 
   if (args.json) {
     printJson(result);
@@ -316,6 +325,100 @@ async function runOptimize(
   }
 }
 
+async function runWhatIf(
+  args: ParsedArgs,
+  files: TfFile[],
+  tfvars: string | undefined,
+  pricingEngine: PricingEngine,
+  config: Awaited<ReturnType<typeof loadConfig>>
+): Promise<void> {
+  if (!args.changes) {
+    throw new Error(
+      'The what-if command requires --changes <path> pointing to a JSON file with a "changes" array'
+    );
+  }
+
+  const changesPath = resolve(args.changes);
+  if (!existsSync(changesPath)) {
+    throw new Error(`Changes file not found: ${changesPath}`);
+  }
+
+  let parsedChanges: unknown;
+  try {
+    parsedChanges = JSON.parse(readFileSync(changesPath, "utf-8"));
+  } catch (err) {
+    throw new Error(
+      `Failed to parse changes file "${changesPath}": ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  // Accept either a raw array or an object with a "changes" key.
+  let changesArray: unknown;
+  if (Array.isArray(parsedChanges)) {
+    changesArray = parsedChanges;
+  } else if (
+    parsedChanges !== null &&
+    typeof parsedChanges === "object" &&
+    "changes" in (parsedChanges as object) &&
+    Array.isArray((parsedChanges as Record<string, unknown>)["changes"])
+  ) {
+    changesArray = (parsedChanges as Record<string, unknown>)["changes"];
+  } else {
+    throw new Error(
+      `Changes file must contain a JSON array or an object with a "changes" array`
+    );
+  }
+
+  // Validate each change entry minimally before forwarding.
+  const changes = (changesArray as unknown[]).map((item, index) => {
+    if (item === null || typeof item !== "object") {
+      throw new Error(`Change at index ${index} must be an object`);
+    }
+    const c = item as Record<string, unknown>;
+    if (typeof c["resource_id"] !== "string" || !c["resource_id"]) {
+      throw new Error(`Change at index ${index} is missing a valid "resource_id"`);
+    }
+    if (typeof c["attribute"] !== "string" || !c["attribute"]) {
+      throw new Error(`Change at index ${index} is missing a valid "attribute"`);
+    }
+    if (typeof c["new_value"] !== "string" && typeof c["new_value"] !== "number") {
+      throw new Error(
+        `Change at index ${index} "new_value" must be a string or number`
+      );
+    }
+    return {
+      resource_id: c["resource_id"] as string,
+      attribute: c["attribute"] as string,
+      new_value: c["new_value"] as string | number,
+    };
+  });
+
+  const validProviders = ["aws", "azure", "gcp"] as const;
+  type ValidProvider = typeof validProviders[number];
+
+  const provider = validProviders.includes(args.provider as ValidProvider)
+    ? (args.provider as ValidProvider)
+    : undefined;
+
+  const result = await whatIf(
+    {
+      files,
+      tfvars,
+      changes,
+      provider,
+      region: args.region,
+    },
+    pricingEngine,
+    config
+  );
+
+  if (args.json) {
+    printJson(result);
+  } else {
+    printText(result);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
@@ -328,7 +431,7 @@ async function main(): Promise<void> {
     process.exit(args.help ? 0 : 1);
   }
 
-  const validCommands = ["analyze", "estimate", "compare", "optimize"];
+  const validCommands = ["analyze", "estimate", "compare", "optimize", "what-if"];
   if (!validCommands.includes(args.command)) {
     process.stderr.write(`Unknown command: ${args.command}\n`);
     printUsage();
@@ -369,6 +472,9 @@ async function main(): Promise<void> {
         break;
       case "optimize":
         await runOptimize(args, files, tfvars, pricingEngine, config);
+        break;
+      case "what-if":
+        await runWhatIf(args, files, tfvars, pricingEngine, config);
         break;
     }
   } catch (err) {
