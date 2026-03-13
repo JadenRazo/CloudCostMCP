@@ -13,6 +13,7 @@ export interface PricingConfig {
   monthly_hours: number;
   default_currency: string;
   aws_pricing_region: string;
+  include_data_transfer: boolean;
 }
 
 export interface LogConfig {
@@ -28,6 +29,7 @@ export const DEFAULT_CONFIG: CloudCostConfig = {
     monthly_hours: 730,
     default_currency: "USD",
     aws_pricing_region: "us-east-1",
+    include_data_transfer: true,
   },
   logging: {
     level: "info",
