@@ -1,6 +1,6 @@
 import type { CloudProvider } from "./resources.js";
 
-export type ReportFormat = "markdown" | "json" | "csv";
+export type ReportFormat = "markdown" | "json" | "csv" | "focus";
 
 export interface ReportOptions {
   format: ReportFormat;

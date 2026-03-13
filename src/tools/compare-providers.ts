@@ -10,6 +10,7 @@ import { generateMarkdownReport } from "../reporting/markdown-report.js";
 import { generateJsonReport } from "../reporting/json-report.js";
 import { generateCsvReport } from "../reporting/csv-report.js";
 import { SUPPORTED_CURRENCIES, convertBreakdownCurrency, convertCurrency } from "../currency.js";
+import { generateFocusReport } from "../reporting/focus-report.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -24,7 +25,7 @@ export const compareProvidersSchema = z.object({
   ),
   tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
   format: z
-    .enum(["markdown", "json", "csv"])
+    .enum(["markdown", "json", "csv", "focus"])
     .default("markdown")
     .describe("Output report format"),
   providers: z
@@ -116,6 +117,9 @@ export async function compareProviders(
       break;
     case "csv":
       report = generateCsvReport(comparison, inventory.resources);
+      break;
+    case "focus":
+      report = generateFocusReport(comparison, inventory.resources);
       break;
     case "markdown":
     default:
