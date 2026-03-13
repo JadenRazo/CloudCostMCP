@@ -5,6 +5,7 @@ import { PricingCache } from "./cache.js";
 import { AwsBulkLoader } from "./aws/bulk-loader.js";
 import { AzureRetailClient } from "./azure/retail-client.js";
 import { GcpBundledLoader } from "./gcp/bundled-loader.js";
+import { CloudBillingClient } from "./gcp/cloud-billing-client.js";
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
@@ -146,37 +147,72 @@ class AzureProvider implements PricingProvider {
 
 class GcpProvider implements PricingProvider {
   private loader: GcpBundledLoader;
+  private liveClient: CloudBillingClient;
 
-  constructor() {
+  constructor(cache: PricingCache) {
     this.loader = new GcpBundledLoader();
+    this.liveClient = new CloudBillingClient(cache);
   }
 
-  getComputePrice(
+  async getComputePrice(
     instanceType: string,
     region: string,
     _os?: string
   ): Promise<NormalizedPrice | null> {
+    try {
+      const live = await this.liveClient.fetchComputeSkus(instanceType, region);
+      if (live) return live;
+    } catch (err) {
+      logger.warn("GCP live compute pricing failed, falling back to bundled", {
+        instanceType,
+        region,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
     return this.loader.getComputePrice(instanceType, region);
   }
 
-  getDatabasePrice(
+  async getDatabasePrice(
     instanceType: string,
     region: string,
     _engine?: string
   ): Promise<NormalizedPrice | null> {
+    try {
+      const live = await this.liveClient.fetchDatabaseSkus(instanceType, region);
+      if (live) return live;
+    } catch (err) {
+      logger.warn("GCP live database pricing failed, falling back to bundled", {
+        instanceType,
+        region,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
     return this.loader.getDatabasePrice(instanceType, region);
   }
 
-  getStoragePrice(
+  async getStoragePrice(
     storageType: string,
     region: string,
     _sizeGb?: number
   ): Promise<NormalizedPrice | null> {
-    // Treat the storageType as a Cloud Storage class first; if it looks like
-    // a disk type (pd-*) fall through to getDiskPrice.
+    // Persistent disk types (pd-*) are not in the Cloud Storage service;
+    // they come from the Compute Engine service and are not individually
+    // catalogued at the instance level, so fall back to bundled data.
     if (storageType.startsWith("pd-")) {
       return this.loader.getDiskPrice(storageType, region);
     }
+
+    try {
+      const live = await this.liveClient.fetchStorageSkus(storageType, region);
+      if (live) return live;
+    } catch (err) {
+      logger.warn("GCP live storage pricing failed, falling back to bundled", {
+        storageType,
+        region,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return this.loader.getStoragePrice(storageType, region);
   }
 
@@ -184,14 +220,17 @@ class GcpProvider implements PricingProvider {
     _type: string,
     region: string
   ): Promise<NormalizedPrice | null> {
+    // Load balancer pricing is fixed/infrastructure — bundled data is accurate.
     return this.loader.getLoadBalancerPrice(region);
   }
 
   getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
+    // NAT pricing is fixed/infrastructure — bundled data is accurate.
     return this.loader.getNatGatewayPrice(region);
   }
 
   getKubernetesPrice(region: string, mode?: string): Promise<NormalizedPrice | null> {
+    // GKE control plane pricing is fixed — bundled data is accurate.
     return this.loader.getKubernetesPrice(
       region,
       mode === "autopilot" ? "autopilot" : "standard"
@@ -216,7 +255,7 @@ export class PricingEngine {
   constructor(cache: PricingCache, _config: CloudCostConfig) {
     this.providers.set("aws", new AwsProvider(cache));
     this.providers.set("azure", new AzureProvider(cache));
-    this.providers.set("gcp", new GcpProvider());
+    this.providers.set("gcp", new GcpProvider(cache));
   }
 
   /**
