@@ -5,6 +5,7 @@ import {
   getGcpSqlPricing,
   getGcpStoragePricing,
   getGcpDiskPricing,
+  getRegionPriceMultipliers,
 } from "../../data/loader.js";
 import {
   normalizeGcpCompute,
@@ -31,6 +32,17 @@ const NAT_PER_GB = 0.045;
 // this approximation provides a per-cluster ballpark for cost comparisons)
 const GKE_STANDARD_HOURLY = 0.10;
 const GKE_AUTOPILOT_VCPU_HOURLY = 0.0445;
+
+// ---------------------------------------------------------------------------
+// Regional price multiplier lookup – reads from the shared data file.
+// Used for infrastructure services (LB, NAT, GKE) that are not covered by
+// the bundled per-region compute/storage data files.
+// ---------------------------------------------------------------------------
+
+function regionMultiplier(region: string): number {
+  const multipliers = getRegionPriceMultipliers();
+  return multipliers.gcp[region.toLowerCase()] ?? 1.0;
+}
 
 export class GcpBundledLoader {
   // -------------------------------------------------------------------------
@@ -185,34 +197,36 @@ export class GcpBundledLoader {
   }
 
   async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
+    const multiplier = regionMultiplier(region);
     return {
       provider: "gcp",
       service: "cloud-load-balancing",
       resource_type: "forwarding-rule",
       region,
       unit: "h",
-      price_per_unit: LB_FORWARDING_RULE_HOURLY,
+      price_per_unit: LB_FORWARDING_RULE_HOURLY * multiplier,
       currency: "USD",
       description: "GCP Cloud Load Balancing forwarding rule (per hour + data processed)",
       attributes: {
-        per_gb_price: String(LB_PER_GB),
+        per_gb_price: String(LB_PER_GB * multiplier),
       },
       effective_date: new Date().toISOString(),
     };
   }
 
   async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
+    const multiplier = regionMultiplier(region);
     return {
       provider: "gcp",
       service: "cloud-nat",
       resource_type: "nat-gateway",
       region,
       unit: "h",
-      price_per_unit: NAT_HOURLY,
+      price_per_unit: NAT_HOURLY * multiplier,
       currency: "USD",
       description: "GCP Cloud NAT (per gateway/hour + data processed)",
       attributes: {
-        per_gb_price: String(NAT_PER_GB),
+        per_gb_price: String(NAT_PER_GB * multiplier),
       },
       effective_date: new Date().toISOString(),
     };
@@ -222,7 +236,8 @@ export class GcpBundledLoader {
     region: string,
     mode: "standard" | "autopilot" = "standard"
   ): Promise<NormalizedPrice | null> {
-    const hourlyPrice =
+    const multiplier = regionMultiplier(region);
+    const baseHourly =
       mode === "autopilot" ? GKE_AUTOPILOT_VCPU_HOURLY : GKE_STANDARD_HOURLY;
 
     return {
@@ -231,7 +246,7 @@ export class GcpBundledLoader {
       resource_type: "cluster",
       region,
       unit: "h",
-      price_per_unit: hourlyPrice,
+      price_per_unit: baseHourly * multiplier,
       currency: "USD",
       description:
         mode === "autopilot"

@@ -53,23 +53,23 @@ describe("AwsBulkLoader", () => {
     expect(result!.price_per_unit).toBeCloseTo(0.0104, 4);
   });
 
-  it("applies regional multiplier for eu-west-1 (1.10x)", async () => {
+  it("applies regional multiplier for eu-west-1 (1.05x)", async () => {
     const usResult = await loader.getComputePrice("t3.large", "us-east-1");
     const euResult = await loader.getComputePrice("t3.large", "eu-west-1");
 
     expect(usResult).not.toBeNull();
     expect(euResult).not.toBeNull();
 
-    const expectedEuPrice = 0.0832 * 1.10;
+    const expectedEuPrice = 0.0832 * 1.05;
     expect(euResult!.price_per_unit).toBeCloseTo(expectedEuPrice, 4);
     expect(euResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
   });
 
-  it("applies regional multiplier for ap-southeast-1 (1.15x)", async () => {
+  it("applies regional multiplier for ap-southeast-1 (1.10x)", async () => {
     const result = await loader.getComputePrice("m5.large", "ap-southeast-1");
 
     expect(result).not.toBeNull();
-    const expectedPrice = 0.096 * 1.15;
+    const expectedPrice = 0.096 * 1.10;
     expect(result!.price_per_unit).toBeCloseTo(expectedPrice, 4);
   });
 
@@ -127,7 +127,7 @@ describe("AwsBulkLoader", () => {
     expect(usResult).not.toBeNull();
     expect(euResult).not.toBeNull();
     expect(euResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
-    expect(euResult!.price_per_unit).toBeCloseTo(0.017 * 1.10, 4);
+    expect(euResult!.price_per_unit).toBeCloseTo(0.017 * 1.05, 4);
   });
 
   it("returns null for unknown RDS instance class", async () => {
@@ -171,7 +171,7 @@ describe("AwsBulkLoader", () => {
     expect(usResult).not.toBeNull();
     expect(apResult).not.toBeNull();
     expect(apResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
-    expect(apResult!.price_per_unit).toBeCloseTo(0.08 * 1.15, 4);
+    expect(apResult!.price_per_unit).toBeCloseTo(0.08 * 1.10, 4);
   });
 
   it("returns null for unknown volume type", async () => {
