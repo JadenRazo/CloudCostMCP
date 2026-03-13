@@ -52,8 +52,9 @@ function inferDominantProvider(resources: ParsedResource[]): CloudProvider {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse one or more Terraform HCL files (and an optional .tfvars override
- * string) into a unified ResourceInventory.
+ * Parse one or more Terraform or OpenTofu HCL files (and an optional .tfvars
+ * override string) into a unified ResourceInventory. Both .tf and .tofu file
+ * extensions use identical HCL syntax and are handled identically here.
  *
  * Processing steps:
  *  1. Parse each HCL file to JSON in parallel.

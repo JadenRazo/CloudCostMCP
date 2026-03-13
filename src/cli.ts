@@ -115,11 +115,11 @@ function loadTerraformFiles(inputPath: string): TfFile[] {
   if (stat.isDirectory()) {
     const entries = readdirSync(resolved);
     const tfFiles = entries
-      .filter((e) => extname(e) === ".tf")
+      .filter((e) => extname(e) === ".tf" || extname(e) === ".tofu")
       .map((e) => join(resolved, e));
 
     if (tfFiles.length === 0) {
-      throw new Error(`No .tf files found in directory: ${resolved}`);
+      throw new Error(`No .tf or .tofu files found in directory: ${resolved}`);
     }
 
     return tfFiles.map((f) => ({
