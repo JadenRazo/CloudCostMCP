@@ -7,6 +7,8 @@ export interface ReportOptions {
   include_breakdown: boolean;
   include_recommendations: boolean;
   currency: string;
+  group_by?: "resource" | "service" | "tag";
+  group_by_tag_key?: string;
 }
 
 export interface OptimizationRecommendation {
