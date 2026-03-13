@@ -37,11 +37,20 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
     };
   }
 
-  if (env.CLOUDCOST_MONTHLY_HOURS) {
-    const parsedHours = parseInt(env.CLOUDCOST_MONTHLY_HOURS, 10);
+  if (env.CLOUDCOST_MONTHLY_HOURS || env.CLOUDCOST_INCLUDE_DATA_TRANSFER !== undefined) {
+    const parsedHours = env.CLOUDCOST_MONTHLY_HOURS
+      ? parseInt(env.CLOUDCOST_MONTHLY_HOURS, 10)
+      : NaN;
+    const rawIncludeTransfer = env.CLOUDCOST_INCLUDE_DATA_TRANSFER;
+    const includeDataTransfer =
+      rawIncludeTransfer !== undefined
+        ? rawIncludeTransfer.toLowerCase() !== "false" && rawIncludeTransfer !== "0"
+        : DEFAULT_CONFIG.pricing.include_data_transfer;
     config.pricing = {
       ...DEFAULT_CONFIG.pricing,
+      ...config.pricing,
       monthly_hours: !isNaN(parsedHours) ? parsedHours : DEFAULT_CONFIG.pricing.monthly_hours,
+      include_data_transfer: includeDataTransfer,
     };
   }
 

@@ -1,349 +1,299 @@
 import type { ParsedResource } from "../types/resources.js";
-import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 
-// ---------------------------------------------------------------------------
-// Default monthly transfer volumes
-// ---------------------------------------------------------------------------
-
+// Default egress volume (GB/month) for data transfer cost estimates when no
+// explicit traffic figure is available in the resource attributes.
 const DEFAULT_EGRESS_GB = 100;
-const DEFAULT_CROSS_REGION_GB = 50;
 
 // ---------------------------------------------------------------------------
-// AWS data transfer pricing (us-east-1 reference rates, 2024)
+// AWS data transfer pricing
+// Rates based on AWS Data Transfer pricing (us-east-1 baseline, 2024).
+// Internet egress: first 10 TB/month is $0.09/GB (beyond free tier).
+// ---------------------------------------------------------------------------
+const AWS_EGRESS_PER_GB = 0.09;
+
+// ---------------------------------------------------------------------------
+// Azure data transfer pricing
+// Rates based on Azure Bandwidth pricing (Zone 1 / North America + Europe).
+// Internet egress: first 10 TB/month is $0.087/GB.
+// ---------------------------------------------------------------------------
+const AZURE_EGRESS_PER_GB = 0.087;
+
+// ---------------------------------------------------------------------------
+// GCP data transfer pricing
+// Rates based on GCP Network pricing (from Google Cloud regions to internet).
+// Internet egress: $0.085/GB for first TB/month (most regions).
+// ---------------------------------------------------------------------------
+const GCP_EGRESS_PER_GB = 0.085;
+
+// ---------------------------------------------------------------------------
+// Regional multipliers for data transfer costs.
+// Some regions (APAC, South America) have notably higher egress rates.
 // ---------------------------------------------------------------------------
 
-// Internet egress tiers
-const AWS_EGRESS_FIRST_1GB = 0.0; // First 1 GB/month free
-const AWS_EGRESS_NEXT_9999GB = 0.09; // $0.09/GB for next ~10TB
-const AWS_EGRESS_NEXT_40TB = 0.085; // $0.085/GB for next 40TB
+const AWS_REGION_MULTIPLIERS: Record<string, number> = {
+  "us-east-1": 1.0,
+  "us-east-2": 1.0,
+  "us-west-1": 1.0,
+  "us-west-2": 1.0,
+  "eu-west-1": 1.0,
+  "eu-west-2": 1.0,
+  "eu-central-1": 1.0,
+  "ap-southeast-1": 1.11, // $0.10/GB
+  "ap-southeast-2": 1.11,
+  "ap-northeast-1": 1.11,
+  "ap-northeast-2": 1.11,
+  "ap-south-1": 1.11,
+  "sa-east-1": 1.31, // $0.118/GB
+  "ca-central-1": 1.0,
+  "eu-north-1": 1.0,
+  "me-south-1": 1.11,
+  "af-south-1": 1.16, // $0.1046/GB
+};
 
-// Cross-AZ data transfer
-const AWS_CROSS_AZ_PER_GB = 0.01;
+const AZURE_REGION_MULTIPLIERS: Record<string, number> = {
+  "eastus": 1.0,
+  "eastus2": 1.0,
+  "westus": 1.0,
+  "westus2": 1.0,
+  "westus3": 1.0,
+  "centralus": 1.0,
+  "northeurope": 1.0,
+  "westeurope": 1.0,
+  "uksouth": 1.0,
+  "ukwest": 1.0,
+  "germanywestcentral": 1.0,
+  "francecentral": 1.0,
+  "eastasia": 1.16, // Zone 2 rate
+  "southeastasia": 1.16,
+  "japaneast": 1.16,
+  "koreacentral": 1.16,
+  "australiaeast": 1.24, // Zone 3 rate
+  "brazilsouth": 1.31,
+  "southafricanorth": 1.31,
+};
 
-// NAT Gateway data processing
-const AWS_NAT_DATA_PROCESSING_PER_GB = 0.045;
+const GCP_REGION_MULTIPLIERS: Record<string, number> = {
+  "us-central1": 1.0,
+  "us-east1": 1.0,
+  "us-east4": 1.0,
+  "us-west1": 1.0,
+  "us-west2": 1.0,
+  "us-west3": 1.0,
+  "us-west4": 1.0,
+  "europe-west1": 1.0,
+  "europe-west2": 1.0,
+  "europe-west3": 1.0,
+  "europe-west4": 1.0,
+  "europe-west6": 1.0,
+  "europe-north1": 1.0,
+  "northamerica-northeast1": 1.0,
+  "southamerica-east1": 1.59, // $0.135/GB
+  "asia-east1": 1.41, // $0.12/GB (APAC)
+  "asia-east2": 1.41,
+  "asia-northeast1": 1.41,
+  "asia-northeast2": 1.41,
+  "asia-northeast3": 1.41,
+  "asia-south1": 1.41,
+  "asia-southeast1": 1.41,
+  "asia-southeast2": 1.41,
+  "australia-southeast1": 1.41,
+  "australia-southeast2": 1.41,
+};
 
-/**
- * Calculates AWS internet egress cost using tiered pricing.
- */
-function awsEgressCost(totalGb: number): number {
-  if (totalGb <= 1) return 0;
-
-  let cost = 0;
-  let remaining = totalGb - 1; // first 1 GB free
-
-  const tier1 = Math.min(remaining, 9999);
-  cost += tier1 * AWS_EGRESS_NEXT_9999GB;
-  remaining -= tier1;
-
-  if (remaining > 0) {
-    const tier2 = Math.min(remaining, 40 * 1024);
-    cost += tier2 * AWS_EGRESS_NEXT_40TB;
-    remaining -= tier2;
-
-    if (remaining > 0) {
-      // Beyond 50TB: $0.07/GB (approximate)
-      cost += remaining * 0.07;
-    }
-  }
-
-  return cost;
+function awsRegionMultiplier(region: string): number {
+  return AWS_REGION_MULTIPLIERS[region.toLowerCase()] ?? 1.0;
 }
 
+function azureRegionMultiplier(region: string): number {
+  return AZURE_REGION_MULTIPLIERS[region.toLowerCase()] ?? 1.0;
+}
+
+function gcpRegionMultiplier(region: string): number {
+  return GCP_REGION_MULTIPLIERS[region.toLowerCase()] ?? 1.0;
+}
+
+// ---------------------------------------------------------------------------
+// Per-provider data transfer cost calculators
+// ---------------------------------------------------------------------------
+
 /**
- * Calculates the monthly data transfer cost for an AWS NAT Gateway resource.
- * Supplements the existing NAT gateway hourly cost in network.ts.
+ * Calculates estimated monthly data transfer (egress) cost for AWS resources.
+ *
+ * Uses the standard AWS internet egress rate for the given region.
+ * The egress volume defaults to DEFAULT_EGRESS_GB when not specified via
+ * the monthly_egress_gb attribute on the synthetic resource.
  */
-export function calculateAwsDataTransferCost(
+export async function calculateAwsDataTransferCost(
   resource: ParsedResource,
-  targetProvider: CloudProvider,
   targetRegion: string
-): CostEstimate {
+): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const egressGb =
     (resource.attributes.monthly_egress_gb as number | undefined) ??
     DEFAULT_EGRESS_GB;
-  const crossRegionGb =
-    (resource.attributes.monthly_cross_region_gb as number | undefined) ??
-    DEFAULT_CROSS_REGION_GB;
-  const crossAzGb =
-    (resource.attributes.monthly_cross_az_gb as number | undefined) ?? 0;
 
-  let totalMonthly = 0;
-
-  // Internet egress (tiered)
-  const egressCost = awsEgressCost(egressGb);
-  if (egressCost > 0) {
-    // Use effective average rate for display
-    const avgRate = egressCost / Math.max(egressGb, 1);
-    breakdown.push({
-      description: `AWS internet egress (${egressGb}GB/month)`,
-      unit: "GB",
-      quantity: egressGb,
-      unit_price: avgRate,
-      monthly_cost: egressCost,
-    });
-    totalMonthly += egressCost;
-  }
-
-  // Cross-region transfer
-  if (crossRegionGb > 0) {
-    const crossRegionCost = crossRegionGb * 0.02;
-    breakdown.push({
-      description: `AWS cross-region data transfer (${crossRegionGb}GB/month)`,
-      unit: "GB",
-      quantity: crossRegionGb,
-      unit_price: 0.02,
-      monthly_cost: crossRegionCost,
-    });
-    totalMonthly += crossRegionCost;
-  }
-
-  // Cross-AZ transfer
-  if (crossAzGb > 0) {
-    const crossAzCost = crossAzGb * AWS_CROSS_AZ_PER_GB;
-    breakdown.push({
-      description: `AWS cross-AZ data transfer (${crossAzGb}GB/month)`,
-      unit: "GB",
-      quantity: crossAzGb,
-      unit_price: AWS_CROSS_AZ_PER_GB,
-      monthly_cost: crossAzCost,
-    });
-    totalMonthly += crossAzCost;
-  }
-
-  if (!resource.attributes.monthly_egress_gb) {
+  if (
+    !resource.attributes.monthly_egress_gb ||
+    (resource.attributes.monthly_egress_gb as number) <= 0
+  ) {
     notes.push(
-      `Default egress assumption: ${DEFAULT_EGRESS_GB}GB/month internet + ${DEFAULT_CROSS_REGION_GB}GB cross-region — ` +
-      "provide monthly_egress_gb and monthly_cross_region_gb for accuracy"
+      `Data transfer cost estimated at ${egressGb} GB/month egress; ` +
+        `actual costs depend on traffic volume and destination`
     );
   }
 
+  const multiplier = awsRegionMultiplier(targetRegion);
+  const ratePerGb = AWS_EGRESS_PER_GB * multiplier;
+  const totalMonthly = ratePerGb * egressGb;
+
+  breakdown.push({
+    description: `Internet egress (${egressGb} GB/month, estimated)`,
+    unit: "GB",
+    quantity: egressGb,
+    unit_price: ratePerGb,
+    monthly_cost: totalMonthly,
+  });
+
   notes.push(
-    "AWS internet egress: first 1GB free, then $0.09/GB (first ~10TB), $0.085/GB (next 40TB)"
+    "Data transfer costs cover internet egress only; intra-region and inter-AZ " +
+      "traffic charges are excluded from this estimate"
   );
 
   return {
     resource_id: resource.id,
     resource_type: resource.type,
     resource_name: resource.name,
-    provider: targetProvider,
+    provider: "aws",
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
+    monthly_cost: Math.round(totalMonthly * 100) / 100,
+    yearly_cost: Math.round(totalMonthly * 12 * 100) / 100,
     currency: "USD",
     breakdown,
-    confidence: "medium",
+    confidence: "low",
     notes,
     pricing_source: "fallback",
   };
 }
 
-// ---------------------------------------------------------------------------
-// Azure data transfer pricing
-// ---------------------------------------------------------------------------
-
-const AZURE_EGRESS_NEXT_9995GB = 0.087;
-const AZURE_CROSS_REGION_PER_GB = 0.02;
-
 /**
- * Calculates Azure internet egress cost with 5GB free tier.
+ * Calculates estimated monthly data transfer (egress) cost for Azure resources.
+ *
+ * Uses the Azure Bandwidth pricing for Zone 1 (North America / Europe) as the
+ * baseline, with multipliers applied for higher-cost zones (APAC, Brazil, etc).
  */
-function azureEgressCost(totalGb: number): number {
-  if (totalGb <= 5) return 0;
-
-  let cost = 0;
-  let remaining = totalGb - 5; // first 5 GB free
-
-  const tier1 = Math.min(remaining, 9995);
-  cost += tier1 * AZURE_EGRESS_NEXT_9995GB;
-  remaining -= tier1;
-
-  if (remaining > 0) {
-    // Beyond ~10TB: $0.083/GB approximate
-    cost += remaining * 0.083;
-  }
-
-  return cost;
-}
-
-/**
- * Calculates the monthly data transfer cost for an Azure resource.
- */
-export function calculateAzureDataTransferCost(
+export async function calculateAzureDataTransferCost(
   resource: ParsedResource,
-  targetProvider: CloudProvider,
   targetRegion: string
-): CostEstimate {
+): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const egressGb =
     (resource.attributes.monthly_egress_gb as number | undefined) ??
     DEFAULT_EGRESS_GB;
-  const crossRegionGb =
-    (resource.attributes.monthly_cross_region_gb as number | undefined) ??
-    DEFAULT_CROSS_REGION_GB;
 
-  let totalMonthly = 0;
-
-  // Internet egress
-  const egressCost = azureEgressCost(egressGb);
-  if (egressCost > 0) {
-    const avgRate = egressCost / Math.max(egressGb, 1);
-    breakdown.push({
-      description: `Azure internet egress (${egressGb}GB/month)`,
-      unit: "GB",
-      quantity: egressGb,
-      unit_price: avgRate,
-      monthly_cost: egressCost,
-    });
-    totalMonthly += egressCost;
-  }
-
-  // Cross-region
-  if (crossRegionGb > 0) {
-    const crossRegionCost = crossRegionGb * AZURE_CROSS_REGION_PER_GB;
-    breakdown.push({
-      description: `Azure cross-region data transfer (${crossRegionGb}GB/month)`,
-      unit: "GB",
-      quantity: crossRegionGb,
-      unit_price: AZURE_CROSS_REGION_PER_GB,
-      monthly_cost: crossRegionCost,
-    });
-    totalMonthly += crossRegionCost;
-  }
-
-  if (!resource.attributes.monthly_egress_gb) {
+  if (
+    !resource.attributes.monthly_egress_gb ||
+    (resource.attributes.monthly_egress_gb as number) <= 0
+  ) {
     notes.push(
-      `Default egress assumption: ${DEFAULT_EGRESS_GB}GB/month internet + ${DEFAULT_CROSS_REGION_GB}GB cross-region`
+      `Data transfer cost estimated at ${egressGb} GB/month egress; ` +
+        `actual costs depend on traffic volume and destination`
     );
   }
 
-  notes.push("Azure internet egress: first 5GB free, then $0.087/GB (first ~10TB)");
+  const multiplier = azureRegionMultiplier(targetRegion);
+  const ratePerGb = AZURE_EGRESS_PER_GB * multiplier;
+  const totalMonthly = ratePerGb * egressGb;
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
-    provider: targetProvider,
-    region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
-    breakdown,
-    confidence: "medium",
-    notes,
-    pricing_source: "fallback",
-  };
-}
-
-// ---------------------------------------------------------------------------
-// GCP data transfer pricing
-// ---------------------------------------------------------------------------
-
-const GCP_EGRESS_PREMIUM_PER_GB = 0.12;
-const GCP_EGRESS_STANDARD_PER_GB = 0.085;
-const GCP_CROSS_REGION_PER_GB = 0.01;
-
-/**
- * Calculates the monthly data transfer cost for a GCP resource.
- *
- * Premium tier: $0.12/GB, Standard tier: $0.085/GB
- */
-export function calculateGcpDataTransferCost(
-  resource: ParsedResource,
-  targetProvider: CloudProvider,
-  targetRegion: string
-): CostEstimate {
-  const notes: string[] = [];
-  const breakdown: CostLineItem[] = [];
-
-  const egressGb =
-    (resource.attributes.monthly_egress_gb as number | undefined) ??
-    DEFAULT_EGRESS_GB;
-  const crossRegionGb =
-    (resource.attributes.monthly_cross_region_gb as number | undefined) ??
-    DEFAULT_CROSS_REGION_GB;
-  const tier =
-    ((resource.attributes.network_tier as string | undefined) ?? "PREMIUM").toUpperCase();
-
-  const egressRate = tier === "STANDARD" ? GCP_EGRESS_STANDARD_PER_GB : GCP_EGRESS_PREMIUM_PER_GB;
-
-  let totalMonthly = 0;
-
-  const egressCost = egressGb * egressRate;
   breakdown.push({
-    description: `GCP internet egress ${tier} tier (${egressGb}GB/month)`,
+    description: `Internet egress (${egressGb} GB/month, estimated)`,
     unit: "GB",
     quantity: egressGb,
-    unit_price: egressRate,
-    monthly_cost: egressCost,
+    unit_price: ratePerGb,
+    monthly_cost: totalMonthly,
   });
-  totalMonthly += egressCost;
 
-  if (crossRegionGb > 0) {
-    const crossRegionCost = crossRegionGb * GCP_CROSS_REGION_PER_GB;
-    breakdown.push({
-      description: `GCP cross-region data transfer (${crossRegionGb}GB/month)`,
-      unit: "GB",
-      quantity: crossRegionGb,
-      unit_price: GCP_CROSS_REGION_PER_GB,
-      monthly_cost: crossRegionCost,
-    });
-    totalMonthly += crossRegionCost;
-  }
-
-  if (!resource.attributes.monthly_egress_gb) {
-    notes.push(
-      `Default egress assumption: ${DEFAULT_EGRESS_GB}GB/month internet + ${DEFAULT_CROSS_REGION_GB}GB cross-region`
-    );
-  }
-
-  notes.push(`GCP ${tier} tier network egress at $${egressRate}/GB`);
+  notes.push(
+    "Data transfer costs cover internet egress only; intra-region traffic " +
+      "is free on Azure and excluded from this estimate"
+  );
 
   return {
     resource_id: resource.id,
     resource_type: resource.type,
     resource_name: resource.name,
-    provider: targetProvider,
+    provider: "azure",
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
+    monthly_cost: Math.round(totalMonthly * 100) / 100,
+    yearly_cost: Math.round(totalMonthly * 12 * 100) / 100,
     currency: "USD",
     breakdown,
-    confidence: "medium",
+    confidence: "low",
     notes,
     pricing_source: "fallback",
   };
 }
 
-// ---------------------------------------------------------------------------
-// NAT Gateway data processing supplement
-// ---------------------------------------------------------------------------
-
 /**
- * Calculates the data processing cost component for a NAT Gateway.
- * This supplements the hourly charge already calculated in network.ts.
+ * Calculates estimated monthly data transfer (egress) cost for GCP resources.
+ *
+ * Uses Google Cloud's internet egress pricing, with higher multipliers for
+ * APAC and South America regions that carry premium egress rates.
  */
-export function calculateNatDataProcessingCost(
-  dataGb: number,
-  provider: CloudProvider,
-  _region: string
-): number {
-  switch (provider) {
-    case "aws":
-      return dataGb * AWS_NAT_DATA_PROCESSING_PER_GB;
-    case "azure":
-      // Azure NAT Gateway: $0.045/GB processed
-      return dataGb * 0.045;
-    case "gcp":
-      // GCP Cloud NAT: $0.045/GB processed
-      return dataGb * 0.045;
-    default:
-      return 0;
+export async function calculateGcpDataTransferCost(
+  resource: ParsedResource,
+  targetRegion: string
+): Promise<CostEstimate> {
+  const notes: string[] = [];
+  const breakdown: CostLineItem[] = [];
+
+  const egressGb =
+    (resource.attributes.monthly_egress_gb as number | undefined) ??
+    DEFAULT_EGRESS_GB;
+
+  if (
+    !resource.attributes.monthly_egress_gb ||
+    (resource.attributes.monthly_egress_gb as number) <= 0
+  ) {
+    notes.push(
+      `Data transfer cost estimated at ${egressGb} GB/month egress; ` +
+        `actual costs depend on traffic volume and destination`
+    );
   }
+
+  const multiplier = gcpRegionMultiplier(targetRegion);
+  const ratePerGb = GCP_EGRESS_PER_GB * multiplier;
+  const totalMonthly = ratePerGb * egressGb;
+
+  breakdown.push({
+    description: `Internet egress (${egressGb} GB/month, estimated)`,
+    unit: "GB",
+    quantity: egressGb,
+    unit_price: ratePerGb,
+    monthly_cost: totalMonthly,
+  });
+
+  notes.push(
+    "Data transfer costs cover internet egress only; intra-region and " +
+      "Google network traffic charges are excluded from this estimate"
+  );
+
+  return {
+    resource_id: resource.id,
+    resource_type: resource.type,
+    resource_name: resource.name,
+    provider: "gcp",
+    region: targetRegion,
+    monthly_cost: Math.round(totalMonthly * 100) / 100,
+    yearly_cost: Math.round(totalMonthly * 12 * 100) / 100,
+    currency: "USD",
+    breakdown,
+    confidence: "low",
+    notes,
+    pricing_source: "fallback",
+  };
 }
