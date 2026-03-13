@@ -37,7 +37,7 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
     };
   }
 
-  if (env.CLOUDCOST_MONTHLY_HOURS || env.CLOUDCOST_INCLUDE_DATA_TRANSFER !== undefined) {
+  if (env.CLOUDCOST_MONTHLY_HOURS || env.CLOUDCOST_INCLUDE_DATA_TRANSFER !== undefined || env.CLOUDCOST_PRICING_MODEL) {
     const parsedHours = env.CLOUDCOST_MONTHLY_HOURS
       ? parseInt(env.CLOUDCOST_MONTHLY_HOURS, 10)
       : NaN;
@@ -46,11 +46,17 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
       rawIncludeTransfer !== undefined
         ? rawIncludeTransfer.toLowerCase() !== "false" && rawIncludeTransfer !== "0"
         : DEFAULT_CONFIG.pricing.include_data_transfer;
+    const validModels = ["on-demand", "spot", "reserved-1yr", "reserved-3yr"] as const;
+    const envModel = env.CLOUDCOST_PRICING_MODEL as string | undefined;
+    const pricingModel = envModel && (validModels as readonly string[]).includes(envModel)
+      ? (envModel as typeof validModels[number])
+      : DEFAULT_CONFIG.pricing.pricing_model;
     config.pricing = {
       ...DEFAULT_CONFIG.pricing,
       ...config.pricing,
       monthly_hours: !isNaN(parsedHours) ? parsedHours : DEFAULT_CONFIG.pricing.monthly_hours,
       include_data_transfer: includeDataTransfer,
+      pricing_model: pricingModel,
     };
   }
 

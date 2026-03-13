@@ -35,7 +35,7 @@ export interface CostEstimate {
   breakdown: CostLineItem[];
   confidence: "high" | "medium" | "low";
   notes: string[];
-  pricing_source: "live" | "fallback" | "bundled";
+  pricing_source: "live" | "fallback" | "bundled" | "spot-estimate";
 }
 
 export interface CostLineItem {

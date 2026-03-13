@@ -211,12 +211,12 @@ function serviceLabel(resourceType: string): string {
 export class CostEngine {
   private pricingEngine: PricingEngine;
   private monthlyHours: number;
-  private includeDataTransfer: boolean;
+  private config: CloudCostConfig;
 
   constructor(pricingEngine: PricingEngine, config: CloudCostConfig) {
     this.pricingEngine = pricingEngine;
     this.monthlyHours = config.pricing.monthly_hours;
-    this.includeDataTransfer = config.pricing.include_data_transfer;
+    this.config = config;
   }
 
   /**
@@ -242,7 +242,8 @@ export class CostEngine {
         targetProvider,
         targetRegion,
         this.pricingEngine,
-        this.monthlyHours
+        this.monthlyHours,
+        this.config.pricing
       );
     }
 
@@ -451,7 +452,7 @@ export class CostEngine {
     // resource was successfully costed. One synthetic resource is created per
     // unique provider+region combination so the breakdown always surfaces an
     // egress cost estimate alongside the infrastructure costs.
-    if (this.includeDataTransfer && estimates.length > 0) {
+    if (this.config.pricing.include_data_transfer && estimates.length > 0) {
       const seenProviderRegions = new Set<string>();
 
       for (const estimate of estimates) {
