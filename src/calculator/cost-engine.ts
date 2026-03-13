@@ -31,6 +31,9 @@ import {
   calculateAzureDataTransferCost,
   calculateGcpDataTransferCost,
 } from "./data-transfer.js";
+import { calculateContainerRegistryCost } from "./container-registry.js";
+import { calculateSecretsCost } from "./secrets.js";
+import { calculateDnsCost } from "./dns.js";
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
@@ -168,6 +171,24 @@ const GCP_FUNCTION_TYPES = new Set([
   "google_cloudfunctions2_function",
 ]);
 
+const CONTAINER_REGISTRY_TYPES = new Set([
+  "aws_ecr_repository",
+  "azurerm_container_registry",
+  "google_artifact_registry_repository",
+]);
+
+const SECRETS_TYPES = new Set([
+  "aws_secretsmanager_secret",
+  "azurerm_key_vault",
+  "google_secret_manager_secret",
+]);
+
+const DNS_TYPES = new Set([
+  "aws_route53_zone",
+  "azurerm_dns_zone",
+  "google_dns_managed_zone",
+]);
+
 // ---------------------------------------------------------------------------
 // Service label helper (for by_service aggregation)
 // ---------------------------------------------------------------------------
@@ -194,6 +215,9 @@ function serviceLabel(resourceType: string): string {
   if (BIGQUERY_TYPES.has(resourceType)) return "analytics";
   if (GCP_FUNCTION_TYPES.has(resourceType)) return "serverless";
   if (DATA_TRANSFER_TYPES.has(resourceType)) return "data_transfer";
+  if (CONTAINER_REGISTRY_TYPES.has(resourceType)) return "container_registry";
+  if (SECRETS_TYPES.has(resourceType)) return "secrets";
+  if (DNS_TYPES.has(resourceType)) return "dns";
   return "other";
 }
 
@@ -374,6 +398,22 @@ export class CostEngine {
 
     if (type === "google_data_transfer") {
       return calculateGcpDataTransferCost(resource, targetRegion);
+    }
+
+    // ------------------------------------------------------------------
+    // Container registry / Secrets / DNS
+    // ------------------------------------------------------------------
+
+    if (CONTAINER_REGISTRY_TYPES.has(type)) {
+      return calculateContainerRegistryCost(resource, targetProvider, targetRegion);
+    }
+
+    if (SECRETS_TYPES.has(type)) {
+      return calculateSecretsCost(resource, targetProvider, targetRegion);
+    }
+
+    if (DNS_TYPES.has(type)) {
+      return calculateDnsCost(resource, targetProvider, targetRegion);
     }
 
     // Unsupported resource type – return a zero-cost estimate so callers can
