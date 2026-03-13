@@ -2,9 +2,73 @@ import type { ParsedResource } from "../types/resources.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
+import type { PricingConfig } from "../types/config.js";
+import { DEFAULT_CONFIG } from "../types/config.js";
 import { mapInstance } from "../mapping/instance-mapper.js";
 import { mapStorageType } from "../mapping/storage-mapper.js";
 import { logger } from "../logger.js";
+
+// ---------------------------------------------------------------------------
+// Spot discount factors per provider and instance family category.
+// These represent the fraction of on-demand price paid for spot/preemptible
+// instances (e.g. 0.35 means 65% savings, paying 35% of on-demand rate).
+// ---------------------------------------------------------------------------
+
+const SPOT_DISCOUNT_FACTORS: Record<CloudProvider, Record<string, number>> = {
+  aws: {
+    general:  0.35,
+    compute:  0.30,
+    memory:   0.35,
+    gpu:      0.40,
+  },
+  azure: {
+    general:  0.35,
+    compute:  0.30,
+    memory:   0.35,
+    gpu:      0.40,
+  },
+  gcp: {
+    general:  0.30,
+    compute:  0.25,
+    memory:   0.30,
+    gpu:      0.35,
+  },
+};
+
+/**
+ * Classifies an instance type string into a broad family category so the
+ * correct spot discount factor can be selected.
+ *
+ * AWS examples:   m5, m6i → general | c5, c6g → compute | r5, x1 → memory | p3, g4dn → gpu
+ * Azure examples: Standard_D → general | Standard_F → compute | Standard_E, Standard_M → memory | Standard_N → gpu
+ * GCP examples:   n2, e2 → general | c2 → compute | m1, m2 → memory | a2 → gpu
+ */
+function classifyInstanceFamily(instanceType: string, provider: CloudProvider): string {
+  const t = instanceType.toLowerCase();
+
+  if (provider === "aws") {
+    if (/^(p\d|g\d|inf\d)/.test(t)) return "gpu";
+    if (/^(r\d|x\d|u-|z\d|cr\d)/.test(t)) return "memory";
+    if (/^(c\d|hpc)/.test(t)) return "compute";
+    return "general";
+  }
+
+  if (provider === "azure") {
+    if (/standard_n/i.test(t)) return "gpu";
+    if (/standard_(e|m)/i.test(t)) return "memory";
+    if (/standard_f/i.test(t)) return "compute";
+    return "general";
+  }
+
+  if (provider === "gcp") {
+    if (/^a\d/.test(t)) return "gpu";
+    if (/^(m\d|ultramem)/.test(t)) return "memory";
+    if (/^c\d/.test(t)) return "compute";
+    return "general";
+  }
+
+  return "general";
+}
 
 /**
  * Calculates the monthly compute cost for a VM-style resource on a target
@@ -13,8 +77,10 @@ import { logger } from "../logger.js";
  * The function:
  *  1. Resolves the target instance type via exact or nearest-match mapping.
  *  2. Fetches the hourly on-demand price from the pricing engine.
- *  3. Adds optional root block device (EBS/disk) storage cost when present.
- *  4. Returns a CostEstimate whose confidence reflects whether the instance
+ *  3. Optionally applies a spot/preemptible discount when pricingConfig.pricing_model
+ *     is set to "spot". The discount factor is chosen per provider and instance family.
+ *  4. Adds optional root block device (EBS/disk) storage cost when present.
+ *  5. Returns a CostEstimate whose confidence reflects whether the instance
  *     mapping was exact ("high") or approximate ("medium").
  */
 export async function calculateComputeCost(
@@ -22,7 +88,8 @@ export async function calculateComputeCost(
   targetProvider: CloudProvider,
   targetRegion: string,
   pricingEngine: PricingEngine,
-  monthlyHours: number = 730
+  monthlyHours: number = 730,
+  pricingConfig: PricingConfig = DEFAULT_CONFIG.pricing
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -77,7 +144,7 @@ export async function calculateComputeCost(
     : null;
 
   let computeMonthlyCost = 0;
-  let pricingSource: "live" | "fallback" | "bundled" = "fallback";
+  let pricingSource: "live" | "fallback" | "bundled" | "spot-estimate" = "fallback";
 
   if (computePrice) {
     const rawSource = computePrice.attributes?.pricing_source;
@@ -94,7 +161,22 @@ export async function calculateComputeCost(
       notes.push(`Spec-based instance mapping used: ${sourceInstanceType} -> ${mappedInstance}`);
     }
 
-    const hourlyPrice = computePrice.price_per_unit;
+    let hourlyPrice = computePrice.price_per_unit;
+
+    // Apply spot/preemptible discount when requested.
+    if (pricingConfig.pricing_model === "spot") {
+      const family = classifyInstanceFamily(effectiveInstance, targetProvider);
+      const providerFactors = SPOT_DISCOUNT_FACTORS[targetProvider] ?? SPOT_DISCOUNT_FACTORS.aws;
+      const factor = providerFactors[family] ?? providerFactors.general ?? 0.35;
+      const savingsPct = Math.round((1 - factor) * 100);
+
+      hourlyPrice = hourlyPrice * factor;
+      pricingSource = "spot-estimate";
+      notes.push(
+        `Spot pricing applied (${savingsPct}% discount from on-demand)`
+      );
+    }
+
     computeMonthlyCost = hourlyPrice * monthlyHours;
 
     breakdown.push({

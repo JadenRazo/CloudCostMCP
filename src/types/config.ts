@@ -14,6 +14,7 @@ export interface PricingConfig {
   default_currency: string;
   aws_pricing_region: string;
   include_data_transfer: boolean;
+  pricing_model: "on-demand" | "spot" | "reserved-1yr" | "reserved-3yr";
 }
 
 export interface LogConfig {
@@ -30,6 +31,7 @@ export const DEFAULT_CONFIG: CloudCostConfig = {
     default_currency: "USD",
     aws_pricing_region: "us-east-1",
     include_data_transfer: true,
+    pricing_model: "on-demand",
   },
   logging: {
     level: "info",
