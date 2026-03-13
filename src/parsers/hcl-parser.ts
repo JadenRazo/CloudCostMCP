@@ -5,7 +5,8 @@ import { logger } from "../logger.js";
  * Convert raw HCL content into a plain JavaScript object using the
  * @cdktf/hcl2json WASM-backed parser. The filename parameter is used only for
  * error reporting and diagnostics inside the parser; it does not need to be an
- * actual path on disk.
+ * actual path on disk. Both .tf (Terraform) and .tofu (OpenTofu) extensions
+ * use identical HCL syntax and are parsed without any special handling.
  *
  * The returned shape mirrors the Terraform HCL block structure:
  *   {
