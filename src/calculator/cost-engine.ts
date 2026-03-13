@@ -540,6 +540,8 @@ export class CostEngine {
 
     const totalMonthly = estimates.reduce((sum, e) => sum + e.monthly_cost, 0);
 
+    const budgetWarnings = this.evaluateBudget(totalMonthly, estimates);
+
     return {
       provider: targetProvider,
       region: targetRegion,
@@ -552,6 +554,52 @@ export class CostEngine {
       by_resource: estimates,
       generated_at: new Date().toISOString(),
       warnings,
+      ...(budgetWarnings.length > 0 && { budget_warnings: budgetWarnings }),
     };
+  }
+
+  /**
+   * Evaluates configured budget thresholds against the computed totals and
+   * per-resource costs. Returns an array of human-readable warning strings —
+   * empty when no budget is configured or no thresholds are breached.
+   */
+  private evaluateBudget(totalMonthly: number, estimates: CostEstimate[]): string[] {
+    const budget = this.config.budget;
+    if (!budget) return [];
+
+    const warnPct = budget.warn_percentage ?? 80;
+    const budgetWarnings: string[] = [];
+
+    if (budget.monthly_limit !== undefined) {
+      const limit = budget.monthly_limit;
+      const roundedTotal = Math.round(totalMonthly * 100) / 100;
+
+      if (totalMonthly > limit) {
+        const overage = Math.round((totalMonthly - limit) * 100) / 100;
+        const pct = Math.round((totalMonthly / limit) * 100);
+        budgetWarnings.push(
+          `BUDGET EXCEEDED: Monthly cost $${roundedTotal} exceeds limit of $${limit} by $${overage} (${pct}%)`
+        );
+      } else if (totalMonthly > limit * (warnPct / 100)) {
+        const pct = Math.round((totalMonthly / limit) * 100);
+        budgetWarnings.push(
+          `BUDGET WARNING: Monthly cost $${roundedTotal} is at ${pct}% of $${limit} limit`
+        );
+      }
+    }
+
+    if (budget.per_resource_limit !== undefined) {
+      const limit = budget.per_resource_limit;
+      for (const estimate of estimates) {
+        if (estimate.monthly_cost > limit) {
+          const roundedCost = Math.round(estimate.monthly_cost * 100) / 100;
+          budgetWarnings.push(
+            `RESOURCE OVER BUDGET: ${estimate.resource_id} costs $${roundedCost}/month, exceeds per-resource limit of $${limit}`
+          );
+        }
+      }
+    }
+
+    return budgetWarnings;
   }
 }

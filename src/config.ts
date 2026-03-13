@@ -66,6 +66,30 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
     };
   }
 
+  if (
+    env.CLOUDCOST_BUDGET_MONTHLY ||
+    env.CLOUDCOST_BUDGET_PER_RESOURCE ||
+    env.CLOUDCOST_BUDGET_WARN_PCT
+  ) {
+    const monthlyLimit = env.CLOUDCOST_BUDGET_MONTHLY
+      ? parseFloat(env.CLOUDCOST_BUDGET_MONTHLY)
+      : undefined;
+    const perResourceLimit = env.CLOUDCOST_BUDGET_PER_RESOURCE
+      ? parseFloat(env.CLOUDCOST_BUDGET_PER_RESOURCE)
+      : undefined;
+    const warnPct = env.CLOUDCOST_BUDGET_WARN_PCT
+      ? parseFloat(env.CLOUDCOST_BUDGET_WARN_PCT)
+      : undefined;
+
+    config.budget = {
+      ...DEFAULT_CONFIG.budget,
+      ...(monthlyLimit !== undefined && !isNaN(monthlyLimit) && { monthly_limit: monthlyLimit }),
+      ...(perResourceLimit !== undefined &&
+        !isNaN(perResourceLimit) && { per_resource_limit: perResourceLimit }),
+      ...(warnPct !== undefined && !isNaN(warnPct) && { warn_percentage: warnPct }),
+    };
+  }
+
   return config;
 }
 
@@ -96,6 +120,11 @@ export function loadConfig(): CloudCostConfig {
       ...DEFAULT_CONFIG.parser,
       ...fileConfig.parser,
       ...envConfig.parser,
+    },
+    budget: {
+      ...DEFAULT_CONFIG.budget,
+      ...fileConfig.budget,
+      ...envConfig.budget,
     },
   };
 }
