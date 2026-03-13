@@ -590,17 +590,6 @@ export function extractResources(
 ): ParsedResource[] {
   const resources: ParsedResource[] = [];
 
-  // Task 2: Detect module blocks and emit warnings
-  const moduleBlock = hclJson["module"];
-  if (moduleBlock && typeof moduleBlock === "object" && !Array.isArray(moduleBlock)) {
-    for (const moduleName of Object.keys(moduleBlock as Record<string, unknown>)) {
-      warnings.push(
-        `Module "${moduleName}" detected but not expanded. Resources inside modules are not included in the estimate.`
-      );
-      logger.debug("Module detected, skipping expansion", { moduleName });
-    }
-  }
-
   const resourceBlock = hclJson["resource"];
 
   if (!resourceBlock || typeof resourceBlock !== "object") {

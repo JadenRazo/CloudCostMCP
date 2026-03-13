@@ -60,6 +60,12 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
     };
   }
 
+  if (env.CLOUDCOST_RESOLVE_MODULES !== undefined) {
+    config.parser = {
+      resolve_modules: env.CLOUDCOST_RESOLVE_MODULES !== "false" && env.CLOUDCOST_RESOLVE_MODULES !== "0",
+    };
+  }
+
   return config;
 }
 
@@ -85,6 +91,11 @@ export function loadConfig(): CloudCostConfig {
       ...DEFAULT_CONFIG.logging,
       ...fileConfig.logging,
       ...envConfig.logging,
+    },
+    parser: {
+      ...DEFAULT_CONFIG.parser,
+      ...fileConfig.parser,
+      ...envConfig.parser,
     },
   };
 }

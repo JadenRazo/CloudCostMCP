@@ -480,10 +480,10 @@ resource "aws_sqs_queue" "named" {
 // ---------------------------------------------------------------------------
 
 describe("parseTerraform – module blocks", () => {
-  it("generates a warning for each module block found", async () => {
+  it("generates a warning for each registry module that has not been initialised", async () => {
     const inventory = await parseTerraform(countForeachFiles());
     const moduleWarning = inventory.parse_warnings.find((w) =>
-      w.includes('Module "vpc"') && w.includes("not expanded")
+      w.includes('"vpc"') && w.includes(".terraform/modules")
     );
     expect(moduleWarning).toBeDefined();
   });
@@ -496,7 +496,7 @@ describe("parseTerraform – module blocks", () => {
     expect(moduleResources).toHaveLength(0);
   });
 
-  it("emits one warning per module block", async () => {
+  it("emits one warning per uninitialised registry module block", async () => {
     const hcl = `
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
@@ -506,9 +506,12 @@ module "eks" {
   source = "terraform-aws-modules/eks/aws"
 }
 `;
+    // basePath is not provided, so module resolver uses dirname of the first
+    // file path ("main.tf") which gives "." — .terraform/modules will not exist
+    // there, so both registry modules should emit "not found" warnings.
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
     const moduleWarnings = inventory.parse_warnings.filter((w) =>
-      w.includes("not expanded")
+      w.includes(".terraform/modules")
     );
     expect(moduleWarnings).toHaveLength(2);
   });
