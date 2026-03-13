@@ -18,6 +18,7 @@ import {
 } from "./get-equivalents.js";
 import { getPricingSchema, getPricing } from "./get-pricing.js";
 import { optimizeCostSchema, optimizeCost } from "./optimize-cost.js";
+import { whatIfSchema, whatIf } from "./what-if.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration
@@ -117,6 +118,21 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     optimizeCostSchema.shape,
     async (params) => {
       const result = await optimizeCost(params, pricingEngine, config);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+      };
+    }
+  );
+
+  // -------------------------------------------------------------------------
+  // what_if
+  // -------------------------------------------------------------------------
+  server.tool(
+    "what_if",
+    "Estimate cost impact of infrastructure changes without modifying Terraform files. Applies attribute overrides to a cloned resource set and returns a per-resource and aggregate cost diff.",
+    whatIfSchema.shape,
+    async (params) => {
+      const result = await whatIf(params, pricingEngine, config);
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
       };
