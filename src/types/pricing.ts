@@ -56,6 +56,7 @@ export interface CostBreakdown {
   by_resource: CostEstimate[];
   generated_at: string;
   warnings: string[];
+  budget_warnings?: string[];
 }
 
 export interface ProviderComparison {

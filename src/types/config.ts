@@ -1,8 +1,15 @@
+export interface BudgetConfig {
+  monthly_limit?: number;
+  per_resource_limit?: number;
+  warn_percentage?: number;
+}
+
 export interface CloudCostConfig {
   cache: CacheConfig;
   pricing: PricingConfig;
   logging: LogConfig;
   parser: ParserConfig;
+  budget?: BudgetConfig;
 }
 
 export interface CacheConfig {
@@ -48,5 +55,8 @@ export const DEFAULT_CONFIG: CloudCostConfig = {
   },
   parser: {
     resolve_modules: true,
+  },
+  budget: {
+    warn_percentage: 80,
   },
 };
