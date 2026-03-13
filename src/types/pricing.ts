@@ -71,3 +71,15 @@ export interface SavingsSummary {
   difference_from_source: number;
   percentage_difference: number;
 }
+
+export interface CostProjection {
+  projections: {
+    months: number;
+    on_demand_total: number;
+    reserved_total: number | null;
+    savings: number | null;
+    savings_percentage: number | null;
+  }[];
+  break_even_month: number | null;
+  recommended_commitment: string | null;
+}

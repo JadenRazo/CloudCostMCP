@@ -3,6 +3,8 @@ import type { ParsedResource } from "../types/resources.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { ReportOptions } from "../types/reports.js";
 import { generateOptimizations } from "../calculator/optimizer.js";
+import { calculateProjection } from "../calculator/projection.js";
+import { calculateReservedPricing } from "../calculator/reserved.js";
 
 const PROVIDERS: CloudProvider[] = ["aws", "azure", "gcp"];
 
@@ -273,6 +275,51 @@ export function generateMarkdownReport(
     `| Tax | Not included |`,
     ``
   );
+
+  // ---------------------------------------------------------------------------
+  // Cost Projection
+  // ---------------------------------------------------------------------------
+  if (sourceMonthly > 0) {
+    // Build reserved input from the source provider's monthly total if we have it.
+    const reservedComparison = sourceBreakdown
+      ? calculateReservedPricing(sourceBreakdown.total_monthly, comparison.source_provider)
+      : null;
+
+    const reservedInput = reservedComparison
+      ? { best_reserved: { monthly_cost: reservedComparison.best_option.monthly_cost, term: reservedComparison.best_option.term } }
+      : null;
+
+    const projection = calculateProjection(sourceMonthly, reservedInput);
+
+    lines.push(`## Cost Projection`, ``);
+    lines.push(
+      `| Timeframe | On-Demand | Reserved | Savings | Savings % |`,
+      `|-----------|-----------|----------|---------|-----------|`
+    );
+
+    for (const p of projection.projections) {
+      const timeLabel = p.months === 1 ? "1 month" : `${p.months} months`;
+      const reservedCol = p.reserved_total !== null ? formatUsd(p.reserved_total) : "N/A";
+      const savingsCol = p.savings !== null ? formatUsd(p.savings) : "N/A";
+      const savingsPctCol = p.savings_percentage !== null ? `${p.savings_percentage.toFixed(1)}%` : "N/A";
+      lines.push(
+        `| ${timeLabel} | ${formatUsd(p.on_demand_total)} | ${reservedCol} | ${savingsCol} | ${savingsPctCol} |`
+      );
+    }
+    lines.push(``);
+
+    if (projection.break_even_month !== null) {
+      lines.push(
+        `> Reserved pricing breaks even at **month ${projection.break_even_month}** compared to on-demand.`
+      );
+      if (projection.recommended_commitment !== null) {
+        lines.push(
+          `> Recommended commitment: **${projection.recommended_commitment}**.`
+        );
+      }
+      lines.push(``);
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Limitations
