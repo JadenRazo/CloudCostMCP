@@ -9,6 +9,7 @@ import { CostEngine } from "../calculator/cost-engine.js";
 import { generateMarkdownReport } from "../reporting/markdown-report.js";
 import { generateJsonReport } from "../reporting/json-report.js";
 import { generateCsvReport } from "../reporting/csv-report.js";
+import { SUPPORTED_CURRENCIES, convertBreakdownCurrency, convertCurrency } from "../currency.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -30,6 +31,11 @@ export const compareProvidersSchema = z.object({
     .array(z.enum(["aws", "azure", "gcp"]))
     .default(["aws", "azure", "gcp"])
     .describe("Cloud providers to include in the comparison"),
+  currency: z
+    .enum(SUPPORTED_CURRENCIES)
+    .optional()
+    .default("USD")
+    .describe("Output currency for cost estimates. Defaults to USD."),
 });
 
 // ---------------------------------------------------------------------------
@@ -63,14 +69,25 @@ export async function compareProviders(
 
   // Build a savings summary relative to the source provider breakdown (or the
   // first breakdown when the source provider was not requested).
+  // Savings percentages are computed on the original USD figures before any
+  // currency conversion so the ratios remain accurate.
   const sourceBreakdown =
     comparisons.find((b) => b.provider === sourceProvider) ?? comparisons[0];
   const sourceMonthly = sourceBreakdown?.total_monthly ?? 0;
 
-  const savingsSummary: SavingsSummary[] = comparisons.map((b) => {
-    const diff = b.total_monthly - sourceMonthly;
-    const pct =
-      sourceMonthly !== 0 ? (diff / sourceMonthly) * 100 : 0;
+  const currency = params.currency ?? "USD";
+
+  const convertedComparisons = currency !== "USD"
+    ? comparisons.map((b) => convertBreakdownCurrency(b, currency))
+    : comparisons;
+
+  const savingsSummary: SavingsSummary[] = convertedComparisons.map((b) => {
+    // Use original USD monthly figures for percentage calculation when converted.
+    const bMonthlyUsd = currency !== "USD"
+      ? (b as ReturnType<typeof convertBreakdownCurrency>).original_usd.total_monthly
+      : b.total_monthly;
+    const diff = b.total_monthly - convertCurrency(sourceMonthly, currency);
+    const pct = sourceMonthly !== 0 ? ((bMonthlyUsd - sourceMonthly) / sourceMonthly) * 100 : 0;
     return {
       provider: b.provider,
       total_monthly: b.total_monthly,
@@ -81,7 +98,7 @@ export async function compareProviders(
 
   const comparison: ProviderComparison = {
     source_provider: sourceProvider,
-    comparisons,
+    comparisons: convertedComparisons,
     savings_summary: savingsSummary,
     generated_at: new Date().toISOString(),
   };

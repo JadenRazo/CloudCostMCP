@@ -5,6 +5,7 @@ import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
+import { SUPPORTED_CURRENCIES, convertBreakdownCurrency } from "../currency.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -27,6 +28,11 @@ export const estimateCostSchema = z.object({
     .describe(
       "Target region for pricing lookup. Defaults to the source region mapped to the target provider."
     ),
+  currency: z
+    .enum(SUPPORTED_CURRENCIES)
+    .optional()
+    .default("USD")
+    .describe("Output currency for cost estimates. Defaults to USD."),
 });
 
 // ---------------------------------------------------------------------------
@@ -65,8 +71,11 @@ export async function estimateCost(
   const parseWarnings = inventory.parse_warnings ?? [];
   const allWarnings = [...new Set([...parseWarnings, ...(breakdown.warnings ?? [])])];
 
+  const currency = params.currency ?? "USD";
+  const converted = currency !== "USD" ? convertBreakdownCurrency(breakdown, currency) : breakdown;
+
   return {
-    ...breakdown,
+    ...converted,
     parse_warnings: parseWarnings,
     warnings: allWarnings,
   } as unknown as object;
