@@ -225,6 +225,7 @@ async function runEstimate(
       tfvars,
       provider: args.provider as ValidProvider,
       region: args.region,
+      currency: "USD",
     },
     pricingEngine,
     config
@@ -261,6 +262,7 @@ async function runCompare(
       files,
       tfvars,
       format: args.format as ValidFormat,
+      currency: "USD",
       providers: validatedProviders.length > 0
         ? validatedProviders
         : ["aws", "azure", "gcp"],
