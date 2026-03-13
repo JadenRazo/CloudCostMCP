@@ -1,6 +1,7 @@
 import type { ProviderComparison } from "../types/pricing.js";
 import type { ParsedResource } from "../types/resources.js";
 import type { CloudProvider } from "../types/resources.js";
+import type { ReportOptions } from "../types/reports.js";
 
 const PROVIDERS: CloudProvider[] = ["aws", "azure", "gcp"];
 
@@ -17,19 +18,28 @@ function csvEscape(value: string | number): string {
  * Generates a CSV report comparing monthly costs across all providers for
  * each resource.
  *
- * Columns: Resource, Type, AWS Monthly, Azure Monthly, GCP Monthly, Cheapest
+ * Default columns: Resource, Type, AWS Monthly, Azure Monthly, GCP Monthly, Cheapest
+ *
+ * When options.group_by === "tag" and options.group_by_tag_key is set, an
+ * additional Tag Group column is appended to each row.
  */
 export function generateCsvReport(
   comparison: ProviderComparison,
-  resources: ParsedResource[]
+  resources: ParsedResource[],
+  options: Partial<ReportOptions> = {}
 ): string {
   const lines: string[] = [];
+
+  const tagKey = options.group_by === "tag" ? options.group_by_tag_key : undefined;
 
   // Comment header: not part of the CSV data but provides context to readers.
   lines.push("# Prices are estimates based on on-demand pricing. See assumptions in JSON/Markdown reports.");
 
-  // Column header row.
-  lines.push("Resource,Type,AWS Monthly,Azure Monthly,GCP Monthly,Cheapest");
+  // Column header row — append tag_group column when tag grouping is active.
+  const headerRow = tagKey
+    ? "Resource,Type,AWS Monthly,Azure Monthly,GCP Monthly,Cheapest,Tag Group"
+    : "Resource,Type,AWS Monthly,Azure Monthly,GCP Monthly,Cheapest";
+  lines.push(headerRow);
 
   // Build a lookup: provider -> (resource_id -> monthly_cost).
   const costByProviderAndResource = new Map<string, Map<string, number>>();
@@ -70,6 +80,11 @@ export function generateCsvReport(
       csvEscape((costs.gcp ?? 0).toFixed(2)),
       csvEscape(cheapest),
     ];
+
+    if (tagKey) {
+      const tagVal = resource.tags[tagKey] ?? "Untagged";
+      row.push(csvEscape(tagVal));
+    }
 
     lines.push(row.join(","));
   }

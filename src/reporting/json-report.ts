@@ -1,5 +1,6 @@
 import type { ProviderComparison } from "../types/pricing.js";
 import type { ParsedResource } from "../types/resources.js";
+import type { ReportOptions } from "../types/reports.js";
 
 /**
  * Generates a pretty-printed JSON representation of the full provider
@@ -10,12 +11,16 @@ import type { ParsedResource } from "../types/resources.js";
  *  - pricing_sources_used (unique sources referenced across all estimates)
  *  - assumptions (static estimation parameters)
  *  - warnings (data quality issues collected across all breakdowns)
+ *
+ * When options.group_by === "tag" and options.group_by_tag_key is set, a
+ * cost_by_tag object is included in the output.
  */
 export function generateJsonReport(
   comparison: ProviderComparison,
   resources: ParsedResource[],
   monthlyHours: number = 730,
-  parseWarnings: string[] = []
+  parseWarnings: string[] = [],
+  options: Partial<ReportOptions> = {}
 ): string {
   // Collect unique pricing sources across all resource estimates.
   const sourcesSet = new Set<string>();
@@ -32,7 +37,44 @@ export function generateJsonReport(
   const allDataWarnings = comparison.comparisons.flatMap((b) => b.warnings ?? []);
   const allWarnings = [...new Set([...parseWarnings, ...allDataWarnings])];
 
-  const output = {
+  // Build resource_id -> source-provider monthly cost for tag grouping.
+  const tagKey = options.group_by === "tag" ? options.group_by_tag_key : undefined;
+
+  let costByTag: Record<string, unknown> | undefined;
+
+  if (tagKey) {
+    const sourceProvider =
+      comparison.source_provider ?? comparison.comparisons[0]?.provider;
+
+    // Build resource_id -> monthly cost from the source provider breakdown.
+    const costById = new Map<string, number>();
+    for (const breakdown of comparison.comparisons) {
+      if (breakdown.provider === sourceProvider) {
+        for (const estimate of breakdown.by_resource) {
+          costById.set(estimate.resource_id, estimate.monthly_cost);
+        }
+      }
+    }
+
+    // Accumulate per-tag-value totals.
+    const groups: Record<string, { resource_count: number; monthly_cost: number }> = {};
+    for (const resource of resources) {
+      const tagVal = resource.tags[tagKey] ?? "Untagged";
+      const current = groups[tagVal] ?? { resource_count: 0, monthly_cost: 0 };
+      current.resource_count += 1;
+      current.monthly_cost += costById.get(resource.id) ?? 0;
+      groups[tagVal] = current;
+    }
+
+    // Round monthly_cost to two decimal places for clean JSON output.
+    for (const val of Object.values(groups)) {
+      val.monthly_cost = Math.round(val.monthly_cost * 100) / 100;
+    }
+
+    costByTag = { tag_key: tagKey, groups };
+  }
+
+  const output: Record<string, unknown> = {
     metadata: {
       generated_at: new Date().toISOString(),
       pricing_sources_used: Array.from(sourcesSet).sort(),
@@ -55,6 +97,10 @@ export function generateJsonReport(
       }, {}),
     },
   };
+
+  if (costByTag !== undefined) {
+    output.cost_by_tag = costByTag;
+  }
 
   return JSON.stringify(output, null, 2);
 }

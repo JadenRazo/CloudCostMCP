@@ -120,8 +120,6 @@ export function generateMarkdownReport(
   // Per-resource breakdown
   // ---------------------------------------------------------------------------
   if (includeBreakdown && resources.length > 0) {
-    lines.push(`## Resource Breakdown`, ``);
-
     // Build: resource_id -> provider -> monthly_cost
     const costMatrix = new Map<string, Partial<Record<CloudProvider, number>>>();
 
@@ -135,25 +133,98 @@ export function generateMarkdownReport(
 
     // Table header – only include columns for providers that appear in the comparison.
     const presentProviders = comparison.comparisons.map((b) => b.provider);
-    const headerCols = presentProviders
-      .map((p) => providerLabel(p))
-      .join(" | ");
+    const headerCols = presentProviders.map((p) => providerLabel(p)).join(" | ");
 
-    lines.push(
-      `| Resource | Type | ${headerCols} |`,
-      `|----------|------|${presentProviders.map(() => "------").join("|")}|`
-    );
+    const tagKey = options.group_by === "tag" ? options.group_by_tag_key : undefined;
 
-    for (const resource of resources) {
-      const costs = costMatrix.get(resource.id) ?? {};
-      const costCols = presentProviders
-        .map((p) => formatUsd(costs[p] ?? 0))
-        .join(" | ");
+    if (tagKey) {
+      // -----------------------------------------------------------------------
+      // Tag grouping: build group map before the detail section
+      // -----------------------------------------------------------------------
+
+      // Group resources by their tag value, falling back to "Untagged".
+      const tagGroups = new Map<string, ParsedResource[]>();
+      for (const resource of resources) {
+        const tagVal = resource.tags[tagKey] ?? "Untagged";
+        const bucket = tagGroups.get(tagVal) ?? [];
+        bucket.push(resource);
+        tagGroups.set(tagVal, bucket);
+      }
+
+      // Compute per-group monthly totals using the source provider's costs
+      // (or the first available provider when source is not present).
+      const sourceProvider =
+        comparison.source_provider ?? comparison.comparisons[0]?.provider;
+
+      const groupTotals = new Map<string, { count: number; monthly: number }>();
+      for (const [tagVal, groupResources] of tagGroups) {
+        let groupMonthly = 0;
+        for (const resource of groupResources) {
+          const costs = costMatrix.get(resource.id) ?? {};
+          groupMonthly += costs[sourceProvider] ?? 0;
+        }
+        groupTotals.set(tagVal, { count: groupResources.length, monthly: groupMonthly });
+      }
+
+      // Cost by Tag summary table.
+      lines.push(`## Cost by Tag`, ``);
+      lines.push(`**Tag key:** \`${tagKey}\``, ``);
       lines.push(
-        `| ${resource.name} | ${resource.type} | ${costCols} |`
+        `| Tag Value | Resource Count | Monthly Cost |`,
+        `|-----------|---------------|-------------|`
       );
+
+      // Sort: Untagged last, everything else alphabetically.
+      const sortedTagValues = Array.from(tagGroups.keys()).sort((a, b) => {
+        if (a === "Untagged") return 1;
+        if (b === "Untagged") return -1;
+        return a.localeCompare(b);
+      });
+
+      for (const tagVal of sortedTagValues) {
+        const totals = groupTotals.get(tagVal)!;
+        lines.push(`| ${tagVal} | ${totals.count} | ${formatUsd(totals.monthly)} |`);
+      }
+      lines.push(``);
+
+      // Detailed breakdown organised under tag group headings.
+      lines.push(`## Resource Breakdown`, ``);
+
+      for (const tagVal of sortedTagValues) {
+        const groupResources = tagGroups.get(tagVal)!;
+        lines.push(`### ${tagVal}`, ``);
+        lines.push(
+          `| Resource | Type | ${headerCols} |`,
+          `|----------|------|${presentProviders.map(() => "------").join("|")}|`
+        );
+        for (const resource of groupResources) {
+          const costs = costMatrix.get(resource.id) ?? {};
+          const costCols = presentProviders
+            .map((p) => formatUsd(costs[p] ?? 0))
+            .join(" | ");
+          lines.push(`| ${resource.name} | ${resource.type} | ${costCols} |`);
+        }
+        lines.push(``);
+      }
+    } else {
+      // -----------------------------------------------------------------------
+      // Default: flat resource breakdown table
+      // -----------------------------------------------------------------------
+      lines.push(`## Resource Breakdown`, ``);
+      lines.push(
+        `| Resource | Type | ${headerCols} |`,
+        `|----------|------|${presentProviders.map(() => "------").join("|")}|`
+      );
+
+      for (const resource of resources) {
+        const costs = costMatrix.get(resource.id) ?? {};
+        const costCols = presentProviders
+          .map((p) => formatUsd(costs[p] ?? 0))
+          .join(" | ");
+        lines.push(`| ${resource.name} | ${resource.type} | ${costCols} |`);
+      }
+      lines.push(``);
     }
-    lines.push(``);
   }
 
   // ---------------------------------------------------------------------------
