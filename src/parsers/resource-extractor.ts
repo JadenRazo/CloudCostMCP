@@ -456,6 +456,76 @@ const extractors: Record<string, AttributeExtractor> = {
   google_artifact_registry_repository(block) {
     const attrs: ResourceAttributes = {};
     if (str(block["format"])) attrs.format = str(block["format"]);
+    if (str(block["mode"])) attrs.mode = str(block["mode"]);
+    return attrs;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Container Registries
+  // ---------------------------------------------------------------------------
+
+  aws_ecr_repository(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["image_tag_mutability"])) attrs.image_tag_mutability = str(block["image_tag_mutability"]);
+    const encryptionConfig = firstBlock(block, "encryption_configuration");
+    if (str(encryptionConfig["encryption_type"])) attrs.encryption_type = str(encryptionConfig["encryption_type"]);
+    return attrs;
+  },
+
+  azurerm_container_registry(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["sku"])) attrs.sku = str(block["sku"]);
+    if (str(block["location"])) attrs.location = str(block["location"]);
+    return attrs;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Secrets Management
+  // ---------------------------------------------------------------------------
+
+  aws_secretsmanager_secret(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["name"])) attrs.secret_name = str(block["name"]);
+    if (str(block["description"])) attrs.description = str(block["description"]);
+    return attrs;
+  },
+
+  azurerm_key_vault(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["sku_name"])) attrs.sku = str(block["sku_name"]);
+    if (str(block["location"])) attrs.location = str(block["location"]);
+    return attrs;
+  },
+
+  google_secret_manager_secret(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["secret_id"])) attrs.secret_name = str(block["secret_id"]);
+    return attrs;
+  },
+
+  // ---------------------------------------------------------------------------
+  // DNS
+  // ---------------------------------------------------------------------------
+
+  aws_route53_zone(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["name"])) attrs.zone_name = str(block["name"]);
+    if (block["private_zone"] !== undefined) attrs.private_zone = bool(block["private_zone"]);
+    return attrs;
+  },
+
+  azurerm_dns_zone(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["name"])) attrs.zone_name = str(block["name"]);
+    if (str(block["resource_group_name"])) attrs.resource_group_name = str(block["resource_group_name"]);
+    return attrs;
+  },
+
+  google_dns_managed_zone(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["name"])) attrs.zone_name = str(block["name"]);
+    if (str(block["dns_name"])) attrs.dns_name = str(block["dns_name"]);
+    if (str(block["visibility"])) attrs.visibility = str(block["visibility"]);
     return attrs;
   },
 };

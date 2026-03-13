@@ -12,5 +12,6 @@
   { "category": "dns_zone", "aws": "aws_route53_zone", "azure": "azurerm_dns_zone", "gcp": "google_dns_managed_zone", "notes": "DNS hosted zone" },
   { "category": "cdn", "aws": "aws_cloudfront_distribution", "azure": "azurerm_cdn_profile", "gcp": "google_compute_backend_bucket", "notes": "CDN distribution" },
   { "category": "redis_cache", "aws": "aws_elasticache_cluster", "azure": "azurerm_redis_cache", "gcp": "google_redis_instance", "notes": "Managed Redis" },
-  { "category": "container_registry", "aws": "aws_ecr_repository", "azure": "azurerm_container_registry", "gcp": "google_artifact_registry_repository", "notes": "Container registry" }
+  { "category": "container_registry", "aws": "aws_ecr_repository", "azure": "azurerm_container_registry", "gcp": "google_artifact_registry_repository", "notes": "Container registry" },
+  { "category": "secrets", "aws": "aws_secretsmanager_secret", "azure": "azurerm_key_vault", "gcp": "google_secret_manager_secret", "notes": "Secrets management" }
 ]
