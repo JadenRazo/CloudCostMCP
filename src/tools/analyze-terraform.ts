@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { parseTerraform } from "../parsers/index.js";
+import { parseTerraform, parseHclToJson } from "../parsers/index.js";
+import {
+  buildDependencyGraph,
+  generateMermaidDiagram,
+} from "../parsers/dependency-graph.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -18,6 +22,13 @@ export const analyzeTerraformSchema = z.object({
     .string()
     .optional()
     .describe("Contents of terraform.tfvars file"),
+  include_dependencies: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      "When true, parse resource references and depends_on blocks to build a dependency graph and Mermaid diagram"
+    ),
 });
 
 // ---------------------------------------------------------------------------
@@ -41,9 +52,42 @@ export async function analyzeTerraform(
   // immediate visibility to callers inspecting the raw JSON.
   const { parse_warnings, ...rest } = inventory;
 
-  return {
+  const response: Record<string, unknown> = {
     parse_warnings,
     has_warnings: parse_warnings.length > 0,
     ...rest,
-  } as unknown as object;
+  };
+
+  if (params.include_dependencies) {
+    // Merge all parsed HCL JSON objects into a single combined view so that
+    // cross-file references can be resolved. We re-parse each file here to
+    // get the raw (pre-variable-substitution) blocks, which still contain the
+    // original reference strings (e.g. "${aws_subnet.main.id}").
+    const mergedHcl: Record<string, unknown> = {};
+    for (const file of params.files) {
+      try {
+        const json = await parseHclToJson(file.content, file.path);
+        // Merge resource blocks from each file
+        const resourceBlock = json["resource"];
+        if (resourceBlock && typeof resourceBlock === "object" && !Array.isArray(resourceBlock)) {
+          if (!mergedHcl["resource"]) {
+            mergedHcl["resource"] = {};
+          }
+          Object.assign(
+            mergedHcl["resource"] as Record<string, unknown>,
+            resourceBlock as Record<string, unknown>
+          );
+        }
+      } catch {
+        // Silently skip files that failed to parse — they already produced
+        // a parse_warning during the main parseTerraform call above.
+      }
+    }
+
+    const graph = buildDependencyGraph(inventory.resources, mergedHcl);
+    response["dependency_graph"] = graph;
+    response["mermaid_diagram"] = generateMermaidDiagram(graph);
+  }
+
+  return response as unknown as object;
 }
