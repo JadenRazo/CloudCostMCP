@@ -52,21 +52,21 @@ describe("AzureRetailClient", () => {
     expect(result!.price_per_unit).toBeCloseTo(0.0104, 4);
   });
 
-  it("applies regional multiplier for northeurope (1.08x)", async () => {
+  it("applies regional multiplier for northeurope (1.05x)", async () => {
     const usResult = await client.getComputePrice("Standard_B2s", "eastus");
     const euResult = await client.getComputePrice("Standard_B2s", "northeurope");
 
     expect(usResult).not.toBeNull();
     expect(euResult).not.toBeNull();
-    expect(euResult!.price_per_unit).toBeCloseTo(0.0416 * 1.08, 4);
+    expect(euResult!.price_per_unit).toBeCloseTo(0.0416 * 1.05, 4);
     expect(euResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
   });
 
-  it("applies regional multiplier for southeastasia (1.12x)", async () => {
+  it("applies regional multiplier for southeastasia (1.08x)", async () => {
     const result = await client.getComputePrice("Standard_D2s_v5", "southeastasia");
 
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.096 * 1.12, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.096 * 1.08, 4);
   });
 
   it("returns correct prices for D and F series VMs", async () => {
@@ -124,7 +124,7 @@ describe("AzureRetailClient", () => {
     expect(usResult).not.toBeNull();
     expect(euResult).not.toBeNull();
     expect(euResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
-    expect(euResult!.price_per_unit).toBeCloseTo(0.248 * 1.08, 4);
+    expect(euResult!.price_per_unit).toBeCloseTo(0.248 * 1.05, 4);
   });
 
   it("returns null for unknown database tier", async () => {
@@ -160,7 +160,7 @@ describe("AzureRetailClient", () => {
     expect(usResult).not.toBeNull();
     expect(apResult).not.toBeNull();
     expect(apResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
-    expect(apResult!.price_per_unit).toBeCloseTo(0.132 * 1.12, 4);
+    expect(apResult!.price_per_unit).toBeCloseTo(0.132 * 1.08, 4);
   });
 
   it("returns null for unknown disk type", async () => {

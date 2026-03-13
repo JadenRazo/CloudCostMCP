@@ -70,6 +70,12 @@ export interface GcpDiskRegionPricing {
   "pd-balanced": number;
 }
 
+export interface RegionPriceMultipliers {
+  aws: Record<string, number>;
+  azure: Record<string, number>;
+  gcp: Record<string, number>;
+}
+
 // ---------------------------------------------------------------------------
 // Generic file loader – reads and parses a JSON file relative to DATA_DIR.
 // Throws with the file path in the message if anything goes wrong so callers
@@ -103,6 +109,7 @@ let _gcpComputePricing: Record<string, Record<string, number>> | null = null;
 let _gcpSqlPricing: Record<string, GcpSqlRegionPricing> | null = null;
 let _gcpStoragePricing: Record<string, GcpStorageRegionPricing> | null = null;
 let _gcpDiskPricing: Record<string, GcpDiskRegionPricing> | null = null;
+let _regionPriceMultipliers: RegionPriceMultipliers | null = null;
 
 // ---------------------------------------------------------------------------
 // Public accessor functions
@@ -241,6 +248,21 @@ export function getGcpDiskPricing(): Record<string, GcpDiskRegionPricing> {
   return _gcpDiskPricing;
 }
 
+/**
+ * Returns the per-region price multipliers relative to the baseline US region
+ * for each cloud provider. These are used to adjust fallback (hardcoded)
+ * pricing when live API calls are unavailable, so non-US regions produce
+ * more accurate estimates rather than defaulting to us-east-1/us-central1 rates.
+ */
+export function getRegionPriceMultipliers(): RegionPriceMultipliers {
+  if (_regionPriceMultipliers === null) {
+    _regionPriceMultipliers = loadJsonFile<RegionPriceMultipliers>(
+      "region-price-multipliers.json"
+    );
+  }
+  return _regionPriceMultipliers;
+}
+
 // ---------------------------------------------------------------------------
 // Cache reset – only useful in tests that need a clean slate between runs.
 // Not exported to consumers; imported via the test helper path if needed.
@@ -259,4 +281,5 @@ export function _resetLoaderCache(): void {
   _gcpSqlPricing = null;
   _gcpStoragePricing = null;
   _gcpDiskPricing = null;
+  _regionPriceMultipliers = null;
 }

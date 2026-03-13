@@ -7,6 +7,7 @@ import {
   normalizeAwsStorage,
 } from "./aws-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
+import { getRegionPriceMultipliers } from "../../data/loader.js";
 
 // ---------------------------------------------------------------------------
 // CSV parsing helper
@@ -212,33 +213,13 @@ const NAT_PER_GB = 0.045;
 const EKS_HOURLY = 0.10;
 
 // ---------------------------------------------------------------------------
-// Regional price multipliers relative to us-east-1.
-// Keys are normalised to lower-case AWS region identifiers.
+// Regional price multiplier lookup – reads from the shared data file so all
+// providers use consistent values sourced from one place.
 // ---------------------------------------------------------------------------
 
-const REGION_MULTIPLIERS: Record<string, number> = {
-  "us-east-1": 1.0,
-  "us-east-2": 1.0,
-  "us-west-1": 1.08,
-  "us-west-2": 1.0,
-  "eu-west-1": 1.10,
-  "eu-west-2": 1.12,
-  "eu-central-1": 1.12,
-  "ap-southeast-1": 1.15,
-  "ap-southeast-2": 1.15,
-  "ap-northeast-1": 1.12,
-  "ap-northeast-2": 1.10,
-  "ap-south-1": 1.08,
-  "sa-east-1": 1.20,
-  "ca-central-1": 1.08,
-  "eu-north-1": 1.10,
-  "eu-south-1": 1.12,
-  "me-south-1": 1.15,
-  "af-south-1": 1.22,
-};
-
 function regionMultiplier(region: string): number {
-  return REGION_MULTIPLIERS[region.toLowerCase()] ?? 1.0;
+  const multipliers = getRegionPriceMultipliers();
+  return multipliers.aws[region.toLowerCase()] ?? 1.0;
 }
 
 const CACHE_TTL = 86400; // 24 hours in seconds

@@ -7,6 +7,7 @@ import {
   normalizeAzureStorage,
 } from "./azure-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
+import { getRegionPriceMultipliers } from "../../data/loader.js";
 
 // ---------------------------------------------------------------------------
 // Fallback pricing data (approximate eastus on-demand prices, 2024)
@@ -97,38 +98,13 @@ const NAT_PER_GB = 0.045;
 const AKS_HOURLY = 0.10;
 
 // ---------------------------------------------------------------------------
-// Regional multipliers relative to eastus
+// Regional price multiplier lookup – reads from the shared data file so all
+// providers use consistent values sourced from one place.
 // ---------------------------------------------------------------------------
 
-const REGION_MULTIPLIERS: Record<string, number> = {
-  eastus: 1.0,
-  eastus2: 1.0,
-  westus: 1.05,
-  westus2: 1.0,
-  westus3: 1.02,
-  centralus: 1.0,
-  northeurope: 1.08,
-  westeurope: 1.08,
-  uksouth: 1.08,
-  ukwest: 1.12,
-  southeastasia: 1.12,
-  eastasia: 1.12,
-  japaneast: 1.10,
-  japanwest: 1.12,
-  australiaeast: 1.15,
-  brazilsouth: 1.25,
-  canadacentral: 1.05,
-  southafricanorth: 1.15,
-  germanywestcentral: 1.10,
-  centralindia: 1.08,
-  koreacentral: 1.10,
-  swedencentral: 1.08,
-  italynorth: 1.10,
-  uaenorth: 1.12,
-};
-
 function regionMultiplier(region: string): number {
-  return REGION_MULTIPLIERS[region.toLowerCase()] ?? 1.0;
+  const multipliers = getRegionPriceMultipliers();
+  return multipliers.azure[region.toLowerCase()] ?? 1.0;
 }
 
 const CACHE_TTL = 86400; // 24 hours
