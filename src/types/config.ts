@@ -2,6 +2,7 @@ export interface CloudCostConfig {
   cache: CacheConfig;
   pricing: PricingConfig;
   logging: LogConfig;
+  parser: ParserConfig;
 }
 
 export interface CacheConfig {
@@ -21,6 +22,15 @@ export interface LogConfig {
   level: "debug" | "info" | "warn" | "error";
 }
 
+export interface ParserConfig {
+  /**
+   * When true (default), local and registry Terraform modules are resolved and
+   * their resources are included in cost estimates. Set to false to revert to
+   * the previous behaviour of emitting a warning per module and skipping it.
+   */
+  resolve_modules: boolean;
+}
+
 export const DEFAULT_CONFIG: CloudCostConfig = {
   cache: {
     ttl_seconds: 86400,
@@ -35,5 +45,8 @@ export const DEFAULT_CONFIG: CloudCostConfig = {
   },
   logging: {
     level: "info",
+  },
+  parser: {
+    resolve_modules: true,
   },
 };

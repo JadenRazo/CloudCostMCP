@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import type { CloudProvider, ResourceInventory, ParsedResource } from "../types/index.js";
 import { parseHclToJson } from "./hcl-parser.js";
 import { resolveVariables } from "./variable-resolver.js";
@@ -6,12 +7,14 @@ import {
   detectRegionFromProviders,
 } from "./resource-extractor.js";
 import { detectProvider } from "./provider-detector.js";
+import { resolveModules } from "./module-resolver.js";
 import { logger } from "../logger.js";
 
 export { parseHclToJson } from "./hcl-parser.js";
 export { detectProvider } from "./provider-detector.js";
 export { resolveVariables, substituteVariables } from "./variable-resolver.js";
 export { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
+export { resolveModules } from "./module-resolver.js";
 
 // ---------------------------------------------------------------------------
 // Provider + region inference
@@ -63,11 +66,22 @@ function inferDominantProvider(resources: ParsedResource[]): CloudProvider {
  *  3. Resolve variables (defaults + tfvars overrides).
  *  4. Detect the default region for each cloud provider from provider blocks.
  *  5. Extract resources from every file, applying the resolved variables.
- *  6. Build and return the ResourceInventory.
+ *  6. Optionally resolve module blocks and merge their resources.
+ *  7. Build and return the ResourceInventory.
+ *
+ * @param files             Array of { path, content } pairs for each .tf file.
+ * @param tfvarsContent     Optional raw contents of a .tfvars override file.
+ * @param basePath          Absolute directory path used to resolve local module
+ *                          sources. When omitted the directory of the first
+ *                          file path is used as a best-effort fallback.
+ * @param resolveModulesEnabled  When true (default) module blocks are expanded.
+ *                          Pass false to skip expansion and emit warnings only.
  */
 export async function parseTerraform(
   files: { path: string; content: string }[],
-  tfvarsContent?: string
+  tfvarsContent?: string,
+  basePath?: string,
+  resolveModulesEnabled = true
 ): Promise<ResourceInventory> {
   const warnings: string[] = [];
   const parsedJsons: Array<{ path: string; json: Record<string, unknown> }> =
@@ -128,7 +142,31 @@ export async function parseTerraform(
     }
   }
 
-  // Step 6: Build inventory
+  // Step 6: Resolve module blocks when enabled
+  if (resolveModulesEnabled) {
+    // Determine the base directory for resolving relative module paths.
+    // Use the explicit basePath if provided, otherwise derive it from the
+    // first successfully parsed file path as a reasonable fallback.
+    const moduleBasePath =
+      basePath ??
+      (parsedJsons.length > 0 ? dirname(parsedJsons[0].path) : process.cwd());
+
+    try {
+      const moduleResources = await resolveModules(
+        combined,
+        moduleBasePath,
+        variables,
+        warnings
+      );
+      allResources.push(...moduleResources);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      warnings.push(`Module resolution error: ${msg}`);
+      logger.warn("Module resolution failed", { error: msg });
+    }
+  }
+
+  // Step 7: Build inventory
   const dominantProvider = inferDominantProvider(allResources);
   const dominantRegion =
     defaultRegions[dominantProvider] ?? PROVIDER_DEFAULTS[dominantProvider];
