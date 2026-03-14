@@ -21,7 +21,15 @@
     "azure",
     "gcp",
     "cost-estimation",
-    "infrastructure"
+    "infrastructure",
+    "opentofu",
+    "finops",
+    "focus",
+    "spot-pricing",
+    "multi-currency",
+    "github-actions",
+    "budget",
+    "what-if"
   ],
   "engines": {
     "node": ">=20.0.0"

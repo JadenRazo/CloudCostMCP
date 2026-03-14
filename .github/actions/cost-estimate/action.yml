@@ -10,9 +10,13 @@ inputs:
     required: false
     default: "aws,azure,gcp"
   format:
-    description: "Output format for the cost report (markdown, json, csv)"
+    description: "Output format for the cost report (markdown, json, csv, focus)"
     required: false
     default: "markdown"
+  currency:
+    description: "Currency for cost output (USD, EUR, GBP, JPY, CAD, AUD, INR, BRL)"
+    required: false
+    default: "USD"
   github_token:
     description: "GitHub token used to post the cost estimate as a PR comment"
     required: true
@@ -64,7 +68,8 @@ runs:
         TF_DIR="${{ steps.detect-dir.outputs.terraform_dir }}"
         REPORT=$(cloudcost compare "$TF_DIR" \
           --format "${{ inputs.format }}" \
-          --providers "${{ inputs.providers }}" 2>&1) || true
+          --providers "${{ inputs.providers }}" \
+          --currency "${{ inputs.currency }}" 2>&1) || true
 
         # Write to a temp file to safely pass multiline content between steps
         echo "$REPORT" > /tmp/cloudcost-report.txt

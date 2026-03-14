@@ -31,3 +31,4 @@ jobs:
           # terraform_dir: "./terraform"
           # providers: "aws,azure,gcp"
           # format: "markdown"
+          # currency: "USD"

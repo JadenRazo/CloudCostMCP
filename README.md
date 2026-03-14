@@ -32,12 +32,16 @@ CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) (MC
 
 ### What it does
 
-- Parses Terraform HCL files and extracts resource inventories with variable resolution
-- Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API
-- Maps equivalent resources across AWS, Azure, and GCP (compute, database, storage, networking, Kubernetes)
-- Generates cost estimates with per-resource breakdowns (monthly and yearly)
-- Compares costs across all three providers side-by-side in markdown, JSON, or CSV
-- Provides optimization recommendations: right-sizing, reserved pricing, provider switching
+- Parses Terraform HCL files and extracts resource inventories with variable resolution, including referenced modules and OpenTofu `.tofu` files
+- Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API; GCP via live Cloud Billing Catalog API with bundled fallback
+- Maps equivalent resources across AWS, Azure, and GCP (compute, database, storage, networking, Kubernetes, container registries, secrets management, DNS)
+- Generates cost estimates with per-resource breakdowns (monthly and yearly) across multiple currencies
+- Compares costs across all three providers side-by-side in markdown, JSON, CSV, or FOCUS format
+- Provides optimization recommendations: right-sizing, reserved pricing, provider switching, spot/preemptible instances
+- Models hypothetical scenarios (instance type changes, region moves, commitment levels) without modifying Terraform files
+- Projects costs over 3, 6, 12, and 36-month horizons with reserved instance comparisons
+- Tags resources for cost attribution and groups report output by team, environment, or any custom label
+- Posts cost estimate comments to pull requests via a reusable GitHub Actions composite action
 
 ---
 
@@ -113,7 +117,7 @@ node dist/index.js
 
 ## Tools
 
-The server exposes six MCP tools. Each accepts JSON input and returns structured JSON output.
+The server exposes seven MCP tools. Each accepts JSON input and returns structured JSON output.
 
 ### `analyze_terraform`
 
@@ -134,6 +138,7 @@ Calculate costs for parsed resources on a specific provider. Returns monthly and
 | `tfvars` | `string` | No | Variable overrides |
 | `provider` | `aws \| azure \| gcp` | Yes | Target provider for pricing |
 | `region` | `string` | No | Target region (auto-mapped if omitted) |
+| `currency` | `string` | No | Output currency (default: `USD`). Supports: USD, EUR, GBP, JPY, CAD, AUD, INR, BRL |
 
 ### `compare_providers`
 
@@ -143,8 +148,9 @@ Full pipeline: parse Terraform, map resources across providers, fetch pricing, a
 |-----------|------|----------|-------------|
 | `files` | `{path, content}[]` | Yes | Terraform files |
 | `tfvars` | `string` | No | Variable overrides |
-| `format` | `markdown \| json \| csv` | No | Report format (default: `markdown`) |
+| `format` | `markdown \| json \| csv \| focus` | No | Report format (default: `markdown`) |
 | `providers` | `string[]` | No | Providers to compare (default: all three) |
+| `currency` | `string` | No | Output currency (default: `USD`). Supports: USD, EUR, GBP, JPY, CAD, AUD, INR, BRL |
 
 ### `get_equivalents`
 
@@ -178,6 +184,30 @@ Analyze Terraform resources and return optimization recommendations. Includes ri
 | `tfvars` | `string` | No | Variable overrides |
 | `providers` | `string[]` | No | Providers to evaluate (default: all three) |
 
+### `what_if`
+
+Run hypothetical pricing scenarios against existing Terraform resources. Change instance types, regions, providers, or commitment levels and see the cost delta without modifying your actual configuration.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `files` | `{path, content}[]` | Yes | Terraform files |
+| `tfvars` | `string` | No | Variable overrides |
+| `scenarios` | `object[]` | Yes | List of changes to model — each specifies a resource name and the attributes to override |
+| `providers` | `string[]` | No | Providers to evaluate (default: all three) |
+| `currency` | `string` | No | Output currency (default: `USD`) |
+
+**Example** — model the cost impact of switching all compute from on-demand to spot/preemptible across providers:
+
+```json
+{
+  "files": [{ "path": "main.tf", "content": "..." }],
+  "scenarios": [
+    { "resource": "aws_instance.web", "pricing_model": "spot" },
+    { "resource": "aws_instance.app", "instance_type": "m6i.2xlarge" }
+  ]
+}
+```
+
 ---
 
 ## How Pricing Works
@@ -200,9 +230,11 @@ CloudCost uses a tiered approach to get the most accurate pricing available with
 
 ### GCP
 
-1. **Bundled pricing data** — GCP's Cloud Billing Catalog API requires an API key, so the server ships with curated pricing data in `data/gcp-pricing/`. This covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types across all major regions.
+1. **Live Cloud Billing Catalog API** (primary) — The server queries the GCP Cloud Billing Catalog API (`cloudbilling.googleapis.com`) using unauthenticated public endpoints where available. Results are cached for 24 hours.
 
-2. **Infrastructure services** — Load balancer, Cloud NAT, and GKE pricing use fixed public rates.
+2. **Bundled pricing data** (fallback) — If the live API is unreachable, the server falls back to curated pricing data in `data/gcp-pricing/` that ships with the package. This covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types across all major regions.
+
+3. **Infrastructure services** — Load balancer, Cloud NAT, and GKE pricing use fixed public rates.
 
 ### Pricing Source Transparency
 
@@ -288,6 +320,12 @@ All configuration is optional. The server works out of the box with sensible def
 | `CLOUDCOST_CACHE_PATH` | `~/.cloudcost/cache.db` | SQLite cache file location |
 | `CLOUDCOST_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `CLOUDCOST_MONTHLY_HOURS` | `730` | Hours per month for cost calculations |
+| `CLOUDCOST_INCLUDE_DATA_TRANSFER` | `false` | Include estimated data transfer costs in reports |
+| `CLOUDCOST_PRICING_MODEL` | `on_demand` | Default pricing model: `on_demand`, `spot`, or `reserved` |
+| `CLOUDCOST_RESOLVE_MODULES` | `true` | Expand referenced Terraform modules during parsing |
+| `CLOUDCOST_BUDGET_MONTHLY` | — | Monthly budget cap in USD; triggers a warning in reports when exceeded |
+| `CLOUDCOST_BUDGET_PER_RESOURCE` | — | Per-resource monthly budget cap in USD |
+| `CLOUDCOST_BUDGET_WARN_PCT` | `80` | Percentage of budget at which a warning is surfaced (default: 80%) |
 
 ### Config File
 
@@ -368,6 +406,9 @@ Configuration priority: environment variables > config file > built-in defaults.
 | **Storage** | `aws_ebs_volume`, `aws_s3_bucket` | `azurerm_managed_disk`, `azurerm_storage_account` | `google_compute_disk`, `google_storage_bucket` |
 | **Network** | `aws_lb`, `aws_nat_gateway` | `azurerm_lb`, `azurerm_nat_gateway` | `google_compute_forwarding_rule` |
 | **Kubernetes** | `aws_eks_cluster` | `azurerm_kubernetes_cluster` | `google_container_cluster` |
+| **Container Registries** | `aws_ecr_repository` | `azurerm_container_registry` | `google_artifact_registry_repository` |
+| **Secrets Management** | `aws_secretsmanager_secret` | `azurerm_key_vault` | `google_secret_manager_secret` |
+| **DNS** | `aws_route53_zone` | `azurerm_dns_zone` | `google_dns_managed_zone` |
 
 Instance type mapping covers 70+ AWS instance types (including Graviton/ARM families: m6g, m7g, c6g, c7g, r6g, r7g, t4g), 40+ Azure VM sizes, and 20+ GCP machine types with full bidirectional cross-provider mapping.
 
@@ -375,10 +416,8 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 
 ## Limitations
 
-- **Data transfer costs** are not included. Inter-region, inter-AZ, and internet egress charges are excluded from estimates.
-- **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool will recommend reserved instances and savings plans, but base estimates use on-demand.
-- **No Terraform module expansion**. Only direct resource blocks in the provided files are parsed. Resources defined inside referenced modules (`source = "..."`) are not resolved.
-- **GCP pricing is bundled**, not live. Prices may lag behind actual rates. AWS and Azure pricing is fetched in real time.
+- **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool will recommend reserved instances and savings plans, but base estimates use on-demand. Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
+- **GCP live pricing** is fetched from the Cloud Billing Catalog API with automatic fallback to bundled data when the API is unreachable. Bundled prices may lag slightly behind actual rates.
 - **First request latency**. The initial EC2 pricing lookup for a new AWS region may take 30-120 seconds as the CSV file is streamed. Subsequent lookups for the same region are instant (cached for 24 hours).
 - **Specialty instance types**. GPU instances (p4d, g5, etc.), high-memory (x2idn), and bare-metal types may fall back to interpolated pricing if not in the built-in tables and live fetch fails.
 
@@ -393,6 +432,42 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 **Cache issues** — Delete `~/.cloudcost/cache.db` to clear all cached pricing data. The cache rebuilds automatically on the next request.
 
 **Node version** — The server requires Node.js 20+. It uses ESM modules, Web Streams API (`TextDecoderStream`), and `AbortSignal.timeout()`.
+
+---
+
+## GitHub Actions
+
+A reusable composite action is included at `.github/actions/cost-estimate/`. It detects changed `.tf` files, runs a cost comparison, and posts the result as a PR comment.
+
+```yaml
+# .github/workflows/cost-estimate.yml
+name: Terraform Cost Estimate
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  cost-estimate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/cost-estimate
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # terraform_dir: "./terraform"
+          # providers: "aws,azure,gcp"
+          # format: "markdown"
+          # currency: "USD"
+```
+
+The action auto-detects the directory containing changed `.tf` files and skips gracefully when no Terraform changes are present in the PR.
 
 ---
 
@@ -414,17 +489,32 @@ src/
 ├── server.ts             # MCP server setup, tool registration
 ├── config.ts             # Config loader (defaults → file → env vars)
 ├── logger.ts             # Structured logger
-├── tools/                # MCP tool handlers + Zod schemas
-├── parsers/              # HCL parsing, variable resolution
+├── currency.ts           # Multi-currency conversion and formatting
+├── tools/
+│   ├── ...               # MCP tool handlers + Zod schemas
+│   └── what-if.ts        # Hypothetical scenario modeling
+├── parsers/
+│   ├── ...               # HCL parsing, variable resolution
+│   ├── module-resolver.ts  # Terraform module expansion
+│   └── dependency-graph.ts # Resource dependency graph builder
 ├── pricing/
 │   ├── pricing-engine.ts # Router: dispatches to provider adapters
 │   ├── cache.ts          # SQLite-backed pricing cache
 │   ├── aws/              # Bulk CSV streaming + JSON + fallback
 │   ├── azure/            # Retail Prices REST API + fallback
-│   └── gcp/              # Bundled pricing data loader
-├── calculator/           # Cost calculations per resource type
+│   └── gcp/
+│       ├── bundled-loader.ts    # Static bundled pricing fallback
+│       └── cloud-billing-client.ts  # Live GCP Cloud Billing Catalog API
+├── calculator/
+│   ├── ...               # Cost calculations per resource type
+│   ├── projection.ts     # Multi-horizon cost projections
+│   ├── container-registry.ts
+│   ├── secrets.ts
+│   └── dns.ts
 ├── mapping/              # Cross-provider resource/instance mapping
-├── reporting/            # Output formatters (markdown, JSON, CSV)
+├── reporting/
+│   ├── ...               # Markdown, JSON, CSV formatters
+│   └── focus-report.ts   # FOCUS-compliant export format
 └── types/                # Shared TypeScript interfaces
 
 data/
