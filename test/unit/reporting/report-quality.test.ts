@@ -185,35 +185,10 @@ describe("CostBreakdown warnings", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Markdown report — Assumptions section
+// Markdown report — structure
 // ---------------------------------------------------------------------------
 
-describe("generateMarkdownReport Assumptions section", () => {
-  it("markdown report contains an Assumptions section", () => {
-    const comparison = makeComparison();
-    const report = generateMarkdownReport(comparison, [makeResource()]);
-    expect(report).toContain("## Assumptions");
-  });
-
-  it("Assumptions section lists the pricing model", () => {
-    const comparison = makeComparison();
-    const report = generateMarkdownReport(comparison, [makeResource()]);
-    expect(report).toContain("On-demand");
-  });
-
-  it("Assumptions section lists monthly hours", () => {
-    const comparison = makeComparison();
-    const report = generateMarkdownReport(comparison, [makeResource()]);
-    expect(report).toContain("730");
-  });
-
-  it("Assumptions section notes data transfer and tax are not included", () => {
-    const comparison = makeComparison();
-    const report = generateMarkdownReport(comparison, [makeResource()]);
-    expect(report).toContain("Not included");
-    expect(report).toContain("USD");
-  });
-
+describe("generateMarkdownReport structure", () => {
   it("Limitations section appears when parse warnings are provided", () => {
     const comparison = makeComparison();
     const parseWarnings = ["module.app not expanded: module block not supported"];

@@ -1,7 +1,7 @@
 <h1 align="center">CloudCost MCP Server</h1>
 
 <p align="center">
-  Multi-cloud cost analysis for Terraform — powered by live pricing data from AWS, Azure, and GCP.
+  Multi-cloud cost analysis for Terraform. Live pricing from AWS, Azure, and GCP.
   <br />
   Built on the <a href="https://modelcontextprotocol.io">Model Context Protocol</a> for seamless AI agent integration.
 </p>
@@ -28,7 +28,7 @@
 
 ---
 
-CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server — a standardized way to give AI assistants like Claude access to external tools — that lets AI agents parse Terraform codebases, query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS and Azure — no API keys or cloud credentials required. GCP pricing is bundled from public catalog data.
+CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets AI agents parse Terraform codebases, query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS, Azure, and GCP. No API keys or cloud credentials required.
 
 ### What it does
 
@@ -192,11 +192,11 @@ Run hypothetical pricing scenarios against existing Terraform resources. Change 
 |-----------|------|----------|-------------|
 | `files` | `{path, content}[]` | Yes | Terraform files |
 | `tfvars` | `string` | No | Variable overrides |
-| `scenarios` | `object[]` | Yes | List of changes to model — each specifies a resource name and the attributes to override |
+| `scenarios` | `object[]` | Yes | Changes to model. Each specifies a resource name and the attributes to override |
 | `providers` | `string[]` | No | Providers to evaluate (default: all three) |
 | `currency` | `string` | No | Output currency (default: `USD`) |
 
-**Example** — model the cost impact of switching all compute from on-demand to spot/preemptible across providers:
+**Example**: model the cost impact of switching compute from on-demand to spot across providers:
 
 ```json
 {
@@ -216,32 +216,32 @@ CloudCost uses a tiered approach to get the most accurate pricing available with
 
 ### AWS
 
-1. **Live CSV streaming** (primary) — For EC2 compute pricing, the server streams the AWS Bulk Pricing CSV for the target region line-by-line. This avoids loading the full ~267 MB file into memory. All on-demand compute prices for the region are extracted in a single pass and cached in SQLite for 24 hours. Concurrent requests for the same region share a single download.
+1. **Live CSV streaming** (primary). For EC2 compute pricing, the server streams the AWS Bulk Pricing CSV for the target region line-by-line. This avoids loading the full ~267 MB file into memory. All on-demand compute prices for the region are extracted in a single pass and cached in SQLite for 24 hours. Concurrent requests for the same region share a single download.
 
-2. **Live JSON API** (secondary) — For RDS (~24 MB), S3, ELB, and VPC, the server fetches regional JSON from the [AWS Price List Bulk API](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json). These files are small enough to parse directly.
+2. **Live JSON API** (secondary). For RDS (~24 MB), S3, ELB, and VPC, the server fetches regional JSON from the [AWS Price List Bulk API](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json). These files are small enough to parse directly.
 
-3. **Fallback tables + interpolation** — If live fetching fails (network issues, timeouts), the server falls back to built-in pricing tables covering 85+ EC2 and 29 RDS instance types. A size-interpolation algorithm estimates prices for unlisted sizes within known families by following AWS's predictable doubling pattern (e.g., `large` → `xlarge` doubles the price).
+3. **Fallback tables + interpolation**. If live fetching fails (network issues, timeouts), the server falls back to built-in pricing tables covering 85+ EC2 and 29 RDS instance types. A size-interpolation algorithm estimates prices for unlisted sizes within known families by following AWS's predictable doubling pattern (e.g., `large` to `xlarge` doubles the price).
 
 ### Azure
 
-1. **Live REST API** (primary) — Queries the [Azure Retail Prices API](https://prices.azure.com/api/retail/prices) with OData filters for exact SKU matching (`armSkuName`). This is a fast, free, unauthenticated API that returns precise per-SKU pricing. Results are paginated and fully consumed.
+1. **Live REST API** (primary). Queries the [Azure Retail Prices API](https://prices.azure.com/api/retail/prices) with OData filters for exact SKU matching (`armSkuName`). Fast, free, unauthenticated. Returns precise per-SKU pricing. Results are paginated and fully consumed.
 
-2. **Fallback tables + interpolation** — If the API is unreachable, falls back to built-in tables covering 40+ VM sizes and 14 database tiers. A vCPU-proportional interpolation algorithm estimates prices for unlisted sizes.
+2. **Fallback tables + interpolation**. If the API is unreachable, falls back to built-in tables covering 40+ VM sizes and 14 database tiers. A vCPU-proportional interpolation algorithm estimates prices for unlisted sizes.
 
 ### GCP
 
-1. **Live Cloud Billing Catalog API** (primary) — The server queries the GCP Cloud Billing Catalog API (`cloudbilling.googleapis.com`) using unauthenticated public endpoints where available. Results are cached for 24 hours.
+1. **Live Cloud Billing Catalog API** (primary). Queries the GCP Cloud Billing Catalog API (`cloudbilling.googleapis.com`) using unauthenticated public endpoints. Results are cached for 24 hours.
 
-2. **Bundled pricing data** (fallback) — If the live API is unreachable, the server falls back to curated pricing data in `data/gcp-pricing/` that ships with the package. This covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types across all major regions.
+2. **Bundled pricing data** (fallback). If the live API is unreachable, falls back to curated pricing data in `data/gcp-pricing/` that ships with the package. Covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types across all major regions.
 
-3. **Infrastructure services** — Load balancer, Cloud NAT, and GKE pricing use fixed public rates.
+3. **Infrastructure services**. Load balancer, Cloud NAT, and GKE pricing use fixed public rates.
 
 ### Pricing Source Transparency
 
 Every price returned includes a `pricing_source` attribute indicating its origin:
-- `"live"` — fetched from a public API in real time
-- `"fallback"` — from built-in tables (approximate, but reasonable for estimates)
-- `"bundled"` — from bundled data files shipped with the package
+- `"live"`: fetched from a public API in real time
+- `"fallback"`: from built-in tables (approximate, but reasonable for estimates)
+- `"bundled"`: from bundled data files shipped with the package
 
 All pricing data is cached in a local SQLite database (`~/.cloudcost/cache.db`) with a 24-hour TTL to minimize redundant API calls.
 
@@ -323,8 +323,8 @@ All configuration is optional. The server works out of the box with sensible def
 | `CLOUDCOST_INCLUDE_DATA_TRANSFER` | `false` | Include estimated data transfer costs in reports |
 | `CLOUDCOST_PRICING_MODEL` | `on_demand` | Default pricing model: `on_demand`, `spot`, or `reserved` |
 | `CLOUDCOST_RESOLVE_MODULES` | `true` | Expand referenced Terraform modules during parsing |
-| `CLOUDCOST_BUDGET_MONTHLY` | — | Monthly budget cap in USD; triggers a warning in reports when exceeded |
-| `CLOUDCOST_BUDGET_PER_RESOURCE` | — | Per-resource monthly budget cap in USD |
+| `CLOUDCOST_BUDGET_MONTHLY` | | Monthly budget cap in USD. Triggers a warning when exceeded |
+| `CLOUDCOST_BUDGET_PER_RESOURCE` | | Per-resource monthly budget cap in USD |
 | `CLOUDCOST_BUDGET_WARN_PCT` | `80` | Percentage of budget at which a warning is surfaced (default: 80%) |
 
 ### Config File
@@ -389,11 +389,11 @@ Configuration priority: environment variables > config file > built-in defaults.
 
 ### Key Design Decisions
 
-- **Zero API keys** — All pricing comes from public endpoints. AWS uses the unauthenticated Bulk Pricing files. Azure uses the free Retail Prices REST API. GCP uses bundled data from public catalog information.
-- **SQLite cache** — A single `better-sqlite3` database caches all pricing lookups with configurable TTL. Shared across all tools per server lifetime.
-- **Streaming for large files** — AWS EC2 pricing data (~267 MB CSV) is streamed line-by-line rather than loaded into memory. All prices for a region are extracted in one pass and cached.
-- **Graceful degradation** — If any live pricing source is unavailable, the server falls back to built-in tables with size-interpolation. Every response includes the pricing source so the consumer knows the confidence level.
-- **ESM-only** — Requires Node 20+. All internal imports use `.js` extensions.
+- **Zero API keys.** All pricing comes from public endpoints. AWS uses the unauthenticated Bulk Pricing files. Azure uses the free Retail Prices REST API. GCP queries the Cloud Billing Catalog API with bundled fallback.
+- **SQLite cache.** A single `better-sqlite3` database caches all pricing lookups with configurable TTL. Shared across all tools per server lifetime.
+- **Streaming for large files.** AWS EC2 pricing data (~267 MB CSV) is streamed line-by-line rather than loaded into memory. Prices for a region are extracted in one pass and cached.
+- **Graceful degradation.** If any live pricing source is unavailable, the server falls back to built-in tables with size-interpolation. Every response includes the pricing source so the consumer knows the confidence level.
+- **ESM-only.** Requires Node 20+. All internal imports use `.js` extensions.
 
 ---
 
@@ -425,13 +425,13 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 
 ## Troubleshooting
 
-**$0 cost estimates** — This usually means the instance type string in your Terraform code doesn't match any known pricing data. Check that you're using a real instance type (e.g., `t3.xlarge`) rather than a variable reference that wasn't resolved. Pass your `terraform.tfvars` content via the `tfvars` parameter to resolve variables.
+**$0 cost estimates.** The instance type string in your Terraform code probably doesn't match any known pricing data. Check that you're using a real instance type (e.g., `t3.xlarge`) rather than a variable reference that wasn't resolved. Pass your `terraform.tfvars` content via the `tfvars` parameter to resolve variables.
 
-**Slow first request** — The first EC2 pricing lookup for a new region streams the full AWS pricing CSV (~267 MB). This is a one-time cost per region; all subsequent lookups hit the local SQLite cache. Set `CLOUDCOST_LOG_LEVEL=debug` to see progress.
+**Slow first request.** The first EC2 pricing lookup for a new region streams the full AWS pricing CSV (~267 MB). One-time cost per region; subsequent lookups hit the local SQLite cache. Set `CLOUDCOST_LOG_LEVEL=debug` to see progress.
 
-**Cache issues** — Delete `~/.cloudcost/cache.db` to clear all cached pricing data. The cache rebuilds automatically on the next request.
+**Cache issues.** Delete `~/.cloudcost/cache.db` to clear all cached pricing data. The cache rebuilds automatically on the next request.
 
-**Node version** — The server requires Node.js 20+. It uses ESM modules, Web Streams API (`TextDecoderStream`), and `AbortSignal.timeout()`.
+**Node version.** Requires Node.js 20+. Uses ESM modules, Web Streams API (`TextDecoderStream`), and `AbortSignal.timeout()`.
 
 ---
 
@@ -528,4 +528,4 @@ data/
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE) for details.

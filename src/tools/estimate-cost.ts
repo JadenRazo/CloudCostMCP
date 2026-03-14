@@ -74,9 +74,36 @@ export async function estimateCost(
   const currency = params.currency ?? "USD";
   const converted = currency !== "USD" ? convertBreakdownCurrency(breakdown, currency) : breakdown;
 
+  // Strip per-resource fields that are redundant at the breakdown level or
+  // trivially derivable (provider, region, currency match top-level values;
+  // yearly_cost === monthly_cost * 12). Also omit empty notes and breakdown
+  // arrays to keep payload size minimal.
+  const byResource = converted.by_resource.map((r) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { provider: _p, region: _r, currency: _c, yearly_cost: _y, ...rest } = r as typeof r & {
+      provider: unknown;
+      region: unknown;
+      currency: unknown;
+      yearly_cost: unknown;
+    };
+    const trimmed: Record<string, unknown> = { ...rest };
+    if (Array.isArray(trimmed.notes) && (trimmed.notes as unknown[]).length === 0) {
+      delete trimmed.notes;
+    }
+    if (Array.isArray(trimmed.breakdown) && (trimmed.breakdown as unknown[]).length === 0) {
+      delete trimmed.breakdown;
+    }
+    return trimmed;
+  });
+
+  // Omit generated_at and the separate parse_warnings field; warnings is the
+  // deduplicated union already.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { generated_at: _ga, ...convertedRest } = converted as typeof converted & { generated_at: unknown };
+
   return {
-    ...converted,
-    parse_warnings: parseWarnings,
+    ...convertedRest,
+    by_resource: byResource,
     warnings: allWarnings,
   } as unknown as object;
 }

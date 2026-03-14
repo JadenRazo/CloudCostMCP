@@ -102,5 +102,5 @@ export function generateJsonReport(
     output.cost_by_tag = costByTag;
   }
 
-  return JSON.stringify(output, null, 2);
+  return JSON.stringify(output);
 }

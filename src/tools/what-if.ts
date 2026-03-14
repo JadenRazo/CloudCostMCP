@@ -69,17 +69,10 @@ export interface WhatIfResult {
   original_total_monthly: number;
   new_total_monthly: number;
   total_delta_monthly: number;
-  total_delta_yearly: number;
   total_pct_change: number;
-  currency: string;
   resource_diffs: ResourceDiff[];
-  changes_applied: Array<{
-    resource_id: string;
-    attribute: string;
-    new_value: string | number;
-  }>;
+  unchanged_resource_count: number;
   warnings: string[];
-  generated_at: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +131,7 @@ export async function whatIf(
     ...(inventory.parse_warnings ?? []),
     ...(originalBreakdown.warnings ?? []),
   ];
-  const changesApplied: WhatIfResult["changes_applied"] = [];
+  const changesApplied: Array<{ resource_id: string; attribute: string; new_value: string | number }> = [];
 
   for (const change of params.changes) {
     const resource = modifiedResources.find(
@@ -254,18 +247,20 @@ export async function whatIf(
         : 100
       : Math.round(((newTotal - origTotal) / origTotal) * 10000) / 100;
 
+  // Filter to only resources where something actually changed, and track how
+  // many were unchanged so the caller knows the full scope without extra data.
+  const changedDiffs = resourceDiffs.filter((d) => d.delta_monthly !== 0);
+  const unchangedCount = resourceDiffs.length - changedDiffs.length;
+
   return {
     provider: targetProvider,
     region: targetRegion,
     original_total_monthly: Math.round(origTotal * 100) / 100,
     new_total_monthly: Math.round(newTotal * 100) / 100,
     total_delta_monthly: totalDelta,
-    total_delta_yearly: Math.round(totalDelta * 12 * 100) / 100,
     total_pct_change: totalPct,
-    currency: "USD",
-    resource_diffs: resourceDiffs,
-    changes_applied: changesApplied,
+    resource_diffs: changedDiffs,
+    unchanged_resource_count: unchangedCount,
     warnings: allWarnings,
-    generated_at: new Date().toISOString(),
   };
 }

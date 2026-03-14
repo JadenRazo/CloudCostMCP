@@ -95,7 +95,6 @@ describe("whatIf", () => {
     // t3.large is more expensive than t3.micro so the total should increase.
     expect(result.total_delta_monthly).toBeGreaterThan(0);
     expect(result.new_total_monthly).toBeGreaterThan(result.original_total_monthly);
-    expect(result.total_delta_yearly).toBeCloseTo(result.total_delta_monthly * 12, 1);
   });
 
   it("downgrading instance type decreases monthly cost", async () => {
@@ -125,7 +124,7 @@ describe("whatIf", () => {
   // Multiple changes applied correctly
   // -------------------------------------------------------------------------
 
-  it("applies multiple changes and reports all of them in changes_applied", async () => {
+  it("applies multiple changes and the changed resources appear in resource_diffs", async () => {
     const result = await whatIf(
       {
         files: SIMPLE_FILES,
@@ -148,13 +147,14 @@ describe("whatIf", () => {
       DEFAULT_CONFIG
     );
 
-    expect(result.changes_applied).toHaveLength(2);
-    expect(result.changes_applied.map((c) => c.resource_id)).toContain(
-      "aws_instance.web"
-    );
-    expect(result.changes_applied.map((c) => c.resource_id)).toContain(
-      "aws_instance.api"
-    );
+    // Both changed resources should appear in the per-resource diff.
+    const changedIds = result.resource_diffs.map((d) => d.resource_id);
+    expect(changedIds).toContain("aws_instance.web");
+    expect(changedIds).toContain("aws_instance.api");
+    // changes_applied on each resource_diff entry tells the caller what changed.
+    const webDiff = result.resource_diffs.find((d) => d.resource_id === "aws_instance.web");
+    expect(webDiff?.changes_applied).toHaveLength(1);
+    expect(webDiff?.changes_applied[0].attribute).toBe("instance_type");
   });
 
   it("per-resource diff shows the changed resource with a non-zero delta", async () => {
@@ -205,9 +205,9 @@ describe("whatIf", () => {
       DEFAULT_CONFIG
     );
 
-    // The change for the missing resource is skipped; changes_applied should
+    // The change for the missing resource is skipped; resource_diffs should
     // be empty and a warning should be surfaced to the caller.
-    expect(result.changes_applied).toHaveLength(0);
+    expect(result.resource_diffs).toHaveLength(0);
     expect(
       result.warnings.some((w) => w.includes("aws_instance.nonexistent"))
     ).toBe(true);
@@ -230,7 +230,6 @@ describe("whatIf", () => {
     );
 
     expect(result.total_delta_monthly).toBe(0);
-    expect(result.total_delta_yearly).toBe(0);
     expect(result.total_pct_change).toBe(0);
     expect(result.new_total_monthly).toBeCloseTo(result.original_total_monthly, 2);
   });
@@ -239,7 +238,7 @@ describe("whatIf", () => {
   // Output includes per-resource breakdown
   // -------------------------------------------------------------------------
 
-  it("resource_diffs contains an entry for every parsed resource", async () => {
+  it("resource_diffs is empty when no changes are applied (all unchanged)", async () => {
     const result = await whatIf(
       {
         files: SIMPLE_FILES,
@@ -251,15 +250,25 @@ describe("whatIf", () => {
       DEFAULT_CONFIG
     );
 
+    // With no changes, all resources have delta_monthly === 0 so resource_diffs
+    // is filtered to empty; unchanged_resource_count reflects the full count.
+    expect(result.resource_diffs).toHaveLength(0);
     // The fixture has 3 resources: web, api, data.
-    expect(result.resource_diffs.length).toBeGreaterThanOrEqual(3);
+    expect(result.unchanged_resource_count).toBeGreaterThanOrEqual(3);
   });
 
   it("each resource_diff entry has required fields", async () => {
+    // Use an actual change so there's something in resource_diffs to validate.
     const result = await whatIf(
       {
         files: SIMPLE_FILES,
-        changes: [],
+        changes: [
+          {
+            resource_id: "aws_instance.web",
+            attribute: "instance_type",
+            new_value: "t3.large",
+          },
+        ],
         provider: "aws",
         region: "us-east-1",
       },
@@ -267,6 +276,7 @@ describe("whatIf", () => {
       DEFAULT_CONFIG
     );
 
+    expect(result.resource_diffs.length).toBeGreaterThan(0);
     for (const diff of result.resource_diffs) {
       expect(typeof diff.resource_id).toBe("string");
       expect(typeof diff.resource_type).toBe("string");
@@ -280,7 +290,7 @@ describe("whatIf", () => {
     }
   });
 
-  it("result includes provider, region, and generated_at fields", async () => {
+  it("result includes provider and region fields", async () => {
     const result = await whatIf(
       {
         files: SIMPLE_FILES,
@@ -294,8 +304,6 @@ describe("whatIf", () => {
 
     expect(result.provider).toBe("aws");
     expect(result.region).toBe("us-east-1");
-    expect(typeof result.generated_at).toBe("string");
-    expect(new Date(result.generated_at).getTime()).toBeGreaterThan(0);
   });
 
   // -------------------------------------------------------------------------

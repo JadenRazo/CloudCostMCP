@@ -79,15 +79,23 @@ export async function getEquivalents(
     }
   }
 
-  return {
-    resource_type: params.resource_type,
-    source_provider: sourceProvider,
-    resource_equivalents: resourceEquivalents,
-    ...(instanceEquivalents !== undefined
-      ? {
-          instance_type: params.instance_type,
-          instance_equivalents: instanceEquivalents,
-        }
-      : {}),
+  // Filter null values from equivalents maps — null means "no mapping exists"
+  // and including it wastes tokens without adding information.
+  const filteredResourceEquivalents = Object.fromEntries(
+    Object.entries(resourceEquivalents).filter(([, v]) => v !== null)
+  );
+
+  const result: Record<string, unknown> = {
+    resource_equivalents: filteredResourceEquivalents,
   };
+
+  if (instanceEquivalents !== undefined) {
+    const filteredInstanceEquivalents = Object.fromEntries(
+      Object.entries(instanceEquivalents).filter(([, v]) => v !== null)
+    );
+    result.instance_type = params.instance_type;
+    result.instance_equivalents = filteredInstanceEquivalents;
+  }
+
+  return result;
 }

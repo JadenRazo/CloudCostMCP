@@ -132,10 +132,35 @@ export async function compareProviders(
       break;
   }
 
+  const dedupedWarnings = [...new Set([...parseWarnings, ...allWarnings])];
+
+  if (params.format === "json") {
+    // The JSON report already contains the full structured data; returning
+    // the raw comparison object on top would double the payload.
+    return {
+      report,
+      format: params.format,
+      warnings: dedupedWarnings,
+    };
+  }
+
+  // For non-JSON formats, include a lightweight summary instead of the full
+  // nested comparison object with all by_resource arrays.
+  const comparisonSummary = {
+    source_provider: comparison.source_provider,
+    savings_summary: comparison.savings_summary,
+    providers: convertedComparisons.map((b) => ({
+      provider: b.provider,
+      total_monthly: b.total_monthly,
+      total_yearly: b.total_yearly,
+      resource_count: b.by_resource.length,
+    })),
+  };
+
   return {
     report,
     format: params.format,
-    comparison,
-    warnings: [...new Set([...parseWarnings, ...allWarnings])],
+    comparison: comparisonSummary,
+    warnings: dedupedWarnings,
   };
 }
