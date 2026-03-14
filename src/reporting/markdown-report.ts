@@ -260,23 +260,6 @@ export function generateMarkdownReport(
   }
 
   // ---------------------------------------------------------------------------
-  // Assumptions
-  // ---------------------------------------------------------------------------
-  lines.push(`## Assumptions`, ``);
-  lines.push(
-    `| Parameter | Value |`,
-    `|-----------|-------|`,
-    `| Pricing model | On-demand (no reserved or spot instances) |`,
-    `| Operating system | Linux (unless specified in resource attributes) |`,
-    `| Monthly hours | ${monthlyHours} |`,
-    `| Currency | USD |`,
-    `| Pricing source | Mix of live API and fallback/bundled data |`,
-    `| Data transfer costs | Not included |`,
-    `| Tax | Not included |`,
-    ``
-  );
-
-  // ---------------------------------------------------------------------------
   // Cost Projection
   // ---------------------------------------------------------------------------
   if (sourceMonthly > 0) {

@@ -44,7 +44,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await analyzeTerraform(params);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );
@@ -59,7 +59,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await estimateCost(params, pricingEngine, config);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );
@@ -74,7 +74,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await compareProviders(params, pricingEngine, config);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );
@@ -89,7 +89,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await getEquivalents(params);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );
@@ -104,7 +104,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await getPricing(params, pricingEngine);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );
@@ -119,7 +119,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await optimizeCost(params, pricingEngine, config);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );
@@ -134,7 +134,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     async (params) => {
       const result = await whatIf(params, pricingEngine, config);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     }
   );

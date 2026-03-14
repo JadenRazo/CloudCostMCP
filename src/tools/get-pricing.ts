@@ -52,18 +52,27 @@ export async function getPricing(
 
   const service = serviceMap[params.service] ?? params.service;
 
-  const price = await pricingEngine.getPrice(
+  const rawPrice = await pricingEngine.getPrice(
     provider,
     service,
     params.resource_type,
     params.region
   );
 
-  return {
-    provider,
-    service: params.service,
-    resource_type: params.resource_type,
-    region: params.region,
-    price,
-  };
+  // Strip verbose / redundant fields from the price object when present.
+  let price: Record<string, unknown> | null = null;
+  if (rawPrice !== null) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { description: _d, attributes, ...priceRest } = rawPrice as typeof rawPrice & {
+      description?: unknown;
+      attributes?: Record<string, string>;
+    };
+    price = { ...priceRest };
+    // Only include attributes when the object is non-empty.
+    if (attributes && Object.keys(attributes).length > 0) {
+      price.attributes = attributes;
+    }
+  }
+
+  return { price };
 }

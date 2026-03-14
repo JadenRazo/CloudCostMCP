@@ -83,7 +83,5 @@ export async function optimizeCost(
     recommendations,
     reserved_pricing: reservedPricing,
     total_potential_savings: Math.round(totalPotentialSavings * 100) / 100,
-    recommendation_count: recommendations.length,
-    resource_count: inventory.resources.length,
   };
 }

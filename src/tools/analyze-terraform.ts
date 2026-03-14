@@ -50,11 +50,30 @@ export async function analyzeTerraform(
 
   // Reorder so parse_warnings appears first in serialised output for
   // immediate visibility to callers inspecting the raw JSON.
-  const { parse_warnings, ...rest } = inventory;
+  const { parse_warnings, resources, ...rest } = inventory;
+
+  // Strip empty tags objects from each resource to reduce payload size.
+  // If all resources share the same source_file, hoist it to the top level
+  // and drop it from individual resources.
+  const sourceFiles = new Set(resources.map((r) => r.source_file).filter(Boolean));
+  const sharedSourceFile = sourceFiles.size === 1 ? [...sourceFiles][0] : undefined;
+
+  const trimmedResources = resources.map((r) => {
+    const trimmed: Record<string, unknown> = { ...r };
+    if (trimmed.tags && typeof trimmed.tags === "object" && Object.keys(trimmed.tags as object).length === 0) {
+      delete trimmed.tags;
+    }
+    if (sharedSourceFile) {
+      delete trimmed.source_file;
+      delete trimmed.source_line;
+    }
+    return trimmed;
+  });
 
   const response: Record<string, unknown> = {
     parse_warnings,
-    has_warnings: parse_warnings.length > 0,
+    ...(sharedSourceFile ? { source_file: sharedSourceFile } : {}),
+    resources: trimmedResources,
     ...rest,
   };
 
