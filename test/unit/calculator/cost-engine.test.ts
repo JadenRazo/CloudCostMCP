@@ -47,7 +47,7 @@ describe("CostEngine", () => {
   });
 
   afterEach(() => {
-    cache.close();
+    cache?.close();
     const dir = join(dbPath, "..");
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });

@@ -8,6 +8,7 @@ import {
 } from "./aws-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
 import { getRegionPriceMultipliers } from "../../data/loader.js";
+import { interpolateByStepOrder } from "../interpolation.js";
 
 // ---------------------------------------------------------------------------
 // CSV parsing helper
@@ -467,6 +468,11 @@ export class AwsBulkLoader {
         .pipeThrough(new TextDecoderStream())
         .getReader();
 
+      // Open a single SQLite transaction for all cache.set() calls during this
+      // CSV stream. AWS EC2 CSVs contain 1000+ rows; batching yields ~100x
+      // write throughput compared to individual auto-commit transactions.
+      this.cache.beginBatch();
+
       // Column indices discovered from the header row
       let colInstanceType = -1;
       let colOS = -1;
@@ -525,6 +531,7 @@ export class AwsBulkLoader {
                   colOS,
                   colPrice,
                 });
+                this.cache.rollbackBatch();
                 return false;
               }
 
@@ -638,9 +645,20 @@ export class AwsBulkLoader {
         }
       }
 
+      // Commit or discard the batch transaction
+      if (cachedCount > 0) {
+        this.cache.endBatch();
+      } else {
+        // Nothing written — roll back the empty transaction cleanly
+        this.cache.rollbackBatch();
+      }
+
       logger.debug("AWS EC2 CSV streaming complete", { region, cachedCount });
       return cachedCount > 0;
     } catch (err) {
+      // Roll back any partial batch on error to avoid partial cache state
+      this.cache.rollbackBatch();
+
       if ((err as Error)?.name === "AbortError") {
         logger.debug("AWS EC2 CSV streaming timed out", { region });
       } else {
@@ -785,62 +803,16 @@ export class AwsBulkLoader {
 
   /**
    * AWS instance sizes follow a predictable doubling pattern:
-   * nano → micro → small → medium → large → xlarge → 2xlarge → 4xlarge → 8xlarge → ...
-   * Each step roughly doubles the price. Given a known price at one size,
-   * we can estimate the price for a missing size in the same family.
+   * nano → micro → small → medium → large → xlarge → 2xlarge → 4xlarge → …
+   * Each step roughly doubles the price.
+   *
+   * Delegated to the shared `interpolateByStepOrder` utility.
    */
-  private static readonly SIZE_ORDER: string[] = [
+  private static readonly SIZE_ORDER: readonly string[] = [
     "nano", "micro", "small", "medium", "large",
     "xlarge", "2xlarge", "4xlarge", "8xlarge", "12xlarge",
     "16xlarge", "24xlarge", "32xlarge", "48xlarge",
   ];
-
-  private interpolatePrice(
-    requestedType: string,
-    table: Record<string, number>
-  ): number | undefined {
-    const lower = requestedType.toLowerCase();
-    // Split "m5.2xlarge" → family "m5", size "2xlarge"
-    // Split "db.r6g.xlarge" → family "db.r6g", size "xlarge"
-    const lastDot = lower.lastIndexOf(".");
-    if (lastDot === -1) return undefined;
-
-    const family = lower.slice(0, lastDot);
-    const targetSize = lower.slice(lastDot + 1);
-
-    const targetIdx = AwsBulkLoader.SIZE_ORDER.indexOf(targetSize);
-    if (targetIdx === -1) return undefined;
-
-    // Find the closest known size in the same family
-    let bestKey: string | undefined;
-    let bestIdx = -1;
-    let bestDistance = Infinity;
-
-    for (const key of Object.keys(table)) {
-      const keyLastDot = key.lastIndexOf(".");
-      if (keyLastDot === -1) continue;
-      const keyFamily = key.slice(0, keyLastDot);
-      const keySize = key.slice(keyLastDot + 1);
-      if (keyFamily !== family) continue;
-
-      const keyIdx = AwsBulkLoader.SIZE_ORDER.indexOf(keySize);
-      if (keyIdx === -1) continue;
-
-      const distance = Math.abs(keyIdx - targetIdx);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestIdx = keyIdx;
-        bestKey = key;
-      }
-    }
-
-    if (bestKey === undefined || bestIdx === -1) return undefined;
-
-    const knownPrice = table[bestKey]!;
-    const steps = targetIdx - bestIdx;
-    // Each step doubles (positive = bigger, negative = smaller)
-    return knownPrice * Math.pow(2, steps);
-  }
 
   // -------------------------------------------------------------------------
   // Internal helpers – fallback hardcoded prices
@@ -852,11 +824,11 @@ export class AwsBulkLoader {
     os: string,
     cacheKey: string
   ): NormalizedPrice | null {
-    let basePrice = EC2_BASE_PRICES[instanceType.toLowerCase()];
-    if (basePrice === undefined) {
-      basePrice = this.interpolatePrice(instanceType, EC2_BASE_PRICES) ?? undefined as any;
-    }
-    if (basePrice === undefined) {
+    const basePrice: number =
+      EC2_BASE_PRICES[instanceType.toLowerCase()] ??
+      interpolateByStepOrder(instanceType, EC2_BASE_PRICES, AwsBulkLoader.SIZE_ORDER) ??
+      NaN;
+    if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for EC2 instance type", { instanceType });
       return null;
     }
@@ -890,11 +862,11 @@ export class AwsBulkLoader {
     engine: string,
     cacheKey: string
   ): NormalizedPrice | null {
-    let basePrice = RDS_BASE_PRICES[instanceClass.toLowerCase()];
-    if (basePrice === undefined) {
-      basePrice = this.interpolatePrice(instanceClass, RDS_BASE_PRICES) ?? undefined as any;
-    }
-    if (basePrice === undefined) {
+    const basePrice: number =
+      RDS_BASE_PRICES[instanceClass.toLowerCase()] ??
+      interpolateByStepOrder(instanceClass, RDS_BASE_PRICES, AwsBulkLoader.SIZE_ORDER) ??
+      NaN;
+    if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for RDS instance class", { instanceClass });
       return null;
     }

@@ -273,7 +273,7 @@ function mergeObjects(
   return result;
 }
 
-function deepClone(value: unknown): unknown {
+function deepClone<T>(value: T): T {
   if (value === null || typeof value !== "object") return value;
-  return JSON.parse(JSON.stringify(value));
+  return structuredClone(value);
 }

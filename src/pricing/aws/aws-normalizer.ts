@@ -51,7 +51,7 @@ function extractFromTerms(
     }
     // Otherwise iterate the nested offerTermCode level.
     for (const offerTerm of Object.values(skuTerms ?? {})) {
-      const dims = (offerTerm as any)?.priceDimensions;
+      const dims = (offerTerm as Record<string, unknown>)?.priceDimensions;
       if (dims) {
         return {
           price: extractUsdPrice(dims),

@@ -58,15 +58,16 @@ export async function compareProviders(
   const costEngine = new CostEngine(pricingEngine, config);
   const comparisons: CostBreakdown[] = [];
 
-  for (const provider of params.providers as CloudProvider[]) {
-    const targetRegion = mapRegion(inventory.region, sourceProvider, provider);
-    const breakdown = await costEngine.calculateBreakdown(
-      inventory.resources,
-      provider,
-      targetRegion
-    );
-    comparisons.push(breakdown);
-  }
+  // Calculate all provider breakdowns concurrently — each provider's pricing
+  // fetches are fully independent, so there is no benefit to serialising them.
+  const providerList = params.providers as CloudProvider[];
+  const breakdowns = await Promise.all(
+    providerList.map((provider) => {
+      const targetRegion = mapRegion(inventory.region, sourceProvider, provider);
+      return costEngine.calculateBreakdown(inventory.resources, provider, targetRegion);
+    })
+  );
+  comparisons.push(...breakdowns);
 
   // Build a savings summary relative to the source provider breakdown (or the
   // first breakdown when the source provider was not requested).

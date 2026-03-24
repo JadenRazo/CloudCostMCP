@@ -19,7 +19,7 @@ describe("PricingCache", () => {
   });
 
   afterEach(() => {
-    cache.close();
+    cache?.close();
     // Clean up the temp directory created by the test
     const dir = join(dbPath, "..");
     if (existsSync(dir)) {

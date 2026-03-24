@@ -456,35 +456,41 @@ export class CostEngine {
     const byService: Record<string, number> = {};
     const warnings: string[] = [];
 
-    for (const resource of resources) {
-      try {
-        const estimate = await this.calculateCost(
-          resource,
-          targetProvider,
-          targetRegion
-        );
-        estimates.push(estimate);
+    // Fan out all resource cost calculations concurrently. Promise.allSettled()
+    // ensures a single pricing fetch failure never aborts the entire breakdown —
+    // rejected promises are logged and silently dropped.
+    const resourceResults = await Promise.allSettled(
+      resources.map((resource) =>
+        this.calculateCost(resource, targetProvider, targetRegion).then(
+          (estimate) => ({ resource, estimate })
+        )
+      )
+    );
 
-        const svc = serviceLabel(resource.type);
-        byService[svc] = (byService[svc] ?? 0) + estimate.monthly_cost;
-
-        // Surface warnings for fallback pricing and missing data.
-        if (estimate.pricing_source === "fallback") {
-          warnings.push(
-            `${estimate.resource_name} (${estimate.resource_type}): using fallback/bundled pricing data`
-          );
-        }
-        if (estimate.monthly_cost === 0 && estimate.confidence === "low") {
-          warnings.push(
-            `No pricing data found for ${estimate.resource_type} in ${targetRegion} — cost reported as $0`
-          );
-        }
-      } catch (err) {
+    for (const result of resourceResults) {
+      if (result.status === "rejected") {
         logger.error("CostEngine: failed to calculate cost for resource", {
-          resourceId: resource.id,
-          type: resource.type,
-          error: err instanceof Error ? err.message : String(err),
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         });
+        continue;
+      }
+
+      const { resource, estimate } = result.value;
+      estimates.push(estimate);
+
+      const svc = serviceLabel(resource.type);
+      byService[svc] = (byService[svc] ?? 0) + estimate.monthly_cost;
+
+      // Surface warnings for fallback pricing and missing data.
+      if (estimate.pricing_source === "fallback") {
+        warnings.push(
+          `${estimate.resource_name} (${estimate.resource_type}): using fallback/bundled pricing data`
+        );
+      }
+      if (estimate.monthly_cost === 0 && estimate.confidence === "low") {
+        warnings.push(
+          `No pricing data found for ${estimate.resource_type} in ${targetRegion} — cost reported as $0`
+        );
       }
     }
 
@@ -494,6 +500,7 @@ export class CostEngine {
     // egress cost estimate alongside the infrastructure costs.
     if (this.config.pricing.include_data_transfer && estimates.length > 0) {
       const seenProviderRegions = new Set<string>();
+      const syntheticResources: Array<{ resource: ParsedResource; dtResourceType: string }> = [];
 
       for (const estimate of estimates) {
         // Skip estimates that were themselves produced by synthetic data
@@ -507,34 +514,43 @@ export class CostEngine {
         const dtResourceType = DATA_TRANSFER_TYPE_FOR_PROVIDER[estimate.provider];
         if (!dtResourceType) continue;
 
-        const syntheticResource: ParsedResource = {
-          id: `synthetic-data-transfer-${estimate.provider}-${estimate.region}`,
-          type: dtResourceType,
-          name: `data-transfer-${estimate.provider}-${estimate.region}`,
-          provider: estimate.provider,
-          region: estimate.region,
-          attributes: { monthly_egress_gb: 100 },
-          tags: {},
-          source_file: "synthetic",
-        };
-
-        try {
-          const dtEstimate = await this.calculateCost(
-            syntheticResource,
-            estimate.provider,
-            estimate.region
-          );
-          estimates.push(dtEstimate);
-
-          const svc = serviceLabel(dtResourceType);
-          byService[svc] = (byService[svc] ?? 0) + dtEstimate.monthly_cost;
-        } catch (err) {
-          logger.error("CostEngine: failed to calculate data transfer cost", {
+        syntheticResources.push({
+          dtResourceType,
+          resource: {
+            id: `synthetic-data-transfer-${estimate.provider}-${estimate.region}`,
+            type: dtResourceType,
+            name: `data-transfer-${estimate.provider}-${estimate.region}`,
             provider: estimate.provider,
             region: estimate.region,
-            error: err instanceof Error ? err.message : String(err),
+            attributes: { monthly_egress_gb: 100 },
+            tags: {},
+            source_file: "synthetic",
+          },
+        });
+      }
+
+      // Fan out all data transfer calculations concurrently.
+      const dtResults = await Promise.allSettled(
+        syntheticResources.map(({ resource, dtResourceType }) =>
+          this.calculateCost(resource, resource.provider, resource.region).then(
+            (dtEstimate) => ({ dtEstimate, dtResourceType })
+          )
+        )
+      );
+
+      for (const result of dtResults) {
+        if (result.status === "rejected") {
+          logger.error("CostEngine: failed to calculate data transfer cost", {
+            error: result.reason instanceof Error ? result.reason.message : String(result.reason),
           });
+          continue;
         }
+
+        const { dtEstimate, dtResourceType } = result.value;
+        estimates.push(dtEstimate);
+
+        const svc = serviceLabel(dtResourceType);
+        byService[svc] = (byService[svc] ?? 0) + dtEstimate.monthly_cost;
       }
     }
 

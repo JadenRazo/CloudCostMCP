@@ -8,6 +8,7 @@ import {
 } from "./azure-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
 import { getRegionPriceMultipliers } from "../../data/loader.js";
+import { interpolateByVcpuRatio } from "../interpolation.js";
 
 // ---------------------------------------------------------------------------
 // Fallback pricing data (approximate eastus on-demand prices, 2024)
@@ -465,84 +466,37 @@ export class AzureRetailClient {
    * Azure VM sizes embed vCPU count as a number: Standard_D2s_v5 → 2 vCPUs.
    * Doubling the number roughly doubles the price. Find the nearest known
    * size in the same family/suffix and scale proportionally.
+   *
+   * Delegated to the shared `interpolateByVcpuRatio` utility with a VM-specific
+   * normaliser that lowercases and collapses whitespace to underscores.
    */
   private interpolateVmPrice(
     vmSize: string,
     table: Record<string, number>
   ): number | undefined {
-    const key = vmSize.toLowerCase().replace(/\s+/g, "_");
-    // Match pattern like "standard_d2s_v5" → prefix "standard_d", num 2, suffix "s_v5"
-    const match = key.match(/^(.+?)(\d+)(.*?)$/);
-    if (!match) return undefined;
-
-    const [, prefix, numStr, suffix] = match;
-    const targetNum = parseInt(numStr, 10);
-    if (isNaN(targetNum) || targetNum === 0) return undefined;
-
-    let bestKey: string | undefined;
-    let bestNum = 0;
-    let bestDistance = Infinity;
-
-    for (const candidate of Object.keys(table)) {
-      const candMatch = candidate.match(/^(.+?)(\d+)(.*?)$/);
-      if (!candMatch) continue;
-      const [, cPrefix, cNumStr, cSuffix] = candMatch;
-      if (cPrefix !== prefix || cSuffix !== suffix) continue;
-
-      const cNum = parseInt(cNumStr, 10);
-      if (isNaN(cNum) || cNum === 0) continue;
-
-      const distance = Math.abs(cNum - targetNum);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestNum = cNum;
-        bestKey = candidate;
-      }
-    }
-
-    if (bestKey === undefined || bestNum === 0) return undefined;
-    return table[bestKey]! * (targetNum / bestNum);
+    return interpolateByVcpuRatio(
+      vmSize,
+      table,
+      (name) => name.toLowerCase().replace(/\s+/g, "_")
+    );
   }
 
   /**
    * Azure DB tier names embed a vCPU number similarly to VM sizes.
    * e.g. "gp_standard_d2s_v3" → "gp_standard_d4s_v3" doubles.
+   *
+   * Delegated to the shared `interpolateByVcpuRatio` utility with a DB-tier
+   * normaliser that also collapses hyphens to underscores.
    */
   private interpolateDbPrice(
     tier: string,
     table: Record<string, number>
   ): number | undefined {
-    const key = tier.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-    const match = key.match(/^(.+?)(\d+)(.*?)$/);
-    if (!match) return undefined;
-
-    const [, prefix, numStr, suffix] = match;
-    const targetNum = parseInt(numStr, 10);
-    if (isNaN(targetNum) || targetNum === 0) return undefined;
-
-    let bestKey: string | undefined;
-    let bestNum = 0;
-    let bestDistance = Infinity;
-
-    for (const candidate of Object.keys(table)) {
-      const candMatch = candidate.match(/^(.+?)(\d+)(.*?)$/);
-      if (!candMatch) continue;
-      const [, cPrefix, cNumStr, cSuffix] = candMatch;
-      if (cPrefix !== prefix || cSuffix !== suffix) continue;
-
-      const cNum = parseInt(cNumStr, 10);
-      if (isNaN(cNum) || cNum === 0) continue;
-
-      const distance = Math.abs(cNum - targetNum);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestNum = cNum;
-        bestKey = candidate;
-      }
-    }
-
-    if (bestKey === undefined || bestNum === 0) return undefined;
-    return table[bestKey]! * (targetNum / bestNum);
+    return interpolateByVcpuRatio(
+      tier,
+      table,
+      (name) => name.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_")
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -556,11 +510,11 @@ export class AzureRetailClient {
     cacheKey: string
   ): NormalizedPrice | null {
     const key = vmSize.toLowerCase().replace(/\s+/g, "_");
-    let basePrice = VM_BASE_PRICES[key];
-    if (basePrice === undefined) {
-      basePrice = this.interpolateVmPrice(vmSize, VM_BASE_PRICES) ?? undefined as any;
-    }
-    if (basePrice === undefined) {
+    const basePrice: number =
+      VM_BASE_PRICES[key] ??
+      this.interpolateVmPrice(vmSize, VM_BASE_PRICES) ??
+      NaN;
+    if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for Azure VM size", { vmSize });
       return null;
     }
@@ -594,11 +548,11 @@ export class AzureRetailClient {
     cacheKey: string
   ): NormalizedPrice | null {
     const key = tier.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-    let basePrice = DB_BASE_PRICES[key];
-    if (basePrice === undefined) {
-      basePrice = this.interpolateDbPrice(tier, DB_BASE_PRICES) ?? undefined as any;
-    }
-    if (basePrice === undefined) {
+    const basePrice: number =
+      DB_BASE_PRICES[key] ??
+      this.interpolateDbPrice(tier, DB_BASE_PRICES) ??
+      NaN;
+    if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for Azure DB tier", { tier });
       return null;
     }

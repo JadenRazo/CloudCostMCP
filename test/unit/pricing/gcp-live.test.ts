@@ -79,7 +79,7 @@ describe("CloudBillingClient – live pricing", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    cache.close();
+    cache?.close();
     const dir = join(dbPath, "..");
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
@@ -309,7 +309,7 @@ describe("CloudBillingClient – API failure handling", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    cache.close();
+    cache?.close();
     const dir = join(dbPath, "..");
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
@@ -396,7 +396,7 @@ describe("CloudBillingClient – cache behaviour", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    cache.close();
+    cache?.close();
     const dir = join(dbPath, "..");
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
@@ -553,7 +553,7 @@ describe("GcpProvider – live-then-bundled fallback", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    cache.close();
+    cache?.close();
     const dir = join(dbPath, "..");
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
