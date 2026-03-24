@@ -59,7 +59,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  cache.close();
+  cache?.close();
   if (existsSync(dbPath)) {
     rmSync(dbPath, { force: true });
   }

@@ -306,17 +306,39 @@ const DEFAULT_CLOUD_RUN_MEMORY_GIB = 0.5;
  */
 function parseCpuLimit(raw: string | undefined): number {
   if (!raw) return DEFAULT_CLOUD_RUN_VCPUS;
-  if (raw.endsWith("m")) return parseFloat(raw) / 1000;
-  return parseFloat(raw) || DEFAULT_CLOUD_RUN_VCPUS;
+  // Kubernetes millicpu: "500m" = 0.5 vCPU. Strip the suffix explicitly so
+  // parseFloat never sees non-numeric characters; guards against bare "m" too.
+  if (raw.endsWith("m")) {
+    const n = parseFloat(raw.slice(0, -1));
+    return isNaN(n) ? DEFAULT_CLOUD_RUN_VCPUS : n / 1000;
+  }
+  const n = parseFloat(raw);
+  return isNaN(n) ? DEFAULT_CLOUD_RUN_VCPUS : n;
 }
 
 function parseMemoryLimitGiB(raw: string | undefined): number {
   if (!raw) return DEFAULT_CLOUD_RUN_MEMORY_GIB;
-  if (raw.endsWith("Gi")) return parseFloat(raw);
-  if (raw.endsWith("Mi")) return parseFloat(raw) / 1024;
-  if (raw.endsWith("G")) return parseFloat(raw);
-  if (raw.endsWith("M")) return parseFloat(raw) / 1024;
-  return parseFloat(raw) / 1024 / 1024 || DEFAULT_CLOUD_RUN_MEMORY_GIB;
+  // Strip binary/decimal suffixes explicitly before parsing so that
+  // parseFloat never relies on silently ignoring trailing non-numeric chars.
+  if (raw.endsWith("Gi")) {
+    const n = parseFloat(raw.slice(0, -2));
+    return isNaN(n) ? DEFAULT_CLOUD_RUN_MEMORY_GIB : n;
+  }
+  if (raw.endsWith("Mi")) {
+    const n = parseFloat(raw.slice(0, -2));
+    return isNaN(n) ? DEFAULT_CLOUD_RUN_MEMORY_GIB : n / 1024;
+  }
+  if (raw.endsWith("G")) {
+    const n = parseFloat(raw.slice(0, -1));
+    return isNaN(n) ? DEFAULT_CLOUD_RUN_MEMORY_GIB : n;
+  }
+  if (raw.endsWith("M")) {
+    const n = parseFloat(raw.slice(0, -1));
+    return isNaN(n) ? DEFAULT_CLOUD_RUN_MEMORY_GIB : n / 1024;
+  }
+  // Assume raw bytes if no suffix
+  const n = parseFloat(raw);
+  return isNaN(n) ? DEFAULT_CLOUD_RUN_MEMORY_GIB : n / 1024 / 1024;
 }
 
 /**

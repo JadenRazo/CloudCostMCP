@@ -33,6 +33,31 @@ runs:
       shell: bash
       run: npm install -g @jadenrazo/cloudcost-mcp
 
+    - name: Validate inputs
+      shell: bash
+      run: |
+        # Whitelist: format
+        case "${{ inputs.format }}" in
+          markdown|json|csv|focus) ;;
+          *) echo "Error: invalid format '${{ inputs.format }}'. Allowed: markdown, json, csv, focus" >&2; exit 1 ;;
+        esac
+
+        # Whitelist: currency
+        case "${{ inputs.currency }}" in
+          USD|EUR|GBP|JPY|CAD|AUD|INR|BRL) ;;
+          *) echo "Error: invalid currency '${{ inputs.currency }}'. Allowed: USD, EUR, GBP, JPY, CAD, AUD, INR, BRL" >&2; exit 1 ;;
+        esac
+
+        # Whitelist: providers — each comma-separated token must be aws, azure, or gcp
+        IFS=',' read -ra _PROVIDERS <<< "${{ inputs.providers }}"
+        for _P in "${_PROVIDERS[@]}"; do
+          _P="${_P// /}"  # strip any accidental whitespace
+          case "$_P" in
+            aws|azure|gcp) ;;
+            *) echo "Error: invalid provider '$_P'. Allowed: aws, azure, gcp" >&2; exit 1 ;;
+          esac
+        done
+
     - name: Detect Terraform directory
       id: detect-dir
       shell: bash

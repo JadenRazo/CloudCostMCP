@@ -211,6 +211,56 @@ export class PricingCache {
     }
   }
 
+  /**
+   * Begin a batch write transaction. All subsequent `.set()` calls will be
+   * grouped into a single SQLite transaction until `endBatch()` is called.
+   * This can yield ~100x throughput improvement over individual transactions
+   * when caching large numbers of pricing rows (e.g. AWS EC2 CSV bulk load).
+   *
+   * Must be paired with a corresponding `endBatch()` or `rollbackBatch()`.
+   * Do not nest batch calls.
+   */
+  beginBatch(): void {
+    try {
+      this.db.exec("BEGIN TRANSACTION");
+      logger.debug("PricingCache batch started");
+    } catch (err) {
+      logger.warn("PricingCache beginBatch failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Commit all `.set()` calls made since the last `beginBatch()`.
+   */
+  endBatch(): void {
+    try {
+      this.db.exec("COMMIT");
+      logger.debug("PricingCache batch committed");
+    } catch (err) {
+      logger.warn("PricingCache endBatch failed, attempting rollback", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+      this.rollbackBatch();
+    }
+  }
+
+  /**
+   * Roll back a batch transaction, discarding all `.set()` calls made since
+   * `beginBatch()`. Called automatically by `endBatch()` on commit failure.
+   */
+  rollbackBatch(): void {
+    try {
+      this.db.exec("ROLLBACK");
+      logger.debug("PricingCache batch rolled back");
+    } catch (err) {
+      logger.warn("PricingCache rollbackBatch failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   /** Close the underlying database connection. */
   close(): void {
     this.db.close();

@@ -55,10 +55,12 @@ describe("Budget alerts in calculateBreakdown", () => {
   let engine: CostEngine;
 
   afterEach(() => {
-    cache.close();
-    const dir = join(dbPath, "..");
-    if (existsSync(dir)) {
-      rmSync(dir, { recursive: true, force: true });
+    cache?.close();
+    if (dbPath) {
+      const dir = join(dbPath, "..");
+      if (existsSync(dir)) {
+        rmSync(dir, { recursive: true, force: true });
+      }
     }
   });
 
