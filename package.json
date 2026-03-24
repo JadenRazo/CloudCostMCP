@@ -59,17 +59,17 @@
     "prepare": "npm run build"
   },
   "dependencies": {
+    "@cdktf/hcl2json": "^0.21.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "zod": "^3.24.4",
     "better-sqlite3": "^11.9.1",
-    "@cdktf/hcl2json": "^0.21.0"
+    "zod": "^3.24.4"
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
-    "tsup": "^8.4.0",
-    "vitest": "^3.1.1",
-    "tsx": "^4.19.4",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^22.14.0"
+    "@types/node": "^22.14.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.2",
+    "vitest": "^3.1.1"
   }
 }
