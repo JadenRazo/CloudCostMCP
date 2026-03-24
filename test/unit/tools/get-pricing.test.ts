@@ -77,8 +77,8 @@ describe("getPricing", () => {
     ) as Record<string, unknown>;
 
     const price = result.price as Record<string, unknown>;
-    expect(typeof price.unit_price).toBe("number");
-    expect(price.unit_price as number).toBeGreaterThan(0);
+    expect(typeof price.price_per_unit).toBe("number");
+    expect(price.price_per_unit as number).toBeGreaterThan(0);
     expect(typeof price.currency).toBe("string");
   });
 
@@ -93,8 +93,8 @@ describe("getPricing", () => {
       pricingEngine
     ) as Record<string, unknown>;
 
-    const microPrice = (microResult.price as Record<string, unknown>).unit_price as number;
-    const smallPrice = (smallResult.price as Record<string, unknown>).unit_price as number;
+    const microPrice = (microResult.price as Record<string, unknown>).price_per_unit as number;
+    const smallPrice = (smallResult.price as Record<string, unknown>).price_per_unit as number;
     expect(smallPrice).toBeGreaterThan(microPrice);
   });
 
@@ -117,7 +117,7 @@ describe("getPricing", () => {
     // gp3 is a well-known EBS type and should have bundled fallback pricing.
     if (result.price !== null) {
       const price = result.price as Record<string, unknown>;
-      expect(typeof price.unit_price).toBe("number");
+      expect(typeof price.price_per_unit).toBe("number");
     }
   });
 
@@ -130,7 +130,7 @@ describe("getPricing", () => {
       {
         provider: "gcp",
         service: "compute",
-        resource_type: "n1-standard-2",
+        resource_type: "e2-standard-2",
         region: "us-central1",
       },
       pricingEngine
@@ -140,8 +140,8 @@ describe("getPricing", () => {
     // GCP compute uses bundled pricing so the result should not be null.
     expect(result.price).not.toBeNull();
     const price = result.price as Record<string, unknown>;
-    expect(typeof price.unit_price).toBe("number");
-    expect(price.unit_price as number).toBeGreaterThan(0);
+    expect(typeof price.price_per_unit).toBe("number");
+    expect(price.price_per_unit as number).toBeGreaterThan(0);
   });
 
   it("returns a price for an Azure VM size", async () => {
@@ -269,8 +269,8 @@ describe("getPricing", () => {
     expect(result).toHaveProperty("price");
     if (result.price !== null) {
       const price = result.price as Record<string, unknown>;
-      expect(typeof price.unit_price).toBe("number");
-      expect(price.unit_price as number).toBeGreaterThan(0);
+      expect(typeof price.price_per_unit).toBe("number");
+      expect(price.price_per_unit as number).toBeGreaterThan(0);
     }
   });
 });
