@@ -1,0 +1,24 @@
+I kept running into the same problem with Terraform. I'd write the infrastructure, deploy it, and then get surprised by the bill. Especially when comparing options across AWS, Azure, and GCP.
+
+So I built CloudCost MCP to fix that for myself.
+
+It reads your .tf files and breaks down what your infrastructure will actually cost on all three clouds, side by side. No API keys needed, no cloud credentials. It pulls live pricing straight from public AWS and Azure endpoints and bundles GCP data locally.
+
+Say you've got an m5.xlarge on AWS. It'll map that to a Standard_D4s_v5 on Azure and an n2-standard-4 on GCP, then show you the price difference. It also flags optimization opportunities like reserved instance savings or cheaper alternatives on other providers.
+
+It runs as an MCP server, so AI coding assistants like Claude can call it directly while you're writing infrastructure code. Ask it "how much will this cost on Azure?" and it gives you a real answer.
+
+Building this was honestly one of the best ways I've deepened my understanding of Terraform and how each provider structures their pricing. Going resource by resource across AWS, Azure, and GCP, figuring out how instance families map to each other, how regional pricing shifts, how storage tiers compare. That kind of hands-on work teaches you things documentation alone never will.
+
+The same workload can swing 20-40% in cost across providers depending on region and instance family. Most teams never check that before committing to a provider.
+
+Worth noting that all pricing is estimates. There's room for error since actual bills depend on usage patterns, data transfer, discounts, and things the tool can't predict from a .tf file alone. But it gets you in the right ballpark before you commit to anything.
+
+Everything runs locally, built with Node.js and TypeScript, MIT licensed. No accounts, no vendor lock-in.
+
+If you work with Terraform or manage multi-cloud infrastructure, check it out:
+https://github.com/JadenRazo/CloudCostMCP
+
+Contributions are welcome if you want to get involved.
+
+#CloudComputing #Terraform #DevOps #InfrastructureAsCode #OpenSource #AWS #Azure #GCP #CostOptimization
