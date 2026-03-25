@@ -1,0 +1,130 @@
+name: "CloudCost Terraform Cost Estimate"
+description: "Analyze Terraform changes and post cost estimates as PR comments"
+
+inputs:
+  terraform_dir:
+    description: "Directory containing Terraform files (auto-detected from changed .tf files when omitted)"
+    required: false
+  providers:
+    description: "Comma-separated list of cloud providers to compare"
+    required: false
+    default: "aws,azure,gcp"
+  format:
+    description: "Output format for the cost report (markdown, json, csv, focus)"
+    required: false
+    default: "markdown"
+  currency:
+    description: "Currency for cost output (USD, EUR, GBP, JPY, CAD, AUD, INR, BRL)"
+    required: false
+    default: "USD"
+  github_token:
+    description: "GitHub token used to post the cost estimate as a PR comment"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install cloudcost-mcp
+      shell: bash
+      run: npm install -g @jadenrazo/cloudcost-mcp
+
+    - name: Validate inputs
+      shell: bash
+      run: |
+        # Whitelist: format
+        case "${{ inputs.format }}" in
+          markdown|json|csv|focus) ;;
+          *) echo "Error: invalid format '${{ inputs.format }}'. Allowed: markdown, json, csv, focus" >&2; exit 1 ;;
+        esac
+
+        # Whitelist: currency
+        case "${{ inputs.currency }}" in
+          USD|EUR|GBP|JPY|CAD|AUD|INR|BRL) ;;
+          *) echo "Error: invalid currency '${{ inputs.currency }}'. Allowed: USD, EUR, GBP, JPY, CAD, AUD, INR, BRL" >&2; exit 1 ;;
+        esac
+
+        # Whitelist: providers — each comma-separated token must be aws, azure, or gcp
+        IFS=',' read -ra _PROVIDERS <<< "${{ inputs.providers }}"
+        for _P in "${_PROVIDERS[@]}"; do
+          _P="${_P// /}"  # strip any accidental whitespace
+          case "$_P" in
+            aws|azure|gcp) ;;
+            *) echo "Error: invalid provider '$_P'. Allowed: aws, azure, gcp" >&2; exit 1 ;;
+          esac
+        done
+
+    - name: Detect Terraform directory
+      id: detect-dir
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.terraform_dir }}" ]; then
+          echo "terraform_dir=${{ inputs.terraform_dir }}" >> "$GITHUB_OUTPUT"
+          echo "has_tf=true" >> "$GITHUB_OUTPUT"
+        else
+          # Find directories that contain changed .tf files in this PR
+          CHANGED_TF=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.tf' 2>/dev/null || true)
+          if [ -z "$CHANGED_TF" ]; then
+            echo "has_tf=false" >> "$GITHUB_OUTPUT"
+          else
+            # Use the directory of the first changed .tf file
+            FIRST_TF_FILE=$(echo "$CHANGED_TF" | head -n 1)
+            DETECTED_DIR=$(dirname "$FIRST_TF_FILE")
+            echo "terraform_dir=$DETECTED_DIR" >> "$GITHUB_OUTPUT"
+            echo "has_tf=true" >> "$GITHUB_OUTPUT"
+          fi
+        fi
+
+    - name: Skip — no Terraform changes detected
+      if: steps.detect-dir.outputs.has_tf == 'false'
+      shell: bash
+      run: |
+        echo "No .tf files changed in this pull request. Skipping cost estimate."
+
+    - name: Run cost estimate
+      id: cost-estimate
+      if: steps.detect-dir.outputs.has_tf == 'true'
+      shell: bash
+      run: |
+        TF_DIR="${{ steps.detect-dir.outputs.terraform_dir }}"
+        REPORT=$(cloudcost compare "$TF_DIR" \
+          --format "${{ inputs.format }}" \
+          --providers "${{ inputs.providers }}" \
+          --currency "${{ inputs.currency }}" 2>&1) || true
+
+        # Write to a temp file to safely pass multiline content between steps
+        echo "$REPORT" > /tmp/cloudcost-report.txt
+        echo "report_file=/tmp/cloudcost-report.txt" >> "$GITHUB_OUTPUT"
+
+    - name: Post PR comment
+      if: steps.detect-dir.outputs.has_tf == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        REPORT_CONTENT=$(cat /tmp/cloudcost-report.txt)
+
+        # Build the comment body; prefix with a heading then append the report
+        COMMENT_BODY="## CloudCost Terraform Cost Estimate
+
+        ${REPORT_CONTENT}"
+
+        # Escape the body for JSON using Python (available on ubuntu-latest runners)
+        ESCAPED=$(printf '%s' "$COMMENT_BODY" | python3 -c "
+        import sys, json
+        body = sys.stdin.read()
+        print(json.dumps(body))
+        ")
+
+        curl -s -X POST \
+          -H "Authorization: Bearer ${GH_TOKEN}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/comments" \
+          -d "{\"body\": ${ESCAPED}}"

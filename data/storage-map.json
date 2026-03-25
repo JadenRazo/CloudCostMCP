@@ -1,0 +1,16 @@
+{
+  "block_storage": [
+    { "category": "ssd_general", "aws": "gp3", "azure": "Premium_LRS", "gcp": "pd-ssd", "iops_baseline": 3000, "throughput_mbps": 125 },
+    { "category": "ssd_general_prev", "aws": "gp2", "azure": "Premium_LRS", "gcp": "pd-ssd", "iops_baseline": 3000, "throughput_mbps": 125 },
+    { "category": "ssd_provisioned", "aws": "io2", "azure": "UltraSSD_LRS", "gcp": "pd-ssd", "iops_baseline": 64000, "throughput_mbps": 1000 },
+    { "category": "ssd_provisioned_prev", "aws": "io1", "azure": "UltraSSD_LRS", "gcp": "pd-ssd", "iops_baseline": 64000, "throughput_mbps": 1000 },
+    { "category": "hdd_standard", "aws": "st1", "azure": "Standard_LRS", "gcp": "pd-standard", "iops_baseline": 500, "throughput_mbps": 500 },
+    { "category": "hdd_cold", "aws": "sc1", "azure": "Standard_LRS", "gcp": "pd-standard", "iops_baseline": 250, "throughput_mbps": 250 }
+  ],
+  "object_storage": [
+    { "category": "standard", "aws": "STANDARD", "azure": "Hot", "gcp": "STANDARD" },
+    { "category": "infrequent", "aws": "STANDARD_IA", "azure": "Cool", "gcp": "NEARLINE" },
+    { "category": "archive", "aws": "GLACIER", "azure": "Archive", "gcp": "ARCHIVE" },
+    { "category": "deep_archive", "aws": "DEEP_ARCHIVE", "azure": "Archive", "gcp": "ARCHIVE" }
+  ]
+}

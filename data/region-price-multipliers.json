@@ -1,0 +1,49 @@
+{
+  "aws": {
+    "us-east-1": 1.0,
+    "us-east-2": 1.0,
+    "us-west-1": 1.02,
+    "us-west-2": 1.0,
+    "eu-west-1": 1.05,
+    "eu-west-2": 1.07,
+    "eu-central-1": 1.08,
+    "ap-southeast-1": 1.10,
+    "ap-southeast-2": 1.12,
+    "ap-northeast-1": 1.12,
+    "ap-south-1": 1.05,
+    "sa-east-1": 1.20,
+    "ca-central-1": 1.03,
+    "me-south-1": 1.10,
+    "af-south-1": 1.15
+  },
+  "azure": {
+    "eastus": 1.0,
+    "eastus2": 1.0,
+    "westus": 1.0,
+    "westus2": 1.0,
+    "westeurope": 1.07,
+    "northeurope": 1.05,
+    "uksouth": 1.06,
+    "southeastasia": 1.08,
+    "eastasia": 1.10,
+    "japaneast": 1.12,
+    "australiaeast": 1.10,
+    "brazilsouth": 1.18,
+    "canadacentral": 1.03,
+    "centralindia": 1.05
+  },
+  "gcp": {
+    "us-central1": 1.0,
+    "us-east1": 1.0,
+    "us-west1": 1.02,
+    "europe-west1": 1.05,
+    "europe-west2": 1.08,
+    "europe-west3": 1.08,
+    "asia-southeast1": 1.08,
+    "asia-east1": 1.08,
+    "asia-northeast1": 1.12,
+    "australia-southeast1": 1.12,
+    "southamerica-east1": 1.20,
+    "northamerica-northeast1": 1.03
+  }
+}
