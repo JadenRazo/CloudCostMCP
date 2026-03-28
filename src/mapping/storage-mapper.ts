@@ -12,7 +12,7 @@ import { logger } from "../logger.js";
 export function mapStorageType(
   storageType: string,
   sourceProvider: CloudProvider,
-  targetProvider: CloudProvider
+  targetProvider: CloudProvider,
 ): string | null {
   if (sourceProvider === targetProvider) return storageType;
 
@@ -21,9 +21,7 @@ export function mapStorageType(
   // Search block storage first, then object storage.
   const allEntries = [...block_storage, ...object_storage];
 
-  const row = allEntries.find(
-    (entry) => entry[sourceProvider] === storageType
-  );
+  const row = allEntries.find((entry) => entry[sourceProvider] === storageType);
 
   if (!row) {
     logger.debug("storage-mapper: no mapping found", {

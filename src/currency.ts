@@ -4,18 +4,27 @@ import type { CostBreakdown, CostEstimate, CostLineItem } from "./types/pricing.
 // Supported currencies and exchange rates
 // ---------------------------------------------------------------------------
 
-export const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "BRL"] as const;
-export type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number];
+export const SUPPORTED_CURRENCIES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CAD",
+  "AUD",
+  "INR",
+  "BRL",
+] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
 // Static exchange rates (approximate, as of March 2026)
 const EXCHANGE_RATES: Record<string, number> = {
   USD: 1.0,
   EUR: 0.92,
   GBP: 0.79,
-  JPY: 149.50,
+  JPY: 149.5,
   CAD: 1.36,
   AUD: 1.53,
-  INR: 83.10,
+  INR: 83.1,
   BRL: 4.97,
 };
 
@@ -102,7 +111,7 @@ function convertCostEstimate(estimate: CostEstimate, currency: string): CostEsti
  */
 export function convertBreakdownCurrency(
   breakdown: CostBreakdown,
-  currency: string
+  currency: string,
 ): ConvertedBreakdown {
   const original_usd = {
     total_monthly: breakdown.total_monthly,

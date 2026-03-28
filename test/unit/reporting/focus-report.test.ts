@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { generateFocusReport, deriveServiceCategory } from "../../../src/reporting/focus-report.js";
 import type { ParsedResource } from "../../../src/types/resources.js";
-import type { ProviderComparison, CostBreakdown, CostEstimate } from "../../../src/types/pricing.js";
+import type {
+  ProviderComparison,
+  CostBreakdown,
+  CostEstimate,
+} from "../../../src/types/pricing.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -31,7 +35,15 @@ function makeEstimate(overrides: Partial<CostEstimate> = {}): CostEstimate {
     monthly_cost: 60.74,
     yearly_cost: 728.88,
     currency: "USD",
-    breakdown: [{ description: "Compute", unit: "Hrs", quantity: 730, unit_price: 0.0832, monthly_cost: 60.74 }],
+    breakdown: [
+      {
+        description: "Compute",
+        unit: "Hrs",
+        quantity: 730,
+        unit_price: 0.0832,
+        monthly_cost: 60.74,
+      },
+    ],
     confidence: "high",
     notes: [],
     pricing_source: "fallback",
@@ -111,7 +123,7 @@ describe("generateFocusReport — column headers", () => {
     const csv = generateFocusReport(makeComparison(), [makeResource()]);
     const firstLine = csv.split("\n")[0];
     expect(firstLine).toBe(
-      "BillingAccountId,BillingPeriodStart,BillingPeriodEnd,ChargeType,Provider,ServiceName,ServiceCategory,ResourceId,ResourceName,ResourceType,Region,PricingUnit,PricingQuantity,EffectiveCost,ListCost,ListUnitPrice,Currency"
+      "BillingAccountId,BillingPeriodStart,BillingPeriodEnd,ChargeType,Provider,ServiceName,ServiceCategory,ResourceId,ResourceName,ResourceType,Region,PricingUnit,PricingQuantity,EffectiveCost,ListCost,ListUnitPrice,Currency",
     );
   });
 
@@ -156,12 +168,12 @@ describe("generateFocusReport — row generation", () => {
     const azureBreakdown = makeBreakdown({
       provider: "azure",
       region: "eastus",
-      by_resource: [makeEstimate({ resource_id: "vm-1", provider: "azure", monthly_cost: 55.20 })],
+      by_resource: [makeEstimate({ resource_id: "vm-1", provider: "azure", monthly_cost: 55.2 })],
     });
     const gcpBreakdown = makeBreakdown({
       provider: "gcp",
       region: "us-central1",
-      by_resource: [makeEstimate({ resource_id: "vm-1", provider: "gcp", monthly_cost: 52.10 })],
+      by_resource: [makeEstimate({ resource_id: "vm-1", provider: "gcp", monthly_cost: 52.1 })],
     });
 
     const comparison: ProviderComparison = {
@@ -189,7 +201,14 @@ describe("generateFocusReport — row generation", () => {
       region: "eu-west-1",
     });
 
-    const rows = parseCsv(generateFocusReport(makeComparison({ comparisons: [makeBreakdown({ by_resource: [makeEstimate({ resource_id: "my-id" })] })] }), [resource]));
+    const rows = parseCsv(
+      generateFocusReport(
+        makeComparison({
+          comparisons: [makeBreakdown({ by_resource: [makeEstimate({ resource_id: "my-id" })] })],
+        }),
+        [resource],
+      ),
+    );
     const row = rows[0]!;
 
     expect(row["ResourceId"]).toBe("my-id");
@@ -365,7 +384,11 @@ describe("generateFocusReport — PricingUnit", () => {
   });
 
   it("storage resources use GB-Month as PricingUnit", () => {
-    const resource = makeResource({ type: "aws_s3_bucket", id: "b-1", attributes: { storage_size_gb: 100 } });
+    const resource = makeResource({
+      type: "aws_s3_bucket",
+      id: "b-1",
+      attributes: { storage_size_gb: 100 },
+    });
     const breakdown = makeBreakdown({
       by_resource: [makeEstimate({ resource_id: "b-1" })],
     });
@@ -375,7 +398,11 @@ describe("generateFocusReport — PricingUnit", () => {
   });
 
   it("storage PricingQuantity reflects storage_size_gb attribute", () => {
-    const resource = makeResource({ type: "aws_s3_bucket", id: "b-2", attributes: { storage_size_gb: 500 } });
+    const resource = makeResource({
+      type: "aws_s3_bucket",
+      id: "b-2",
+      attributes: { storage_size_gb: 500 },
+    });
     const breakdown = makeBreakdown({
       by_resource: [makeEstimate({ resource_id: "b-2" })],
     });

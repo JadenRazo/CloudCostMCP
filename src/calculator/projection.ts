@@ -31,7 +31,7 @@ const DEFAULT_HORIZONS = [3, 6, 12, 36];
 export function calculateProjection(
   monthlyOnDemand: number,
   reservedComparison: ProjectionReservedInput | null,
-  horizons: number[] = DEFAULT_HORIZONS
+  horizons: number[] = DEFAULT_HORIZONS,
 ): CostProjection {
   const sortedHorizons = [...horizons].sort((a, b) => a - b);
   const maxHorizon = sortedHorizons[sortedHorizons.length - 1] ?? 0;
@@ -54,13 +54,10 @@ export function calculateProjection(
       };
     }
 
-    const reserved_total =
-      Math.round((reservedUpfront + reservedMonthly * months) * 100) / 100;
+    const reserved_total = Math.round((reservedUpfront + reservedMonthly * months) * 100) / 100;
     const savings = Math.round((on_demand_total - reserved_total) * 100) / 100;
     const savings_percentage =
-      on_demand_total === 0
-        ? 0
-        : Math.round((savings / on_demand_total) * 10000) / 100;
+      on_demand_total === 0 ? 0 : Math.round((savings / on_demand_total) * 10000) / 100;
 
     return {
       months,

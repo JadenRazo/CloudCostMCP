@@ -10,7 +10,11 @@ import { generateMarkdownReport } from "../../../src/reporting/markdown-report.j
 import { generateJsonReport } from "../../../src/reporting/json-report.js";
 import { generateCsvReport } from "../../../src/reporting/csv-report.js";
 import type { ParsedResource } from "../../../src/types/resources.js";
-import type { ProviderComparison, CostBreakdown, CostEstimate } from "../../../src/types/pricing.js";
+import type {
+  ProviderComparison,
+  CostBreakdown,
+  CostEstimate,
+} from "../../../src/types/pricing.js";
 
 // Disable live network fetches; fallback prices in the loaders are sufficient.
 vi.stubGlobal("fetch", async () => {
@@ -278,7 +282,9 @@ describe("generateJsonReport metadata section", () => {
     const raw = generateJsonReport(comparison, [makeResource()]);
     const parsed = JSON.parse(raw);
     // Should include an entry for the aws provider with fallback source.
-    expect(parsed.metadata.pricing_sources_used.some((s: string) => s.includes("fallback"))).toBe(true);
+    expect(parsed.metadata.pricing_sources_used.some((s: string) => s.includes("fallback"))).toBe(
+      true,
+    );
   });
 });
 

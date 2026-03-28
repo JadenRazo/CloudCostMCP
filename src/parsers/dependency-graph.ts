@@ -65,10 +65,7 @@ function collectStrings(value: unknown, out: string[]): void {
  * Scan all string values inside a resource block and return the set of
  * resource IDs (type.name) that are referenced.
  */
-function findReferences(
-  block: Record<string, unknown>,
-  knownIds: Set<string>
-): Set<string> {
+function findReferences(block: Record<string, unknown>, knownIds: Set<string>): Set<string> {
   const strings: string[] = [];
   collectStrings(block, strings);
 
@@ -139,7 +136,7 @@ function extractDependsOn(block: unknown): string[] {
  */
 export function buildDependencyGraph(
   resources: ParsedResource[],
-  hclJson: Record<string, unknown>
+  hclJson: Record<string, unknown>,
 ): DependencyGraph {
   // Build a lookup of base IDs (type.name) — we strip count/for_each suffixes
   // so that `aws_instance.web[0]` maps back to `aws_instance.web`.
@@ -175,14 +172,14 @@ export function buildDependencyGraph(
   const resourceBlock = hclJson["resource"];
   if (resourceBlock && typeof resourceBlock === "object" && !Array.isArray(resourceBlock)) {
     for (const [resourceType, instances] of Object.entries(
-      resourceBlock as Record<string, unknown>
+      resourceBlock as Record<string, unknown>,
     )) {
       if (!instances || typeof instances !== "object" || Array.isArray(instances)) {
         continue;
       }
 
       for (const [resourceName, blockList] of Object.entries(
-        instances as Record<string, unknown>
+        instances as Record<string, unknown>,
       )) {
         const fromId = `${resourceType}.${resourceName}`;
         if (!knownBaseIds.has(fromId)) continue;

@@ -294,7 +294,7 @@ function buildRow(values: (string | number)[]): string {
  */
 export function generateFocusReport(
   comparison: ProviderComparison,
-  resources: ParsedResource[]
+  resources: ParsedResource[],
 ): string {
   const lines: string[] = [];
 
@@ -305,9 +305,15 @@ export function generateFocusReport(
   const periodEnd = billingPeriodEnd();
 
   // Build a fast lookup: provider -> resource_id -> CostEstimate.
-  const estimateMap = new Map<string, Map<string, { monthly_cost: number; breakdown: { unit_price: number }[] }>>();
+  const estimateMap = new Map<
+    string,
+    Map<string, { monthly_cost: number; breakdown: { unit_price: number }[] }>
+  >();
   for (const breakdown of comparison.comparisons) {
-    const byResource = new Map<string, { monthly_cost: number; breakdown: { unit_price: number }[] }>();
+    const byResource = new Map<
+      string,
+      { monthly_cost: number; breakdown: { unit_price: number }[] }
+    >();
     for (const estimate of breakdown.by_resource) {
       byResource.set(estimate.resource_id, estimate);
     }
@@ -335,23 +341,23 @@ export function generateFocusReport(
             : 0;
 
       const row = [
-        "estimated",                                               // BillingAccountId
-        periodStart,                                               // BillingPeriodStart
-        periodEnd,                                                 // BillingPeriodEnd
-        "Usage",                                                   // ChargeType
-        provider,                                                  // Provider
-        deriveServiceName(resource.type, provider),                // ServiceName
-        deriveServiceCategory(resource.type),                      // ServiceCategory
-        resource.id,                                               // ResourceId
-        resource.name,                                             // ResourceName
-        resource.type,                                             // ResourceType
-        resource.region,                                           // Region
-        derivePricingUnit(resource.type),                          // PricingUnit
-        pricingQuantity,                                           // PricingQuantity
-        monthlyCost.toFixed(4),                                    // EffectiveCost
-        monthlyCost.toFixed(4),                                    // ListCost
-        listUnitPrice.toFixed(6),                                  // ListUnitPrice
-        "USD",                                                     // Currency
+        "estimated", // BillingAccountId
+        periodStart, // BillingPeriodStart
+        periodEnd, // BillingPeriodEnd
+        "Usage", // ChargeType
+        provider, // Provider
+        deriveServiceName(resource.type, provider), // ServiceName
+        deriveServiceCategory(resource.type), // ServiceCategory
+        resource.id, // ResourceId
+        resource.name, // ResourceName
+        resource.type, // ResourceType
+        resource.region, // Region
+        derivePricingUnit(resource.type), // PricingUnit
+        pricingQuantity, // PricingQuantity
+        monthlyCost.toFixed(4), // EffectiveCost
+        monthlyCost.toFixed(4), // ListCost
+        listUnitPrice.toFixed(6), // ListUnitPrice
+        "USD", // Currency
       ];
 
       lines.push(buildRow(row));

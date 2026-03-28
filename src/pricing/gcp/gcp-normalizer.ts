@@ -10,7 +10,7 @@ import type { NormalizedPrice } from "../../types/pricing.js";
 export function normalizeGcpCompute(
   machineType: string,
   hourlyPrice: number,
-  region: string
+  region: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -32,7 +32,7 @@ export function normalizeGcpCompute(
 export function normalizeGcpDatabase(
   tier: string,
   hourlyPrice: number,
-  region: string
+  region: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -54,7 +54,7 @@ export function normalizeGcpDatabase(
 export function normalizeGcpStorage(
   storageClass: string,
   pricePerGb: number,
-  region: string
+  region: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -76,7 +76,7 @@ export function normalizeGcpStorage(
 export function normalizeGcpDisk(
   diskType: string,
   pricePerGb: number,
-  region: string
+  region: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -106,7 +106,7 @@ export function normalizeGcpLiveCompute(
   pricePerHour: number,
   region: string,
   skuId: string,
-  effectiveDate?: string
+  effectiveDate?: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -131,7 +131,7 @@ export function normalizeGcpLiveDatabase(
   pricePerHour: number,
   region: string,
   skuId: string,
-  effectiveDate?: string
+  effectiveDate?: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -156,7 +156,7 @@ export function normalizeGcpLiveStorage(
   pricePerGbMonth: number,
   region: string,
   skuId: string,
-  effectiveDate?: string
+  effectiveDate?: string,
 ): NormalizedPrice {
   return {
     provider: "gcp",

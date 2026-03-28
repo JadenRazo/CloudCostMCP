@@ -13,3 +13,20 @@ export interface CacheStats {
   expired_entries: number;
   size_bytes: number;
 }
+
+export interface PricePoint {
+  price_per_unit: number;
+  unit: string;
+  currency: string;
+  pricing_source: string | null;
+  recorded_at: string;
+}
+
+export interface PriceChange {
+  current_price: number;
+  previous_price: number;
+  change_amount: number;
+  change_percent: number;
+  current_date: string;
+  previous_date: string;
+}

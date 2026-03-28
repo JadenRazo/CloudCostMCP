@@ -171,7 +171,8 @@ function printText(data: unknown): void {
 // ---------------------------------------------------------------------------
 
 function printUsage(): void {
-  process.stdout.write(`
+  process.stdout.write(
+    `
 CloudCost — multi-cloud Terraform cost estimator
 
 Usage:
@@ -197,7 +198,8 @@ Examples:
   cloudcost optimize ./terraform --providers aws,gcp
   cloudcost estimate main.tf --provider gcp --json
   cloudcost what-if ./terraform --changes changes.json --provider aws
-`.trimStart());
+`.trimStart(),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -219,10 +221,10 @@ async function runEstimate(
   files: TfFile[],
   tfvars: string | undefined,
   pricingEngine: PricingEngine,
-  config: Awaited<ReturnType<typeof loadConfig>>
+  config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
   const validProviders = ["aws", "azure", "gcp"] as const;
-  type ValidProvider = typeof validProviders[number];
+  type ValidProvider = (typeof validProviders)[number];
 
   if (!validProviders.includes(args.provider as ValidProvider)) {
     throw new Error(`Invalid provider "${args.provider}". Must be one of: aws, azure, gcp`);
@@ -237,7 +239,7 @@ async function runEstimate(
       currency: "USD",
     },
     pricingEngine,
-    config
+    config,
   );
 
   if (args.json) {
@@ -252,18 +254,18 @@ async function runCompare(
   files: TfFile[],
   tfvars: string | undefined,
   pricingEngine: PricingEngine,
-  config: Awaited<ReturnType<typeof loadConfig>>
+  config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
   const validFormats = ["markdown", "json", "csv"] as const;
-  type ValidFormat = typeof validFormats[number];
+  type ValidFormat = (typeof validFormats)[number];
   type ValidProvider = "aws" | "azure" | "gcp";
 
   if (!validFormats.includes(args.format as ValidFormat)) {
     throw new Error(`Invalid format "${args.format}". Must be one of: markdown, json, csv`);
   }
 
-  const validatedProviders = args.providers.filter((p): p is ValidProvider =>
-    p === "aws" || p === "azure" || p === "gcp"
+  const validatedProviders = args.providers.filter(
+    (p): p is ValidProvider => p === "aws" || p === "azure" || p === "gcp",
   );
 
   const result = await compareProviders(
@@ -272,12 +274,10 @@ async function runCompare(
       tfvars,
       format: args.format as ValidFormat,
       currency: "USD",
-      providers: validatedProviders.length > 0
-        ? validatedProviders
-        : ["aws", "azure", "gcp"],
+      providers: validatedProviders.length > 0 ? validatedProviders : ["aws", "azure", "gcp"],
     },
     pricingEngine,
-    config
+    config,
   );
 
   if (args.json) {
@@ -298,24 +298,22 @@ async function runOptimize(
   files: TfFile[],
   tfvars: string | undefined,
   pricingEngine: PricingEngine,
-  config: Awaited<ReturnType<typeof loadConfig>>
+  config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
   type ValidProvider = "aws" | "azure" | "gcp";
 
-  const validatedProviders = args.providers.filter((p): p is ValidProvider =>
-    p === "aws" || p === "azure" || p === "gcp"
+  const validatedProviders = args.providers.filter(
+    (p): p is ValidProvider => p === "aws" || p === "azure" || p === "gcp",
   );
 
   const result = await optimizeCost(
     {
       files,
       tfvars,
-      providers: validatedProviders.length > 0
-        ? validatedProviders
-        : ["aws", "azure", "gcp"],
+      providers: validatedProviders.length > 0 ? validatedProviders : ["aws", "azure", "gcp"],
     },
     pricingEngine,
-    config
+    config,
   );
 
   if (args.json) {
@@ -330,11 +328,11 @@ async function runWhatIf(
   files: TfFile[],
   tfvars: string | undefined,
   pricingEngine: PricingEngine,
-  config: Awaited<ReturnType<typeof loadConfig>>
+  config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
   if (!args.changes) {
     throw new Error(
-      'The what-if command requires --changes <path> pointing to a JSON file with a "changes" array'
+      'The what-if command requires --changes <path> pointing to a JSON file with a "changes" array',
     );
   }
 
@@ -348,7 +346,7 @@ async function runWhatIf(
     parsedChanges = JSON.parse(readFileSync(changesPath, "utf-8"));
   } catch (err) {
     throw new Error(
-      `Failed to parse changes file "${changesPath}": ${err instanceof Error ? err.message : String(err)}`
+      `Failed to parse changes file "${changesPath}": ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
@@ -364,9 +362,7 @@ async function runWhatIf(
   ) {
     changesArray = (parsedChanges as Record<string, unknown>)["changes"];
   } else {
-    throw new Error(
-      `Changes file must contain a JSON array or an object with a "changes" array`
-    );
+    throw new Error(`Changes file must contain a JSON array or an object with a "changes" array`);
   }
 
   // Validate each change entry minimally before forwarding.
@@ -382,9 +378,7 @@ async function runWhatIf(
       throw new Error(`Change at index ${index} is missing a valid "attribute"`);
     }
     if (typeof c["new_value"] !== "string" && typeof c["new_value"] !== "number") {
-      throw new Error(
-        `Change at index ${index} "new_value" must be a string or number`
-      );
+      throw new Error(`Change at index ${index} "new_value" must be a string or number`);
     }
     return {
       resource_id: c["resource_id"] as string,
@@ -394,7 +388,7 @@ async function runWhatIf(
   });
 
   const validProviders = ["aws", "azure", "gcp"] as const;
-  type ValidProvider = typeof validProviders[number];
+  type ValidProvider = (typeof validProviders)[number];
 
   const provider = validProviders.includes(args.provider as ValidProvider)
     ? (args.provider as ValidProvider)
@@ -409,7 +403,7 @@ async function runWhatIf(
       region: args.region,
     },
     pricingEngine,
-    config
+    config,
   );
 
   if (args.json) {
@@ -451,7 +445,9 @@ async function main(): Promise<void> {
     files = loadTerraformFiles(args.path);
     tfvars = loadTfvars(args.path);
   } catch (err) {
-    process.stderr.write(`Error loading Terraform files: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `Error loading Terraform files: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     process.exit(1);
   }
 

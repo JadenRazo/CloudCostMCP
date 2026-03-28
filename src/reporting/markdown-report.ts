@@ -1,4 +1,4 @@
-import type { ProviderComparison, CostBreakdown } from "../types/pricing.js";
+import type { ProviderComparison } from "../types/pricing.js";
 import type { ParsedResource } from "../types/resources.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { ReportOptions } from "../types/reports.js";
@@ -6,7 +6,7 @@ import { generateOptimizations } from "../calculator/optimizer.js";
 import { calculateProjection } from "../calculator/projection.js";
 import { calculateReservedPricing } from "../calculator/reserved.js";
 
-const PROVIDERS: CloudProvider[] = ["aws", "azure", "gcp"];
+const _PROVIDERS: CloudProvider[] = ["aws", "azure", "gcp"];
 
 function formatUsd(amount: number): string {
   return `$${amount.toFixed(2)}`;
@@ -38,11 +38,11 @@ export function generateMarkdownReport(
   comparison: ProviderComparison,
   resources: ParsedResource[],
   options: Partial<ReportOptions> = {},
-  parseWarnings: string[] = []
+  parseWarnings: string[] = [],
 ): string {
   const includeBreakdown = options.include_breakdown !== false;
   const includeRecommendations = options.include_recommendations !== false;
-  const monthlyHours = (options as { monthly_hours?: number }).monthly_hours ?? 730;
+  const _monthlyHours = (options as { monthly_hours?: number }).monthly_hours ?? 730;
 
   const lines: string[] = [];
   const now = new Date().toISOString().split("T")[0];
@@ -56,7 +56,7 @@ export function generateMarkdownReport(
     `**Generated:** ${now}  `,
     `**Source provider:** ${providerLabel(comparison.source_provider)}  `,
     `**Resources analysed:** ${resources.length}`,
-    ``
+    ``,
   );
 
   // ---------------------------------------------------------------------------
@@ -66,13 +66,13 @@ export function generateMarkdownReport(
 
   // Find source provider breakdown for "vs source" column.
   const sourceBreakdown = comparison.comparisons.find(
-    (b) => b.provider === comparison.source_provider
+    (b) => b.provider === comparison.source_provider,
   );
   const sourceMonthly = sourceBreakdown?.total_monthly ?? 0;
 
   lines.push(
     `| Provider | Monthly Cost | Yearly Cost | vs Source |`,
-    `|----------|-------------|------------|-----------|`
+    `|----------|-------------|------------|-----------|`,
   );
 
   for (const breakdown of comparison.comparisons) {
@@ -81,13 +81,13 @@ export function generateMarkdownReport(
       breakdown.provider === comparison.source_provider
         ? "—"
         : diff < 0
-        ? `${formatUsd(Math.abs(diff))} cheaper`
-        : diff > 0
-        ? `${formatUsd(diff)} more expensive`
-        : "same cost";
+          ? `${formatUsd(Math.abs(diff))} cheaper`
+          : diff > 0
+            ? `${formatUsd(diff)} more expensive`
+            : "same cost";
 
     lines.push(
-      `| ${providerLabel(breakdown.provider)} | ${formatUsd(breakdown.total_monthly)} | ${formatUsd(breakdown.total_yearly)} | ${diffLabel} |`
+      `| ${providerLabel(breakdown.provider)} | ${formatUsd(breakdown.total_monthly)} | ${formatUsd(breakdown.total_yearly)} | ${diffLabel} |`,
     );
   }
   lines.push(``);
@@ -99,20 +99,17 @@ export function generateMarkdownReport(
     lines.push(`## Savings Potential`, ``);
     lines.push(
       `| Provider | Monthly Cost | Savings from Source | Savings % |`,
-      `|----------|-------------|--------------------|-----------| `
+      `|----------|-------------|--------------------|-----------| `,
     );
     for (const s of comparison.savings_summary) {
       const savings = s.difference_from_source;
-      const savingsLabel =
-        savings < 0
-          ? formatUsd(Math.abs(savings))
-          : `-${formatUsd(savings)}`;
+      const savingsLabel = savings < 0 ? formatUsd(Math.abs(savings)) : `-${formatUsd(savings)}`;
       const pct =
         s.percentage_difference < 0
           ? `${Math.abs(s.percentage_difference).toFixed(1)}% cheaper`
           : `${s.percentage_difference.toFixed(1)}% more`;
       lines.push(
-        `| ${providerLabel(s.provider)} | ${formatUsd(s.total_monthly)} | ${savingsLabel} | ${pct} |`
+        `| ${providerLabel(s.provider)} | ${formatUsd(s.total_monthly)} | ${savingsLabel} | ${pct} |`,
       );
     }
     lines.push(``);
@@ -155,8 +152,7 @@ export function generateMarkdownReport(
 
       // Compute per-group monthly totals using the source provider's costs
       // (or the first available provider when source is not present).
-      const sourceProvider =
-        comparison.source_provider ?? comparison.comparisons[0]?.provider;
+      const sourceProvider = comparison.source_provider ?? comparison.comparisons[0]?.provider;
 
       const groupTotals = new Map<string, { count: number; monthly: number }>();
       for (const [tagVal, groupResources] of tagGroups) {
@@ -173,7 +169,7 @@ export function generateMarkdownReport(
       lines.push(`**Tag key:** \`${tagKey}\``, ``);
       lines.push(
         `| Tag Value | Resource Count | Monthly Cost |`,
-        `|-----------|---------------|-------------|`
+        `|-----------|---------------|-------------|`,
       );
 
       // Sort: Untagged last, everything else alphabetically.
@@ -197,13 +193,11 @@ export function generateMarkdownReport(
         lines.push(`### ${tagVal}`, ``);
         lines.push(
           `| Resource | Type | ${headerCols} |`,
-          `|----------|------|${presentProviders.map(() => "------").join("|")}|`
+          `|----------|------|${presentProviders.map(() => "------").join("|")}|`,
         );
         for (const resource of groupResources) {
           const costs = costMatrix.get(resource.id) ?? {};
-          const costCols = presentProviders
-            .map((p) => formatUsd(costs[p] ?? 0))
-            .join(" | ");
+          const costCols = presentProviders.map((p) => formatUsd(costs[p] ?? 0)).join(" | ");
           lines.push(`| ${resource.name} | ${resource.type} | ${costCols} |`);
         }
         lines.push(``);
@@ -215,14 +209,12 @@ export function generateMarkdownReport(
       lines.push(`## Resource Breakdown`, ``);
       lines.push(
         `| Resource | Type | ${headerCols} |`,
-        `|----------|------|${presentProviders.map(() => "------").join("|")}|`
+        `|----------|------|${presentProviders.map(() => "------").join("|")}|`,
       );
 
       for (const resource of resources) {
         const costs = costMatrix.get(resource.id) ?? {};
-        const costCols = presentProviders
-          .map((p) => formatUsd(costs[p] ?? 0))
-          .join(" | ");
+        const costCols = presentProviders.map((p) => formatUsd(costs[p] ?? 0)).join(" | ");
         lines.push(`| ${resource.name} | ${resource.type} | ${costCols} |`);
       }
       lines.push(``);
@@ -251,7 +243,7 @@ export function generateMarkdownReport(
           `- **Estimated after:** ${formatUsd(rec.estimated_monthly_cost)}/month`,
           `- **Potential savings:** ${savingsLabel}`,
           `- **Confidence:** ${rec.confidence}`,
-          ``
+          ``,
         );
       }
     } else {
@@ -269,7 +261,12 @@ export function generateMarkdownReport(
       : null;
 
     const reservedInput = reservedComparison
-      ? { best_reserved: { monthly_cost: reservedComparison.best_option.monthly_cost, term: reservedComparison.best_option.term } }
+      ? {
+          best_reserved: {
+            monthly_cost: reservedComparison.best_option.monthly_cost,
+            term: reservedComparison.best_option.term,
+          },
+        }
       : null;
 
     const projection = calculateProjection(sourceMonthly, reservedInput);
@@ -277,28 +274,27 @@ export function generateMarkdownReport(
     lines.push(`## Cost Projection`, ``);
     lines.push(
       `| Timeframe | On-Demand | Reserved | Savings | Savings % |`,
-      `|-----------|-----------|----------|---------|-----------|`
+      `|-----------|-----------|----------|---------|-----------|`,
     );
 
     for (const p of projection.projections) {
       const timeLabel = p.months === 1 ? "1 month" : `${p.months} months`;
       const reservedCol = p.reserved_total !== null ? formatUsd(p.reserved_total) : "N/A";
       const savingsCol = p.savings !== null ? formatUsd(p.savings) : "N/A";
-      const savingsPctCol = p.savings_percentage !== null ? `${p.savings_percentage.toFixed(1)}%` : "N/A";
+      const savingsPctCol =
+        p.savings_percentage !== null ? `${p.savings_percentage.toFixed(1)}%` : "N/A";
       lines.push(
-        `| ${timeLabel} | ${formatUsd(p.on_demand_total)} | ${reservedCol} | ${savingsCol} | ${savingsPctCol} |`
+        `| ${timeLabel} | ${formatUsd(p.on_demand_total)} | ${reservedCol} | ${savingsCol} | ${savingsPctCol} |`,
       );
     }
     lines.push(``);
 
     if (projection.break_even_month !== null) {
       lines.push(
-        `> Reserved pricing breaks even at **month ${projection.break_even_month}** compared to on-demand.`
+        `> Reserved pricing breaks even at **month ${projection.break_even_month}** compared to on-demand.`,
       );
       if (projection.recommended_commitment !== null) {
-        lines.push(
-          `> Recommended commitment: **${projection.recommended_commitment}**.`
-        );
+        lines.push(`> Recommended commitment: **${projection.recommended_commitment}**.`);
       }
       lines.push(``);
     }
@@ -315,7 +311,7 @@ export function generateMarkdownReport(
     lines.push(`## Limitations`, ``);
     lines.push(
       `> The following issues were detected during analysis that may affect estimate accuracy:`,
-      ``
+      ``,
     );
     for (const w of allWarnings) {
       lines.push(`- ${w}`);

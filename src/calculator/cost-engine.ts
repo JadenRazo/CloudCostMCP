@@ -7,11 +7,7 @@ import { calculateDatabaseCost } from "./database.js";
 import { calculateStorageCost } from "./storage.js";
 import { calculateNatGatewayCost, calculateLoadBalancerCost } from "./network.js";
 import { calculateKubernetesCost } from "./kubernetes.js";
-import {
-  calculateLambdaCost,
-  calculateDynamoDbCost,
-  calculateSqsCost,
-} from "./serverless.js";
+import { calculateLambdaCost, calculateDynamoDbCost, calculateSqsCost } from "./serverless.js";
 import {
   calculateElastiCacheCost,
   calculateAzureRedisCacheCost,
@@ -34,6 +30,16 @@ import {
 import { calculateContainerRegistryCost } from "./container-registry.js";
 import { calculateSecretsCost } from "./secrets.js";
 import { calculateDnsCost } from "./dns.js";
+import { calculateApiGatewayCost } from "./api-gateway.js";
+import { calculateWafCost } from "./waf.js";
+import { calculateSearchCost } from "./search.js";
+import {
+  calculateMessagingCost,
+  calculateMqBrokerCost,
+  calculateEventHubCost,
+  calculatePubSubSubscriptionCost,
+} from "./messaging.js";
+import { calculateMlAiCost } from "./ml-ai.js";
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
@@ -113,42 +119,23 @@ const DATA_TRANSFER_TYPE_FOR_PROVIDER: Record<string, string> = {
 // New resource type sets
 // ---------------------------------------------------------------------------
 
-const SERVERLESS_LAMBDA_TYPES = new Set([
-  "aws_lambda_function",
-]);
+const SERVERLESS_LAMBDA_TYPES = new Set(["aws_lambda_function"]);
 
-const SERVERLESS_DYNAMODB_TYPES = new Set([
-  "aws_dynamodb_table",
-]);
+const SERVERLESS_DYNAMODB_TYPES = new Set(["aws_dynamodb_table"]);
 
-const SERVERLESS_SQS_TYPES = new Set([
-  "aws_sqs_queue",
-]);
+const SERVERLESS_SQS_TYPES = new Set(["aws_sqs_queue"]);
 
-const ELASTICACHE_TYPES = new Set([
-  "aws_elasticache_cluster",
-  "aws_elasticache_replication_group",
-]);
+const ELASTICACHE_TYPES = new Set(["aws_elasticache_cluster", "aws_elasticache_replication_group"]);
 
-const AZURE_REDIS_TYPES = new Set([
-  "azurerm_redis_cache",
-]);
+const AZURE_REDIS_TYPES = new Set(["azurerm_redis_cache"]);
 
-const GCP_REDIS_TYPES = new Set([
-  "google_redis_instance",
-]);
+const GCP_REDIS_TYPES = new Set(["google_redis_instance"]);
 
-const CLOUDFRONT_TYPES = new Set([
-  "aws_cloudfront_distribution",
-]);
+const CLOUDFRONT_TYPES = new Set(["aws_cloudfront_distribution"]);
 
-const AZURE_APP_SERVICE_TYPES = new Set([
-  "azurerm_app_service_plan",
-]);
+const AZURE_APP_SERVICE_TYPES = new Set(["azurerm_app_service_plan"]);
 
-const AZURE_COSMOS_TYPES = new Set([
-  "azurerm_cosmosdb_account",
-]);
+const AZURE_COSMOS_TYPES = new Set(["azurerm_cosmosdb_account"]);
 
 const AZURE_FUNCTION_TYPES = new Set([
   "azurerm_function_app",
@@ -156,15 +143,9 @@ const AZURE_FUNCTION_TYPES = new Set([
   "azurerm_windows_function_app",
 ]);
 
-const CLOUD_RUN_TYPES = new Set([
-  "google_cloud_run_service",
-  "google_cloud_run_v2_service",
-]);
+const CLOUD_RUN_TYPES = new Set(["google_cloud_run_service", "google_cloud_run_v2_service"]);
 
-const BIGQUERY_TYPES = new Set([
-  "google_bigquery_dataset",
-  "google_bigquery_table",
-]);
+const BIGQUERY_TYPES = new Set(["google_bigquery_dataset", "google_bigquery_table"]);
 
 const GCP_FUNCTION_TYPES = new Set([
   "google_cloudfunctions_function",
@@ -183,11 +164,32 @@ const SECRETS_TYPES = new Set([
   "google_secret_manager_secret",
 ]);
 
-const DNS_TYPES = new Set([
-  "aws_route53_zone",
-  "azurerm_dns_zone",
-  "google_dns_managed_zone",
+const DNS_TYPES = new Set(["aws_route53_zone", "azurerm_dns_zone", "google_dns_managed_zone"]);
+
+const API_GATEWAY_TYPES = new Set([
+  "aws_api_gateway_rest_api",
+  "aws_apigatewayv2_api",
+  "azurerm_api_management",
+  "google_apigateway_api",
 ]);
+
+const WAF_TYPES = new Set(["aws_wafv2_web_acl", "azurerm_web_application_firewall_policy"]);
+
+const SEARCH_TYPES = new Set(["aws_opensearch_domain"]);
+
+const MESSAGING_TYPES = new Set([
+  "aws_sns_topic",
+  "azurerm_servicebus_namespace",
+  "google_pubsub_topic",
+]);
+
+const ML_AI_TYPES = new Set(["aws_sagemaker_endpoint", "google_vertex_ai_endpoint"]);
+
+const MQ_BROKER_TYPES = new Set(["aws_mq_broker"]);
+
+const EVENTHUB_TYPES = new Set(["azurerm_eventhub_namespace"]);
+
+const PUBSUB_SUBSCRIPTION_TYPES = new Set(["google_pubsub_subscription"]);
 
 // ---------------------------------------------------------------------------
 // Service label helper (for by_service aggregation)
@@ -218,6 +220,14 @@ function serviceLabel(resourceType: string): string {
   if (CONTAINER_REGISTRY_TYPES.has(resourceType)) return "container_registry";
   if (SECRETS_TYPES.has(resourceType)) return "secrets";
   if (DNS_TYPES.has(resourceType)) return "dns";
+  if (API_GATEWAY_TYPES.has(resourceType)) return "api_gateway";
+  if (WAF_TYPES.has(resourceType)) return "security";
+  if (SEARCH_TYPES.has(resourceType)) return "search";
+  if (MESSAGING_TYPES.has(resourceType)) return "messaging";
+  if (ML_AI_TYPES.has(resourceType)) return "ml_ai";
+  if (MQ_BROKER_TYPES.has(resourceType)) return "messaging";
+  if (EVENTHUB_TYPES.has(resourceType)) return "messaging";
+  if (PUBSUB_SUBSCRIPTION_TYPES.has(resourceType)) return "messaging";
   return "other";
 }
 
@@ -249,7 +259,7 @@ export class CostEngine {
   async calculateCost(
     resource: ParsedResource,
     targetProvider: CloudProvider,
-    targetRegion: string
+    targetRegion: string,
   ): Promise<CostEstimate> {
     const type = resource.type;
 
@@ -267,7 +277,7 @@ export class CostEngine {
         targetRegion,
         this.pricingEngine,
         this.monthlyHours,
-        this.config.pricing
+        this.config.pricing,
       );
     }
 
@@ -277,17 +287,12 @@ export class CostEngine {
         targetProvider,
         targetRegion,
         this.pricingEngine,
-        this.monthlyHours
+        this.monthlyHours,
       );
     }
 
     if (BLOCK_STORAGE_TYPES.has(type) || OBJECT_STORAGE_TYPES.has(type)) {
-      return calculateStorageCost(
-        resource,
-        targetProvider,
-        targetRegion,
-        this.pricingEngine
-      );
+      return calculateStorageCost(resource, targetProvider, targetRegion, this.pricingEngine);
     }
 
     if (NAT_GATEWAY_TYPES.has(type)) {
@@ -296,7 +301,7 @@ export class CostEngine {
         targetProvider,
         targetRegion,
         this.pricingEngine,
-        this.monthlyHours
+        this.monthlyHours,
       );
     }
 
@@ -306,7 +311,7 @@ export class CostEngine {
         targetProvider,
         targetRegion,
         this.pricingEngine,
-        this.monthlyHours
+        this.monthlyHours,
       );
     }
 
@@ -316,7 +321,7 @@ export class CostEngine {
         targetProvider,
         targetRegion,
         this.pricingEngine,
-        this.monthlyHours
+        this.monthlyHours,
       );
     }
 
@@ -416,6 +421,50 @@ export class CostEngine {
       return calculateDnsCost(resource, targetProvider, targetRegion);
     }
 
+    // ------------------------------------------------------------------
+    // API Gateway / WAF / Search / Messaging
+    // ------------------------------------------------------------------
+
+    if (API_GATEWAY_TYPES.has(type)) {
+      return calculateApiGatewayCost(resource, targetProvider, targetRegion);
+    }
+
+    if (WAF_TYPES.has(type)) {
+      return calculateWafCost(resource, targetProvider, targetRegion);
+    }
+
+    if (SEARCH_TYPES.has(type)) {
+      return calculateSearchCost(resource, targetProvider, targetRegion);
+    }
+
+    if (MESSAGING_TYPES.has(type)) {
+      return calculateMessagingCost(resource, targetProvider, targetRegion);
+    }
+
+    // ------------------------------------------------------------------
+    // ML/AI
+    // ------------------------------------------------------------------
+
+    if (ML_AI_TYPES.has(type)) {
+      return calculateMlAiCost(resource, targetProvider, targetRegion);
+    }
+
+    // ------------------------------------------------------------------
+    // Additional Messaging (MQ, Event Hubs, Pub/Sub Subscriptions)
+    // ------------------------------------------------------------------
+
+    if (MQ_BROKER_TYPES.has(type)) {
+      return calculateMqBrokerCost(resource, targetProvider, targetRegion);
+    }
+
+    if (EVENTHUB_TYPES.has(type)) {
+      return calculateEventHubCost(resource, targetProvider, targetRegion);
+    }
+
+    if (PUBSUB_SUBSCRIPTION_TYPES.has(type)) {
+      return calculatePubSubSubscriptionCost(resource, targetProvider, targetRegion);
+    }
+
     // Unsupported resource type – return a zero-cost estimate so callers can
     // still include it in the breakdown without crashing.
     logger.warn("CostEngine: unsupported resource type", { type, targetProvider });
@@ -450,7 +499,7 @@ export class CostEngine {
   async calculateBreakdown(
     resources: ParsedResource[],
     targetProvider: CloudProvider,
-    targetRegion: string
+    targetRegion: string,
   ): Promise<CostBreakdown> {
     const estimates: CostEstimate[] = [];
     const byService: Record<string, number> = {};
@@ -461,10 +510,11 @@ export class CostEngine {
     // rejected promises are logged and silently dropped.
     const resourceResults = await Promise.allSettled(
       resources.map((resource) =>
-        this.calculateCost(resource, targetProvider, targetRegion).then(
-          (estimate) => ({ resource, estimate })
-        )
-      )
+        this.calculateCost(resource, targetProvider, targetRegion).then((estimate) => ({
+          resource,
+          estimate,
+        })),
+      ),
     );
 
     for (const result of resourceResults) {
@@ -484,12 +534,12 @@ export class CostEngine {
       // Surface warnings for fallback pricing and missing data.
       if (estimate.pricing_source === "fallback") {
         warnings.push(
-          `${estimate.resource_name} (${estimate.resource_type}): using fallback/bundled pricing data`
+          `${estimate.resource_name} (${estimate.resource_type}): using fallback/bundled pricing data`,
         );
       }
       if (estimate.monthly_cost === 0 && estimate.confidence === "low") {
         warnings.push(
-          `No pricing data found for ${estimate.resource_type} in ${targetRegion} — cost reported as $0`
+          `No pricing data found for ${estimate.resource_type} in ${targetRegion} — cost reported as $0`,
         );
       }
     }
@@ -532,10 +582,11 @@ export class CostEngine {
       // Fan out all data transfer calculations concurrently.
       const dtResults = await Promise.allSettled(
         syntheticResources.map(({ resource, dtResourceType }) =>
-          this.calculateCost(resource, resource.provider, resource.region).then(
-            (dtEstimate) => ({ dtEstimate, dtResourceType })
-          )
-        )
+          this.calculateCost(resource, resource.provider, resource.region).then((dtEstimate) => ({
+            dtEstimate,
+            dtResourceType,
+          })),
+        ),
       );
 
       for (const result of dtResults) {
@@ -565,7 +616,7 @@ export class CostEngine {
       total_yearly: Math.round(totalMonthly * 12 * 100) / 100,
       currency: "USD",
       by_service: Object.fromEntries(
-        Object.entries(byService).map(([k, v]) => [k, Math.round(v * 100) / 100])
+        Object.entries(byService).map(([k, v]) => [k, Math.round(v * 100) / 100]),
       ),
       by_resource: estimates,
       generated_at: new Date().toISOString(),
@@ -594,12 +645,12 @@ export class CostEngine {
         const overage = Math.round((totalMonthly - limit) * 100) / 100;
         const pct = Math.round((totalMonthly / limit) * 100);
         budgetWarnings.push(
-          `BUDGET EXCEEDED: Monthly cost $${roundedTotal} exceeds limit of $${limit} by $${overage} (${pct}%)`
+          `BUDGET EXCEEDED: Monthly cost $${roundedTotal} exceeds limit of $${limit} by $${overage} (${pct}%)`,
         );
       } else if (totalMonthly > limit * (warnPct / 100)) {
         const pct = Math.round((totalMonthly / limit) * 100);
         budgetWarnings.push(
-          `BUDGET WARNING: Monthly cost $${roundedTotal} is at ${pct}% of $${limit} limit`
+          `BUDGET WARNING: Monthly cost $${roundedTotal} is at ${pct}% of $${limit} limit`,
         );
       }
     }
@@ -610,7 +661,7 @@ export class CostEngine {
         if (estimate.monthly_cost > limit) {
           const roundedCost = Math.round(estimate.monthly_cost * 100) / 100;
           budgetWarnings.push(
-            `RESOURCE OVER BUDGET: ${estimate.resource_id} costs $${roundedCost}/month, exceeds per-resource limit of $${limit}`
+            `RESOURCE OVER BUDGET: ${estimate.resource_id} costs $${roundedCost}/month, exceeds per-resource limit of $${limit}`,
           );
         }
       }

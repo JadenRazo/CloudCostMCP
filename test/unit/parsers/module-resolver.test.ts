@@ -3,8 +3,6 @@ import { join } from "node:path";
 import { readFileSync } from "node:fs";
 import { resolveModules } from "../../../src/parsers/module-resolver.js";
 import { parseTerraform } from "../../../src/parsers/index.js";
-import { parseHclToJson } from "../../../src/parsers/hcl-parser.js";
-import { resolveVariables } from "../../../src/parsers/variable-resolver.js";
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -12,7 +10,7 @@ import { resolveVariables } from "../../../src/parsers/variable-resolver.js";
 
 const FIXTURES = join(process.cwd(), "test/fixtures/modules");
 const PARENT_DIR = join(FIXTURES, "parent");
-const CHILD_DIR = join(FIXTURES, "child");
+const _CHILD_DIR = join(FIXTURES, "child");
 
 function readFixtureFile(dir: string, filename: string): string {
   return readFileSync(join(dir, filename), "utf-8");
@@ -21,7 +19,10 @@ function readFixtureFile(dir: string, filename: string): string {
 function parentFiles() {
   return [
     { path: join(PARENT_DIR, "main.tf"), content: readFixtureFile(PARENT_DIR, "main.tf") },
-    { path: join(PARENT_DIR, "variables.tf"), content: readFixtureFile(PARENT_DIR, "variables.tf") },
+    {
+      path: join(PARENT_DIR, "variables.tf"),
+      content: readFixtureFile(PARENT_DIR, "variables.tf"),
+    },
   ];
 }
 
@@ -172,7 +173,7 @@ describe("resolveModules – missing module directory", () => {
     await resolveModules(hclJson, PARENT_DIR, {}, warnings);
 
     const registryWarning = warnings.find(
-      (w) => w.includes('"vpc"') && w.includes(".terraform/modules")
+      (w) => w.includes('"vpc"') && w.includes(".terraform/modules"),
     );
     expect(registryWarning).toBeDefined();
   });
@@ -206,9 +207,7 @@ describe("resolveModules – git module sources", () => {
     const resources = await resolveModules(hclJson, PARENT_DIR, {}, warnings);
 
     expect(resources).toHaveLength(0);
-    const gitWarning = warnings.find(
-      (w) => w.includes('Module "custom"') && w.includes("git")
-    );
+    const gitWarning = warnings.find((w) => w.includes('Module "custom"') && w.includes("git"));
     expect(gitWarning).toBeDefined();
   });
 
@@ -223,9 +222,7 @@ describe("resolveModules – git module sources", () => {
     const resources = await resolveModules(hclJson, PARENT_DIR, {}, warnings);
 
     expect(resources).toHaveLength(0);
-    const gitWarning = warnings.find(
-      (w) => w.includes('Module "ghmod"') && w.includes("git")
-    );
+    const gitWarning = warnings.find((w) => w.includes('Module "ghmod"') && w.includes("git"));
     expect(gitWarning).toBeDefined();
   });
 
@@ -299,81 +296,50 @@ describe("resolveModules – no module blocks", () => {
 
 describe("parseTerraform – module expansion integration", () => {
   it("includes child module resources in the inventory when resolveModulesEnabled=true", async () => {
-    const inventory = await parseTerraform(
-      parentFiles(),
-      undefined,
-      PARENT_DIR,
-      true
-    );
+    const inventory = await parseTerraform(parentFiles(), undefined, PARENT_DIR, true);
 
     // The parent has 1 aws_instance; the child has 1 aws_instance + 1 aws_s3_bucket.
-    const instances = inventory.resources.filter(
-      (r) => r.type === "aws_instance"
-    );
+    const instances = inventory.resources.filter((r) => r.type === "aws_instance");
     expect(instances.length).toBeGreaterThanOrEqual(2);
   });
 
   it("prefixes child resources with module.<name>. in the inventory", async () => {
-    const inventory = await parseTerraform(
-      parentFiles(),
-      undefined,
-      PARENT_DIR,
-      true
-    );
+    const inventory = await parseTerraform(parentFiles(), undefined, PARENT_DIR, true);
 
-    const moduleResources = inventory.resources.filter((r) =>
-      r.id.startsWith("module.app.")
-    );
+    const moduleResources = inventory.resources.filter((r) => r.id.startsWith("module.app."));
     expect(moduleResources.length).toBeGreaterThan(0);
   });
 
   it("parent resources are not prefixed with module.", async () => {
-    const inventory = await parseTerraform(
-      parentFiles(),
-      undefined,
-      PARENT_DIR,
-      true
-    );
+    const inventory = await parseTerraform(parentFiles(), undefined, PARENT_DIR, true);
 
     const parentResource = inventory.resources.find(
-      (r) => r.type === "aws_instance" && r.name === "parent_server"
+      (r) => r.type === "aws_instance" && r.name === "parent_server",
     );
     expect(parentResource).toBeDefined();
     expect(parentResource?.id).toBe("aws_instance.parent_server");
   });
 
   it("does not expand modules when resolveModulesEnabled=false", async () => {
-    const inventory = await parseTerraform(
-      parentFiles(),
-      undefined,
-      PARENT_DIR,
-      false
-    );
+    const inventory = await parseTerraform(parentFiles(), undefined, PARENT_DIR, false);
 
     // With module expansion disabled, only the parent resource should appear.
-    const moduleResources = inventory.resources.filter((r) =>
-      r.id.startsWith("module.")
-    );
+    const moduleResources = inventory.resources.filter((r) => r.id.startsWith("module."));
     expect(moduleResources).toHaveLength(0);
 
     // The parent aws_instance should still be there.
     const parentInstance = inventory.resources.find(
-      (r) => r.type === "aws_instance" && r.name === "parent_server"
+      (r) => r.type === "aws_instance" && r.name === "parent_server",
     );
     expect(parentInstance).toBeDefined();
   });
 
   it("passes variable inputs from parent module block to child", async () => {
     // The parent passes child_instance_type (default "t3.micro") to the child module.
-    const inventory = await parseTerraform(
-      parentFiles(),
-      undefined,
-      PARENT_DIR,
-      true
-    );
+    const inventory = await parseTerraform(parentFiles(), undefined, PARENT_DIR, true);
 
     const childInstance = inventory.resources.find(
-      (r) => r.id.startsWith("module.app.") && r.type === "aws_instance"
+      (r) => r.id.startsWith("module.app.") && r.type === "aws_instance",
     );
     // Parent default for child_instance_type is "t3.micro", which overrides
     // the child module's own default of "t3.nano".
@@ -381,12 +347,7 @@ describe("parseTerraform – module expansion integration", () => {
   });
 
   it("total_count includes both parent and child resources", async () => {
-    const inventory = await parseTerraform(
-      parentFiles(),
-      undefined,
-      PARENT_DIR,
-      true
-    );
+    const inventory = await parseTerraform(parentFiles(), undefined, PARENT_DIR, true);
 
     // Parent: 1 aws_instance. Child: 1 aws_instance + 1 aws_s3_bucket = 3 total.
     expect(inventory.total_count).toBeGreaterThanOrEqual(3);

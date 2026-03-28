@@ -40,7 +40,7 @@ function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
 
 function makeCostEngine(
   cache: PricingCache,
-  configOverrides?: Partial<CloudCostConfig["pricing"]>
+  configOverrides?: Partial<CloudCostConfig["pricing"]>,
 ): CostEngine {
   const pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   const config: CloudCostConfig = {
@@ -271,9 +271,7 @@ describe("CostEngine data transfer integration", () => {
     // 1 real resource + 1 synthetic data transfer
     expect(breakdown.by_resource).toHaveLength(2);
 
-    const dtEstimate = breakdown.by_resource.find(
-      (e) => e.resource_type === "aws_data_transfer"
-    );
+    const dtEstimate = breakdown.by_resource.find((e) => e.resource_type === "aws_data_transfer");
     expect(dtEstimate).toBeDefined();
     expect(dtEstimate!.monthly_cost).toBeGreaterThan(0);
     expect(breakdown.by_service["data_transfer"]).toBeGreaterThan(0);
@@ -335,9 +333,7 @@ describe("CostEngine data transfer integration", () => {
 
     const breakdown = await engine.calculateBreakdown(resources, "aws", "us-east-1");
 
-    const dtItems = breakdown.by_resource.filter(
-      (e) => e.resource_type === "aws_data_transfer"
-    );
+    const dtItems = breakdown.by_resource.filter((e) => e.resource_type === "aws_data_transfer");
     expect(dtItems).toHaveLength(1);
   });
 
@@ -357,15 +353,12 @@ describe("CostEngine data transfer integration", () => {
 
     const breakdown = await engine.calculateBreakdown(resources, "aws", "us-east-1");
 
-    const manualSum = breakdown.by_resource.reduce(
-      (sum, e) => sum + e.monthly_cost,
-      0
-    );
+    const manualSum = breakdown.by_resource.reduce((sum, e) => sum + e.monthly_cost, 0);
     expect(breakdown.total_monthly).toBeCloseTo(manualSum, 1);
     expect(breakdown.total_monthly).toBeGreaterThan(
       breakdown.by_resource
         .filter((e) => e.resource_type !== "aws_data_transfer")
-        .reduce((sum, e) => sum + e.monthly_cost, 0)
+        .reduce((sum, e) => sum + e.monthly_cost, 0),
     );
   });
 
@@ -387,9 +380,7 @@ describe("CostEngine data transfer integration", () => {
 
     const breakdown = await engine.calculateBreakdown(resources, "aws", "us-east-1");
 
-    const dtItems = breakdown.by_resource.filter(
-      (e) => e.resource_type === "aws_data_transfer"
-    );
+    const dtItems = breakdown.by_resource.filter((e) => e.resource_type === "aws_data_transfer");
     // Exactly one data transfer item per provider+region
     expect(dtItems).toHaveLength(1);
   });
@@ -411,7 +402,7 @@ describe("CostEngine data transfer integration", () => {
     const breakdown = await engine.calculateBreakdown(resources, "gcp", "us-central1");
 
     const dtEstimate = breakdown.by_resource.find(
-      (e) => e.resource_type === "google_data_transfer"
+      (e) => e.resource_type === "google_data_transfer",
     );
     expect(dtEstimate).toBeDefined();
     expect(dtEstimate!.provider).toBe("gcp");

@@ -1,7 +1,7 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "0.3.0",
-  "description": "MCP server for multi-cloud cost analysis of Terraform codebases",
+  "version": "0.4.0",
+  "description": "MCP server for multi-cloud cost analysis of Terraform, CloudFormation, Pulumi, and Bicep/ARM codebases",
   "type": "module",
   "license": "MIT",
   "author": "Jaden Razo",
@@ -53,8 +53,13 @@
     "cli": "tsx src/cli.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "bench": "vitest bench",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && eslint src test",
+    "format": "prettier --write src test",
+    "format:check": "prettier --check src test",
+    "test:coverage": "vitest run --coverage",
+    "audit": "npm audit --audit-level=high",
     "clean": "rm -rf dist",
     "prepare": "npm run build"
   },
@@ -62,14 +67,21 @@
     "@cdktf/hcl2json": "^0.21.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "better-sqlite3": "^11.9.1",
+    "yaml": "^2.8.3",
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.14.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
     "tsup": "^8.4.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.57.2",
     "vitest": "^3.1.1"
   }
 }

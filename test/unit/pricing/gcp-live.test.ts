@@ -22,7 +22,7 @@ function makeSku(
   usageType: string,
   regions: string[],
   priceNanos: number,
-  usageUnit = "h"
+  usageUnit = "h",
 ) {
   return {
     name: `services/test/${skuId}`,
@@ -98,7 +98,7 @@ describe("CloudBillingClient – live pricing", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      6_000_000
+      6_000_000,
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -128,7 +128,7 @@ describe("CloudBillingClient – live pricing", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      10_000_000
+      10_000_000,
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -147,7 +147,7 @@ describe("CloudBillingClient – live pricing", () => {
       "Compute",
       "OnDemand",
       ["europe-west1"], // wrong region
-      6_000_000
+      6_000_000,
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -171,7 +171,7 @@ describe("CloudBillingClient – live pricing", () => {
       "ApplicationServices",
       "OnDemand",
       ["us-central1"],
-      50_000_000
+      50_000_000,
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -202,7 +202,7 @@ describe("CloudBillingClient – live pricing", () => {
       "OnDemand",
       ["us-central1"],
       20_000_000,
-      "gibibyte month"
+      "gibibyte month",
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -230,7 +230,7 @@ describe("CloudBillingClient – live pricing", () => {
       "OnDemand",
       ["us-central1"],
       10_000_000,
-      "gibibyte month"
+      "gibibyte month",
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -256,7 +256,7 @@ describe("CloudBillingClient – live pricing", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      8_000_000
+      8_000_000,
     );
 
     const skuPage2 = makeSku(
@@ -265,7 +265,7 @@ describe("CloudBillingClient – live pricing", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      6_000_000
+      6_000_000,
     );
 
     let callCount = 0;
@@ -410,7 +410,7 @@ describe("CloudBillingClient – cache behaviour", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      6_000_000
+      6_000_000,
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -434,7 +434,7 @@ describe("CloudBillingClient – cache behaviour", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      6_000_000
+      6_000_000,
     );
 
     let fetchCallCount = 0;
@@ -477,7 +477,7 @@ describe("CloudBillingClient – cache behaviour", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      6_000_000
+      6_000_000,
     );
     const n2Sku = makeSku(
       "sku-n2-core-001",
@@ -485,7 +485,7 @@ describe("CloudBillingClient – cache behaviour", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      8_000_000
+      8_000_000,
     );
 
     vi.stubGlobal("fetch", async () => ({
@@ -508,7 +508,7 @@ describe("CloudBillingClient – cache behaviour", () => {
       "Storage",
       "OnDemand",
       ["us-central1"],
-      20_000_000
+      20_000_000,
     );
     const euSku = makeSku(
       "sku-gcs-standard-eu",
@@ -516,12 +516,12 @@ describe("CloudBillingClient – cache behaviour", () => {
       "Storage",
       "OnDemand",
       ["europe-west1"],
-      23_000_000
+      23_000_000,
     );
 
     vi.stubGlobal("fetch", async (url: string) => {
       // Return region-appropriate SKUs based on a naive URL check
-      const sku = url.includes("storage") ? usSku : usSku;
+      const _sku = url.includes("storage") ? usSku : usSku;
       return {
         ok: true,
         json: async () => JSON.parse(makeSkuResponse([usSku, euSku])),
@@ -568,9 +568,7 @@ describe("GcpProvider – live-then-bundled fallback", () => {
     });
 
     // Import here to pick up the stubbed fetch
-    const { GcpBundledLoader } = await import(
-      "../../../src/pricing/gcp/bundled-loader.js"
-    );
+    const { GcpBundledLoader } = await import("../../../src/pricing/gcp/bundled-loader.js");
     const loader = new GcpBundledLoader();
 
     // Bundled data should still work
@@ -589,7 +587,7 @@ describe("GcpProvider – live-then-bundled fallback", () => {
       "Compute",
       "OnDemand",
       ["us-central1"],
-      7_500_000 // 0.0075 – slightly different from bundled 0.0084
+      7_500_000, // 0.0075 – slightly different from bundled 0.0084
     );
 
     vi.stubGlobal("fetch", async () => ({

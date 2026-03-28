@@ -12,27 +12,25 @@ import { logger } from "../logger.js";
 // ---------------------------------------------------------------------------
 
 export const whatIfSchema = z.object({
-  files: z.array(
-    z.object({
-      path: z.string().describe("File path"),
-      content: z.string().describe("File content (HCL)"),
-    })
-  ).describe("Terraform HCL files to analyse"),
-  changes: z.array(
-    z.object({
-      resource_id: z
-        .string()
-        .describe("The resource ID to modify (e.g. aws_instance.web)"),
-      attribute: z
-        .string()
-        .describe(
-          "The attribute name to change (e.g. instance_type, storage_size_gb)"
-        ),
-      new_value: z
-        .union([z.string(), z.number()])
-        .describe("The new value for the attribute"),
-    })
-  ).describe("List of attribute changes to simulate"),
+  files: z
+    .array(
+      z.object({
+        path: z.string().describe("File path"),
+        content: z.string().describe("File content (HCL)"),
+      }),
+    )
+    .describe("Terraform HCL files to analyse"),
+  changes: z
+    .array(
+      z.object({
+        resource_id: z.string().describe("The resource ID to modify (e.g. aws_instance.web)"),
+        attribute: z
+          .string()
+          .describe("The attribute name to change (e.g. instance_type, storage_size_gb)"),
+        new_value: z.union([z.string(), z.number()]).describe("The new value for the attribute"),
+      }),
+    )
+    .describe("List of attribute changes to simulate"),
   provider: z
     .enum(["aws", "azure", "gcp"])
     .optional()
@@ -101,7 +99,7 @@ function cloneResources(resources: ParsedResource[]): ParsedResource[] {
 export async function whatIf(
   params: z.infer<typeof whatIfSchema>,
   pricingEngine: PricingEngine,
-  config: CloudCostConfig
+  config: CloudCostConfig,
 ): Promise<WhatIfResult> {
   const inventory = await parseTerraform(params.files, params.tfvars);
 
@@ -109,8 +107,7 @@ export async function whatIf(
     (params.provider as CloudProvider | undefined) ?? inventory.provider;
 
   const targetRegion =
-    params.region ??
-    mapRegion(inventory.region, inventory.provider, targetProvider);
+    params.region ?? mapRegion(inventory.region, inventory.provider, targetProvider);
 
   const costEngine = new CostEngine(pricingEngine, config);
 
@@ -120,7 +117,7 @@ export async function whatIf(
   const originalBreakdown = await costEngine.calculateBreakdown(
     inventory.resources,
     targetProvider,
-    targetRegion
+    targetRegion,
   );
 
   // -------------------------------------------------------------------------
@@ -131,12 +128,14 @@ export async function whatIf(
     ...(inventory.parse_warnings ?? []),
     ...(originalBreakdown.warnings ?? []),
   ];
-  const changesApplied: Array<{ resource_id: string; attribute: string; new_value: string | number }> = [];
+  const changesApplied: Array<{
+    resource_id: string;
+    attribute: string;
+    new_value: string | number;
+  }> = [];
 
   for (const change of params.changes) {
-    const resource = modifiedResources.find(
-      (r) => r.id === change.resource_id
-    );
+    const resource = modifiedResources.find((r) => r.id === change.resource_id);
 
     if (!resource) {
       const msg = `what-if: resource_id "${change.resource_id}" not found — change skipped`;
@@ -147,8 +146,7 @@ export async function whatIf(
 
     // Apply to the typed attributes bag first; if the attribute is not a
     // recognised ResourceAttributes key, fall back to the index signature.
-    (resource.attributes as Record<string, unknown>)[change.attribute] =
-      change.new_value;
+    (resource.attributes as Record<string, unknown>)[change.attribute] = change.new_value;
 
     changesApplied.push({
       resource_id: change.resource_id,
@@ -169,13 +167,11 @@ export async function whatIf(
   const modifiedBreakdown = await costEngine.calculateBreakdown(
     modifiedResources,
     targetProvider,
-    targetRegion
+    targetRegion,
   );
 
   // Merge any additional warnings from the modified run, deduplicating.
-  const allWarnings = [
-    ...new Set([...warnings, ...(modifiedBreakdown.warnings ?? [])]),
-  ];
+  const allWarnings = [...new Set([...warnings, ...(modifiedBreakdown.warnings ?? [])])];
 
   // -------------------------------------------------------------------------
   // Build per-resource diffs
@@ -183,18 +179,11 @@ export async function whatIf(
   const resourceDiffs: ResourceDiff[] = [];
 
   // Index original estimates by resource_id for O(1) lookup.
-  const originalByResource = new Map(
-    originalBreakdown.by_resource.map((e) => [e.resource_id, e])
-  );
-  const modifiedByResource = new Map(
-    modifiedBreakdown.by_resource.map((e) => [e.resource_id, e])
-  );
+  const originalByResource = new Map(originalBreakdown.by_resource.map((e) => [e.resource_id, e]));
+  const modifiedByResource = new Map(modifiedBreakdown.by_resource.map((e) => [e.resource_id, e]));
 
   // Gather all resource IDs from both runs (handles additions/removals).
-  const allIds = new Set([
-    ...originalByResource.keys(),
-    ...modifiedByResource.keys(),
-  ]);
+  const allIds = new Set([...originalByResource.keys(), ...modifiedByResource.keys()]);
 
   // Build a lookup from resource_id to the changes that were applied to it.
   const changesByResourceId = new Map<

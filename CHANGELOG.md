@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-03-28
+
+### Added
+- **Multi-IaC support**: CloudFormation (JSON/YAML), Pulumi (stack export), and Bicep/ARM template parsing via unified `IaCParser` interface with auto-format detection
+- **`analyze_plan` tool**: Parse `terraform plan -json` output for precise before/after cost-of-change analysis
+- **`compare_actual` tool**: Parse `.tfstate` files to compare actual infrastructure costs against estimates
+- **`price_trends` tool**: Historical pricing with SQLite-backed price snapshots, change tracking, and trend queries
+- **`detect_anomalies` tool**: Cost anomaly detection with budget checks, price change alerts, concentration risk, and right-sizing hints
+- **API Gateway pricing**: AWS REST/HTTP/WebSocket, Azure API Management, GCP API Gateway
+- **WAF pricing**: AWS WAFv2, Azure WAF Policy
+- **OpenSearch pricing**: AWS OpenSearch Domain with per-instance-type tables
+- **Messaging pricing**: AWS SNS/MQ Broker, Azure Service Bus/Event Hubs, GCP Pub/Sub
+- **ML/AI pricing**: AWS SageMaker endpoints (40+ instance types), GCP Vertex AI (confidence: low)
+- **Expanded Redis**: Full Azure Redis Cache and GCP Redis Instance support
+- **ESLint + Prettier**: Flat config ESLint with TypeScript rules, Prettier formatting enforced
+- **Coverage thresholds**: 70%+ statement/branch/function/line coverage enforced via vitest
+- **Performance benchmarks**: Parsing, pricing cache, and calculator benchmarks via `vitest bench`
+- **CI hardening**: Security audit job, Prettier format check, concurrency groups, job timeouts
+- **SECURITY.md**: Vulnerability reporting policy and security design documentation
+- **ARCHITECTURE.md**: Layered architecture documentation with extension guides
+
+### Changed
+- Refactored `bulk-loader.ts` (929 -> 708 lines) into focused modules: csv-parser, fallback-data
+- Refactored `resource-extractor.ts` (778 -> 299 lines) into per-provider extractors
+- Refactored `retail-client.ts` (614 -> 499 lines) with extracted fallback-data
+- Replaced ~40 `any` types in pricing modules with proper TypeScript interfaces
+- Updated CI pipeline with security audit job and format checking
+
+### Fixed
+- picomatch HIGH severity vulnerability (ReDoS + method injection)
+- Unused imports and variables across codebase (ESLint cleanup)
+
+### Security
+- Resolved picomatch 4.0.0-4.0.3 vulnerability via npm audit fix
+- Added `npm audit --audit-level=high` to CI pipeline
+
 ## [0.3.0] - 2026-03-14
 
 ### Added

@@ -1,4 +1,5 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
+import type { AwsProduct, AwsPriceWrapper, AwsPriceDimension, AwsOfferTerm } from "./types.js";
 
 /**
  * Convert a raw AWS bulk pricing product + price term into a NormalizedPrice.
@@ -13,7 +14,7 @@ import type { NormalizedPrice } from "../../types/pricing.js";
  * levels to reach the actual priceDimensions.
  */
 
-function extractUsdPrice(priceDimensions: Record<string, any>): number {
+function extractUsdPrice(priceDimensions: Record<string, AwsPriceDimension>): number {
   for (const dim of Object.values(priceDimensions)) {
     const usd = dim?.pricePerUnit?.USD;
     if (usd !== undefined) {
@@ -24,7 +25,7 @@ function extractUsdPrice(priceDimensions: Record<string, any>): number {
   return 0;
 }
 
-function extractUnit(priceDimensions: Record<string, any>): string {
+function extractUnit(priceDimensions: Record<string, AwsPriceDimension>): string {
   for (const dim of Object.values(priceDimensions)) {
     if (dim?.unit) return String(dim.unit);
   }
@@ -37,25 +38,25 @@ function extractUnit(priceDimensions: Record<string, any>): string {
  * Structure: { [sku]: { [offerTermCode]: { priceDimensions: { [rateCode]: ... } } } }
  */
 function extractFromTerms(
-  onDemandTerms: Record<string, any>,
-  defaultUnit: string
+  onDemandTerms: Record<string, Record<string, AwsOfferTerm>>,
+  defaultUnit: string,
 ): { price: number; unit: string } {
   for (const skuTerms of Object.values(onDemandTerms)) {
     // skuTerms = { "SKU.TERMCODE": { priceDimensions: { ... } } }
     // If priceDimensions exists directly (single-level), use it.
-    if (skuTerms?.priceDimensions) {
+    const asOfferTerm = skuTerms as unknown as AwsOfferTerm;
+    if (asOfferTerm?.priceDimensions) {
       return {
-        price: extractUsdPrice(skuTerms.priceDimensions),
-        unit: extractUnit(skuTerms.priceDimensions),
+        price: extractUsdPrice(asOfferTerm.priceDimensions),
+        unit: extractUnit(asOfferTerm.priceDimensions),
       };
     }
     // Otherwise iterate the nested offerTermCode level.
     for (const offerTerm of Object.values(skuTerms ?? {})) {
-      const dims = (offerTerm as Record<string, unknown>)?.priceDimensions;
-      if (dims) {
+      if (offerTerm?.priceDimensions) {
         return {
-          price: extractUsdPrice(dims),
-          unit: extractUnit(dims),
+          price: extractUsdPrice(offerTerm.priceDimensions),
+          unit: extractUnit(offerTerm.priceDimensions),
         };
       }
     }
@@ -64,9 +65,9 @@ function extractFromTerms(
 }
 
 export function normalizeAwsCompute(
-  rawProduct: any,
-  rawPrice: any,
-  region: string
+  rawProduct: AwsProduct,
+  rawPrice: AwsPriceWrapper,
+  region: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
@@ -96,9 +97,9 @@ export function normalizeAwsCompute(
 }
 
 export function normalizeAwsDatabase(
-  rawProduct: any,
-  rawPrice: any,
-  region: string
+  rawProduct: AwsProduct,
+  rawPrice: AwsPriceWrapper,
+  region: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
@@ -128,9 +129,9 @@ export function normalizeAwsDatabase(
 }
 
 export function normalizeAwsStorage(
-  rawProduct: any,
-  rawPrice: any,
-  region: string
+  rawProduct: AwsProduct,
+  rawPrice: AwsPriceWrapper,
+  region: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};

@@ -6,7 +6,7 @@ process.on("uncaughtException", (err) => {
 });
 
 process.on("unhandledRejection", (reason) => {
-  const msg = reason instanceof Error ? reason.stack ?? reason.message : String(reason);
+  const msg = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
   process.stderr.write(`Unhandled rejection: ${msg}\n`);
   process.exit(1);
 });

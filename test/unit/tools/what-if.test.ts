@@ -89,7 +89,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     // t3.large is more expensive than t3.micro so the total should increase.
@@ -112,7 +112,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     // t3.nano < t3.small so the delta should be negative.
@@ -144,7 +144,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     // Both changed resources should appear in the per-resource diff.
@@ -172,12 +172,10 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
-    const webDiff = result.resource_diffs.find(
-      (d) => d.resource_id === "aws_instance.web"
-    );
+    const webDiff = result.resource_diffs.find((d) => d.resource_id === "aws_instance.web");
     expect(webDiff).toBeDefined();
     expect(webDiff!.delta_monthly).toBeGreaterThan(0);
     expect(webDiff!.new_monthly).toBeGreaterThan(webDiff!.original_monthly);
@@ -202,15 +200,13 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     // The change for the missing resource is skipped; resource_diffs should
     // be empty and a warning should be surfaced to the caller.
     expect(result.resource_diffs).toHaveLength(0);
-    expect(
-      result.warnings.some((w) => w.includes("aws_instance.nonexistent"))
-    ).toBe(true);
+    expect(result.warnings.some((w) => w.includes("aws_instance.nonexistent"))).toBe(true);
   });
 
   // -------------------------------------------------------------------------
@@ -226,7 +222,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     expect(result.total_delta_monthly).toBe(0);
@@ -247,7 +243,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     // With no changes, all resources have delta_monthly === 0 so resource_diffs
@@ -273,7 +269,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     expect(result.resource_diffs.length).toBeGreaterThan(0);
@@ -299,7 +295,7 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
     expect(result.provider).toBe("aws");
@@ -325,12 +321,10 @@ describe("whatIf", () => {
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
+      DEFAULT_CONFIG,
     );
 
-    const ebsDiff = result.resource_diffs.find(
-      (d) => d.resource_id === "aws_ebs_volume.data"
-    );
+    const ebsDiff = result.resource_diffs.find((d) => d.resource_id === "aws_ebs_volume.data");
     expect(ebsDiff).toBeDefined();
     // 500 GB > 100 GB so the cost must increase.
     expect(ebsDiff!.delta_monthly).toBeGreaterThan(0);

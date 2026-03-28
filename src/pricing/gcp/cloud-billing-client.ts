@@ -86,10 +86,7 @@ function extractUnitPrice(sku: GcpSku): number | null {
   const baseTier = rates.find((r) => r.startUsageAmount === 0) ?? rates[0];
   if (!baseTier) return null;
 
-  const price = protoToFloat(
-    baseTier.unitPrice?.units,
-    baseTier.unitPrice?.nanos
-  );
+  const price = protoToFloat(baseTier.unitPrice?.units, baseTier.unitPrice?.nanos);
   return price > 0 ? price : null;
 }
 
@@ -136,10 +133,7 @@ export class CloudBillingClient {
    * Fetch Compute Engine SKUs for a region and return the hourly instance
    * price for the given machine type, or null if not found.
    */
-  async fetchComputeSkus(
-    machineType: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async fetchComputeSkus(machineType: string, region: string): Promise<NormalizedPrice | null> {
     const cacheKey = `gcp/compute/${region}/${machineType.toLowerCase()}`;
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
     if (cached) return cached;
@@ -171,10 +165,7 @@ export class CloudBillingClient {
   /**
    * Fetch Cloud SQL SKUs and return the hourly price for the given tier.
    */
-  async fetchDatabaseSkus(
-    tier: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async fetchDatabaseSkus(tier: string, region: string): Promise<NormalizedPrice | null> {
     const cacheKey = `gcp/sql/${region}/${tier.toLowerCase()}`;
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
     if (cached) return cached;
@@ -202,10 +193,7 @@ export class CloudBillingClient {
    * Fetch Cloud Storage SKUs and return the monthly per-GB price for the
    * given storage class.
    */
-  async fetchStorageSkus(
-    storageClass: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async fetchStorageSkus(storageClass: string, region: string): Promise<NormalizedPrice | null> {
     const cacheKey = `gcp/storage/${region}/${storageClass.toLowerCase()}`;
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
     if (cached) return cached;
@@ -240,10 +228,7 @@ export class CloudBillingClient {
    * The public endpoint supports no authentication for read-only SKU listing.
    * Pagination is handled via nextPageToken.
    */
-  private async fetchSkus(
-    serviceId: string,
-    region: string
-  ): Promise<GcpSku[]> {
+  private async fetchSkus(serviceId: string, region: string): Promise<GcpSku[]> {
     const url = `${BILLING_API_BASE}/${serviceId}/skus`;
     const collected: GcpSku[] = [];
     let pageToken: string | undefined;
@@ -259,9 +244,7 @@ export class CloudBillingClient {
       });
 
       if (!res.ok) {
-        throw new Error(
-          `GCP Billing API HTTP ${res.status} for service ${serviceId}`
-        );
+        throw new Error(`GCP Billing API HTTP ${res.status} for service ${serviceId}`);
       }
 
       const body: SkuListResponse = await res.json();
@@ -314,7 +297,7 @@ export class CloudBillingClient {
     skus: GcpSku[],
     machineType: string,
     family: string,
-    region: string
+    region: string,
   ): NormalizedPrice | null {
     const familyUpper = family.toUpperCase();
 
@@ -368,7 +351,7 @@ export class CloudBillingClient {
   private extractDatabasePrice(
     skus: GcpSku[],
     tier: string,
-    region: string
+    region: string,
   ): NormalizedPrice | null {
     const tierLower = tier.toLowerCase();
 
@@ -419,7 +402,7 @@ export class CloudBillingClient {
   private extractStoragePrice(
     skus: GcpSku[],
     storageClass: string,
-    region: string
+    region: string,
   ): NormalizedPrice | null {
     const classUpper = storageClass.toUpperCase();
 

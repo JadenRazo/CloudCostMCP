@@ -31,25 +31,25 @@ const DISCOUNT_RATES: Record<
 > = {
   aws: [
     { term: "1yr", payment: "no_upfront", rate: 0.36 },
-    { term: "1yr", payment: "partial_upfront", rate: 0.40 },
+    { term: "1yr", payment: "partial_upfront", rate: 0.4 },
     { term: "1yr", payment: "all_upfront", rate: 0.42 },
     { term: "3yr", payment: "no_upfront", rate: 0.52 },
     { term: "3yr", payment: "partial_upfront", rate: 0.57 },
-    { term: "3yr", payment: "all_upfront", rate: 0.60 },
+    { term: "3yr", payment: "all_upfront", rate: 0.6 },
   ],
   azure: [
     { term: "1yr", payment: "all_upfront", rate: 0.35 },
     { term: "3yr", payment: "all_upfront", rate: 0.55 },
     // Azure does not offer no-upfront RI in the same way; partial_upfront maps
     // to hybrid benefit combined, approximated here.
-    { term: "1yr", payment: "partial_upfront", rate: 0.30 },
-    { term: "3yr", payment: "partial_upfront", rate: 0.50 },
+    { term: "1yr", payment: "partial_upfront", rate: 0.3 },
+    { term: "3yr", payment: "partial_upfront", rate: 0.5 },
   ],
   gcp: [
     // GCP Committed Use Discounts (CUDs) – resource-based.
     { term: "1yr", payment: "all_upfront", rate: 0.28 },
     { term: "3yr", payment: "all_upfront", rate: 0.55 },
-    { term: "1yr", payment: "partial_upfront", rate: 0.20 },
+    { term: "1yr", payment: "partial_upfront", rate: 0.2 },
     { term: "3yr", payment: "partial_upfront", rate: 0.45 },
   ],
 };
@@ -64,7 +64,7 @@ const DISCOUNT_RATES: Record<
  */
 export function calculateReservedPricing(
   onDemandMonthly: number,
-  provider: CloudProvider
+  provider: CloudProvider,
 ): ReservedComparison {
   const rates = DISCOUNT_RATES[provider];
 
@@ -82,9 +82,8 @@ export function calculateReservedPricing(
 
   // Best option = highest savings (last entry in our sorted-by-savings array).
   const best_option = options.reduce(
-    (best, opt) =>
-      opt.monthly_savings > best.monthly_savings ? opt : best,
-    options[0]
+    (best, opt) => (opt.monthly_savings > best.monthly_savings ? opt : best),
+    options[0],
   );
 
   return {

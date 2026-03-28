@@ -18,7 +18,7 @@ export const optimizeCostSchema = z.object({
     z.object({
       path: z.string().describe("File path"),
       content: z.string().describe("File content (HCL)"),
-    })
+    }),
   ),
   tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
   providers: z
@@ -39,7 +39,7 @@ export const optimizeCostSchema = z.object({
 export async function optimizeCost(
   params: z.infer<typeof optimizeCostSchema>,
   pricingEngine: PricingEngine,
-  config: CloudCostConfig
+  config: CloudCostConfig,
 ): Promise<object> {
   const inventory = await parseTerraform(params.files, params.tfvars);
   const sourceProvider = inventory.provider;
@@ -54,7 +54,7 @@ export async function optimizeCost(
     const breakdown = await costEngine.calculateBreakdown(
       inventory.resources,
       provider,
-      targetRegion
+      targetRegion,
     );
     allEstimates.push(...breakdown.by_resource);
   }
@@ -65,7 +65,7 @@ export async function optimizeCost(
   // cost on the source provider so users can see committed-use savings at a
   // glance without navigating to a separate tool call.
   const sourceEstimates = allEstimates.filter(
-    (e) => e.provider === sourceProvider && e.monthly_cost > 0
+    (e) => e.provider === sourceProvider && e.monthly_cost > 0,
   );
 
   const reservedPricing = sourceEstimates.map((estimate) => ({
@@ -76,8 +76,7 @@ export async function optimizeCost(
     ...calculateReservedPricing(estimate.monthly_cost, estimate.provider),
   }));
 
-  const totalPotentialSavings =
-    recommendations.reduce((sum, r) => sum + r.monthly_savings, 0);
+  const totalPotentialSavings = recommendations.reduce((sum, r) => sum + r.monthly_savings, 0);
 
   return {
     recommendations,

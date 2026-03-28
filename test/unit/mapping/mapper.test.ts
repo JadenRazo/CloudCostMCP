@@ -100,7 +100,7 @@ describe("instance-mapper", () => {
     // t3.large spec: 2 vCPU, 8 GB general_purpose -> expect Standard_B2ms or similar
     const result = findNearestInstance(
       { vcpus: 2, memory_gb: 8, category: "general_purpose" },
-      "azure"
+      "azure",
     );
     expect(result).not.toBeNull();
     // The nearest 2-vCPU 8-GB Azure instance should be Standard_B2ms or Standard_D2s_v5.
@@ -110,7 +110,7 @@ describe("instance-mapper", () => {
   it("findNearestInstance returns a result for GCP targets", () => {
     const result = findNearestInstance(
       { vcpus: 4, memory_gb: 16, category: "general_purpose" },
-      "gcp"
+      "gcp",
     );
     expect(result).not.toBeNull();
     // e2-standard-4 or n2-standard-4 are the natural fits.
@@ -120,7 +120,7 @@ describe("instance-mapper", () => {
   it("findNearestInstance prefers category match when sizes are close", () => {
     const computeOptimized = findNearestInstance(
       { vcpus: 4, memory_gb: 8, category: "compute_optimized" },
-      "azure"
+      "azure",
     );
     // Standard_F4s_v2 is the 4-vCPU compute-optimized Azure VM.
     expect(computeOptimized).toBe("Standard_F4s_v2");

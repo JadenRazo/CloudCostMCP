@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  getRegionPriceMultipliers,
-  _resetLoaderCache,
-} from "../../../src/data/loader.js";
+import { getRegionPriceMultipliers, _resetLoaderCache } from "../../../src/data/loader.js";
 
 // Reset singleton cache before each test for isolation
 beforeEach(() => {
@@ -245,6 +242,6 @@ describe("GcpBundledLoader – infrastructure service regional variance", () => 
   it("us-central1 GKE price is unchanged (multiplier = 1.0)", async () => {
     const result = await loader.getKubernetesPrice("us-central1", "standard");
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.10, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.1, 4);
   });
 });

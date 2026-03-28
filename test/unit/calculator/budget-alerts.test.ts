@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -24,7 +24,10 @@ function makeConfig(overrides: Partial<CloudCostConfig> = {}): CloudCostConfig {
   return { ...DEFAULT_CONFIG, ...overrides };
 }
 
-function makeEngine(config: CloudCostConfig, dbPath: string): { cache: PricingCache; engine: CostEngine } {
+function makeEngine(
+  config: CloudCostConfig,
+  dbPath: string,
+): { cache: PricingCache; engine: CostEngine } {
   const cache = new PricingCache(dbPath);
   const pricingEngine = new PricingEngine(cache, config);
   const engine = new CostEngine(pricingEngine, config);
@@ -315,10 +318,10 @@ describe("Budget alerts in calculateBreakdown", () => {
     expect(breakdown.budget_warnings!.length).toBe(2);
 
     const hasMonthlyExceeded = breakdown.budget_warnings!.some((w) =>
-      w.startsWith("BUDGET EXCEEDED:")
+      w.startsWith("BUDGET EXCEEDED:"),
     );
     const hasResourceOver = breakdown.budget_warnings!.some((w) =>
-      w.startsWith("RESOURCE OVER BUDGET:")
+      w.startsWith("RESOURCE OVER BUDGET:"),
     );
     expect(hasMonthlyExceeded).toBe(true);
     expect(hasResourceOver).toBe(true);

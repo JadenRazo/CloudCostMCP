@@ -44,13 +44,12 @@ const ELASTICACHE_NODE_PRICES: Record<string, number> = {
 export function calculateElastiCacheCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const nodeType =
-    (resource.attributes.instance_type as string | undefined) ?? "cache.t3.micro";
+  const nodeType = (resource.attributes.instance_type as string | undefined) ?? "cache.t3.micro";
   const numNodes = (resource.attributes.node_count as number | undefined) ?? 1;
   const engine = (resource.attributes.engine as string | undefined) ?? "redis";
 
@@ -74,9 +73,7 @@ export function calculateElastiCacheCost(
     pricingSource = "fallback";
     notes.push(`ElastiCache ${engine} cluster: ${numNodes} x ${nodeType}`);
   } else {
-    notes.push(
-      `No pricing data found for ElastiCache node type ${nodeType}; cost reported as $0`
-    );
+    notes.push(`No pricing data found for ElastiCache node type ${nodeType}; cost reported as $0`);
   }
 
   return {
@@ -112,7 +109,7 @@ const AZURE_REDIS_PRICES: Record<string, number> = {
   "basic:c6": 5.207,
   // Standard (two-node primary/replica)
   "standard:c0": 0.055,
-  "standard:c1": 0.10,
+  "standard:c1": 0.1,
   "standard:c2": 0.296,
   "standard:c3": 1.116,
   "standard:c4": 2.604,
@@ -134,7 +131,7 @@ const AZURE_REDIS_PRICES: Record<string, number> = {
 export function calculateAzureRedisCacheCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -166,7 +163,7 @@ export function calculateAzureRedisCacheCost(
     notes.push(`Azure Redis Cache: ${sku} tier, ${capacityStr.toUpperCase()} capacity`);
   } else {
     notes.push(
-      `No pricing found for Azure Redis Cache ${sku} ${capacityStr.toUpperCase()}; cost reported as $0`
+      `No pricing found for Azure Redis Cache ${sku} ${capacityStr.toUpperCase()}; cost reported as $0`,
     );
   }
 
@@ -205,7 +202,7 @@ const GCP_REDIS_PRICES: Record<string, number> = {
 export function calculateGcpRedisCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -227,7 +224,7 @@ export function calculateGcpRedisCost(
   });
 
   notes.push(
-    `GCP Memorystore Redis: ${normalizedTier} tier, ${memorySizeGb}GB — $${pricePerGbHour}/GB/hr`
+    `GCP Memorystore Redis: ${normalizedTier} tier, ${memorySizeGb}GB — $${pricePerGbHour}/GB/hr`,
   );
 
   return {
@@ -262,7 +259,7 @@ const DEFAULT_CLOUDFRONT_TRANSFER_GB = 100;
 export function calculateCloudFrontCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -270,8 +267,7 @@ export function calculateCloudFrontCost(
   const transferGb =
     (resource.attributes.monthly_transfer_gb as number | undefined) ??
     DEFAULT_CLOUDFRONT_TRANSFER_GB;
-  const priceClass =
-    (resource.attributes.price_class as string | undefined) ?? "PriceClass_All";
+  const priceClass = (resource.attributes.price_class as string | undefined) ?? "PriceClass_All";
 
   // First 10TB tier
   const firstTierGb = Math.min(transferGb, 10 * 1024);
@@ -279,7 +275,7 @@ export function calculateCloudFrontCost(
 
   // Next 40TB tier (lower rate)
   const secondTierGb = Math.max(0, transferGb - 10 * 1024);
-  const secondTierCost = secondTierGb * 0.080; // $0.080/GB for 10-50TB
+  const secondTierCost = secondTierGb * 0.08; // $0.080/GB for 10-50TB
 
   const totalMonthly = firstTierCost + secondTierCost;
 
@@ -298,7 +294,7 @@ export function calculateCloudFrontCost(
       description: `CloudFront data transfer 10-50TB (${secondTierGb.toFixed(0)}GB/month)`,
       unit: "GB",
       quantity: secondTierGb,
-      unit_price: 0.080,
+      unit_price: 0.08,
       monthly_cost: secondTierCost,
     });
   }
@@ -306,11 +302,13 @@ export function calculateCloudFrontCost(
   if (!resource.attributes.monthly_transfer_gb) {
     notes.push(
       `Default data transfer assumption: ${DEFAULT_CLOUDFRONT_TRANSFER_GB}GB/month — ` +
-      "provide monthly_transfer_gb attribute for accuracy"
+        "provide monthly_transfer_gb attribute for accuracy",
     );
   }
 
-  notes.push(`CloudFront ${priceClass} — HTTPS request charges excluded (runtime traffic data required)`);
+  notes.push(
+    `CloudFront ${priceClass} — HTTPS request charges excluded (runtime traffic data required)`,
+  );
 
   return {
     resource_id: resource.id,

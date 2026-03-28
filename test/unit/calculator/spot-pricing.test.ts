@@ -19,9 +19,7 @@ function tempDbPath(): string {
   return join(tmpdir(), `cloudcost-spot-test-${suffix}`, "cache.db");
 }
 
-function makeConfig(
-  overrides: Partial<CloudCostConfig["pricing"]> = {}
-): CloudCostConfig {
+function makeConfig(overrides: Partial<CloudCostConfig["pricing"]> = {}): CloudCostConfig {
   return {
     ...DEFAULT_CONFIG,
     pricing: {
@@ -48,10 +46,10 @@ function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
 // Helper: build a CostEngine with a given pricing_model.
 function makeEngine(
   cache: PricingCache,
-  pricingModelOverride?: CloudCostConfig["pricing"]["pricing_model"]
+  pricingModelOverride?: CloudCostConfig["pricing"]["pricing_model"],
 ): CostEngine {
   const config = makeConfig(
-    pricingModelOverride ? { pricing_model: pricingModelOverride } : undefined
+    pricingModelOverride ? { pricing_model: pricingModelOverride } : undefined,
   );
   const pricingEngine = new PricingEngine(cache, config);
   return new CostEngine(pricingEngine, config);
@@ -186,7 +184,7 @@ describe("Spot pricing — CostEngine integration", () => {
     const spot = await spotEngine.calculateCost(resource, "aws", "us-east-1");
 
     // AWS compute factor = 0.30 → 70% savings.
-    expect(spot.monthly_cost).toBeCloseTo(onDemand.monthly_cost * 0.30, 1);
+    expect(spot.monthly_cost).toBeCloseTo(onDemand.monthly_cost * 0.3, 1);
     const spotNote = spot.notes.find((n) => n.includes("Spot pricing applied"));
     expect(spotNote).toContain("70%");
   });
@@ -238,7 +236,7 @@ describe("Spot pricing — CostEngine integration", () => {
 
     // AWS gpu factor = 0.40 → 60% savings.
     if (onDemand.monthly_cost > 0) {
-      expect(spot.monthly_cost).toBeCloseTo(onDemand.monthly_cost * 0.40, 1);
+      expect(spot.monthly_cost).toBeCloseTo(onDemand.monthly_cost * 0.4, 1);
       const spotNote = spot.notes.find((n) => n.includes("Spot pricing applied"));
       expect(spotNote).toBeDefined();
       expect(spotNote).toContain("60%");
@@ -267,7 +265,7 @@ describe("Spot pricing — CostEngine integration", () => {
 
     // GCP general factor = 0.30 → 70% savings.
     if (onDemand.monthly_cost > 0) {
-      expect(spot.monthly_cost).toBeCloseTo(onDemand.monthly_cost * 0.30, 1);
+      expect(spot.monthly_cost).toBeCloseTo(onDemand.monthly_cost * 0.3, 1);
       expect(spot.pricing_source).toBe("spot-estimate");
     }
   });

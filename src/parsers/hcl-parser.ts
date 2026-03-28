@@ -18,7 +18,7 @@ import { logger } from "../logger.js";
  */
 export async function parseHclToJson(
   hclContent: string,
-  filename = "main.tf"
+  filename = "main.tf",
 ): Promise<Record<string, unknown>> {
   if (!hclContent.trim()) {
     logger.debug("Received empty HCL content, returning empty object", {
@@ -32,13 +32,10 @@ export async function parseHclToJson(
     logger.debug("Parsed HCL successfully", { filename });
     return result as Record<string, unknown>;
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err);
 
     logger.error("Failed to parse HCL", { filename, error: message });
 
-    throw new Error(
-      `HCL parse error in "${filename}": ${message}`
-    );
+    throw new Error(`HCL parse error in "${filename}": ${message}`);
   }
 }

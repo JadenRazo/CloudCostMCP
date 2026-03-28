@@ -1,5 +1,6 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
 import type { PricingCache } from "../cache.js";
+import type { AzureRetailPriceItem, AzureRetailPriceResponse } from "./types.js";
 import { logger } from "../../logger.js";
 import {
   normalizeAzureCompute,
@@ -7,110 +8,20 @@ import {
   normalizeAzureStorage,
 } from "./azure-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
-import { getRegionPriceMultipliers } from "../../data/loader.js";
 import { interpolateByVcpuRatio } from "../interpolation.js";
-
-// ---------------------------------------------------------------------------
-// Fallback pricing data (approximate eastus on-demand prices, 2024)
-// ---------------------------------------------------------------------------
-
-const VM_BASE_PRICES: Record<string, number> = {
-  "standard_b1s": 0.0104,
-  "standard_b1ms": 0.0207,
-  "standard_b2s": 0.0416,
-  "standard_b2ms": 0.0832,
-  "standard_b4ms": 0.166,
-  "standard_b8ms": 0.333,
-  "standard_b12ms": 0.499,
-  "standard_b16ms": 0.666,
-  "standard_d2s_v4": 0.096,
-  "standard_d4s_v4": 0.192,
-  "standard_d8s_v4": 0.384,
-  "standard_d2s_v5": 0.096,
-  "standard_d4s_v5": 0.192,
-  "standard_d8s_v5": 0.384,
-  "standard_d16s_v5": 0.768,
-  "standard_d32s_v5": 1.536,
-  "standard_d2ds_v5": 0.113,
-  "standard_d4ds_v5": 0.226,
-  "standard_d8ds_v5": 0.452,
-  "standard_d2ps_v5": 0.077,
-  "standard_d4ps_v5": 0.154,
-  "standard_e2s_v5": 0.126,
-  "standard_e4s_v5": 0.252,
-  "standard_e8s_v5": 0.504,
-  "standard_e16s_v5": 1.008,
-  "standard_e32s_v5": 2.016,
-  "standard_e2ds_v5": 0.144,
-  "standard_e4ds_v5": 0.288,
-  "standard_f2s_v2": 0.085,
-  "standard_f4s_v2": 0.170,
-  "standard_f8s_v2": 0.340,
-  "standard_f16s_v2": 0.680,
-  "standard_f32s_v2": 1.360,
-  "standard_l8s_v3": 0.624,
-  "standard_l16s_v3": 1.248,
-  "standard_nc4as_t4_v3": 0.526,
-  "standard_nc8as_t4_v3": 0.752,
-  "standard_e2ps_v5": 0.101,
-  "standard_e4ps_v5": 0.202,
-  "standard_e8ps_v5": 0.403,
-};
-
-// Disk prices are per GB/month
-const DISK_BASE_PRICES: Record<string, number> = {
-  "premium_lrs": 0.132,
-  "standard_lrs": 0.04,
-  "standardssd_lrs": 0.075,
-  "ultrassd_lrs": 0.12,
-  "premium_lrs_p10": 0.0052,
-  "premium_lrs_p20": 0.0100,
-  "premium_lrs_p30": 0.0192,
-  "premium_lrs_p40": 0.0373,
-};
-
-// Azure DB for PostgreSQL Flexible prices (per hour)
-const DB_BASE_PRICES: Record<string, number> = {
-  "burstable_standard_b1ms": 0.044,
-  "burstable_standard_b2s": 0.088,
-  "burstable_standard_b4ms": 0.176,
-  "gp_standard_d2s_v3": 0.124,
-  "gp_standard_d4s_v3": 0.248,
-  "gp_standard_d8s_v3": 0.496,
-  "gp_standard_d16s_v3": 0.992,
-  "gp_standard_d2ds_v4": 0.124,
-  "gp_standard_d4ds_v4": 0.248,
-  "gp_standard_d8ds_v4": 0.496,
-  "gp_standard_d16ds_v4": 0.992,
-  "mo_standard_e2ds_v4": 0.170,
-  "mo_standard_e4ds_v4": 0.341,
-  "mo_standard_e8ds_v4": 0.682,
-};
-
-// ALB (Azure Load Balancer) pricing
-const ALB_HOURLY = 0.025;
-const ALB_RULE_HOURLY = 0.005;
-
-// Azure NAT Gateway pricing
-const NAT_HOURLY = 0.045;
-const NAT_PER_GB = 0.045;
-
-// AKS control plane (paid tier with uptime SLA)
-const AKS_HOURLY = 0.10;
-
-// ---------------------------------------------------------------------------
-// Regional price multiplier lookup – reads from the shared data file so all
-// providers use consistent values sourced from one place.
-// ---------------------------------------------------------------------------
-
-function regionMultiplier(region: string): number {
-  const multipliers = getRegionPriceMultipliers();
-  return multipliers.azure[region.toLowerCase()] ?? 1.0;
-}
-
-const CACHE_TTL = 86400; // 24 hours
-
-const RETAIL_API_BASE = "https://prices.azure.com/api/retail/prices";
+import {
+  VM_BASE_PRICES,
+  DISK_BASE_PRICES,
+  DB_BASE_PRICES,
+  ALB_HOURLY,
+  ALB_RULE_HOURLY,
+  NAT_HOURLY,
+  NAT_PER_GB,
+  AKS_HOURLY,
+  CACHE_TTL,
+  RETAIL_API_BASE,
+  regionMultiplier,
+} from "./fallback-data.js";
 
 export class AzureRetailClient {
   private cache: PricingCache;
@@ -126,7 +37,7 @@ export class AzureRetailClient {
   async getComputePrice(
     vmSize: string,
     region: string,
-    os: string = "linux"
+    os: string = "linux",
   ): Promise<NormalizedPrice | null> {
     const cacheKey = this.buildCacheKey("vm", region, vmSize, os);
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
@@ -160,7 +71,7 @@ export class AzureRetailClient {
   async getDatabasePrice(
     tier: string,
     region: string,
-    engine: string = "PostgreSQL"
+    engine: string = "PostgreSQL",
   ): Promise<NormalizedPrice | null> {
     const cacheKey = this.buildCacheKey("db", region, tier, engine);
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
@@ -206,7 +117,7 @@ export class AzureRetailClient {
   private async queryDatabasePrice(
     tier: string,
     armRegion: string,
-    serviceName: string
+    serviceName: string,
   ): Promise<NormalizedPrice | null> {
     // Strip service tier prefix: GP_Standard_D2s_v3 → Standard_D2s_v3
     const vmName = tier.replace(/^(GP|MO|BC|GEN)_/i, "");
@@ -218,11 +129,11 @@ export class AzureRetailClient {
     const exactItems = await this.queryPricing(exactFilter);
     if (exactItems.length > 0) {
       // Sort for deterministic selection across runs
-      exactItems.sort((a: any, b: any) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
+      exactItems.sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
       // Pick a per-hour compute entry (not storage)
-      const match = exactItems.find(
-        (i: any) => (i.meterName ?? "").toLowerCase().includes("vcore")
-      ) ?? exactItems[0];
+      const match =
+        exactItems.find((i) => (i.meterName ?? "").toLowerCase().includes("vcore")) ??
+        exactItems[0];
       return normalizeAzureDatabase(match);
     }
 
@@ -243,7 +154,7 @@ export class AzureRetailClient {
 
     if (seriesItems.length > 0) {
       // Sort for deterministic selection across runs
-      seriesItems.sort((a: any, b: any) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
+      seriesItems.sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
       // These are per-vCore prices — multiply by vCPU count
       const perVcore = seriesItems[0].retailPrice ?? 0;
       const totalPrice = perVcore * parsed.vcpus;
@@ -258,13 +169,9 @@ export class AzureRetailClient {
    * Parse a VM name like "Standard_D2s_v3" into series info.
    * Returns { series: "Dsv3", vcpus: 2 } or null if unparseable.
    */
-  private parseVmSeries(
-    vmName: string
-  ): { series: string; vcpus: number } | null {
+  private parseVmSeries(vmName: string): { series: string; vcpus: number } | null {
     // Match patterns like Standard_D2s_v3, Standard_E4ds_v5, Standard_D16ads_v5
-    const match = vmName.match(
-      /Standard_([A-Z])(\d+)([a-z]*)_v(\d+)/i
-    );
+    const match = vmName.match(/Standard_([A-Z])(\d+)([a-z]*)_v(\d+)/i);
     if (!match) return null;
 
     const [, family, vcpuStr, variant, version] = match;
@@ -277,10 +184,7 @@ export class AzureRetailClient {
     return { series, vcpus };
   }
 
-  async getStoragePrice(
-    diskType: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async getStoragePrice(diskType: string, region: string): Promise<NormalizedPrice | null> {
     const cacheKey = this.buildCacheKey("disk", region, diskType);
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
     if (cached) return cached;
@@ -292,7 +196,7 @@ export class AzureRetailClient {
 
       if (items.length > 0) {
         // Sort for deterministic selection across runs
-        items.sort((a: any, b: any) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
+        items.sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
         const result = normalizeAzureStorage(items[0]);
         this.cache.set(cacheKey, result, "azure", "storage", region, CACHE_TTL);
         return result;
@@ -370,9 +274,10 @@ export class AzureRetailClient {
   // Internal helpers – live API
   // -------------------------------------------------------------------------
 
-  private async queryPricing(filter: string): Promise<any[]> {
-    const allItems: any[] = [];
-    let url: string | null = `${RETAIL_API_BASE}?api-version=2023-01-01-preview&$filter=${encodeURIComponent(filter)}`;
+  private async queryPricing(filter: string): Promise<AzureRetailPriceItem[]> {
+    const allItems: AzureRetailPriceItem[] = [];
+    let url: string | null =
+      `${RETAIL_API_BASE}?api-version=2023-01-01-preview&$filter=${encodeURIComponent(filter)}`;
     logger.debug("Querying Azure Retail Prices API", { filter });
 
     let pages = 0;
@@ -383,14 +288,14 @@ export class AzureRetailClient {
       const res = await fetchWithRetryAndCircuitBreaker(
         url,
         { signal: AbortSignal.timeout(30_000) },
-        { maxRetries: 1, baseDelay: 500, maxDelay: 2_000 }
+        { maxRetries: 1, baseDelay: 500, maxDelay: 2_000 },
       );
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status} from Azure Retail API`);
       }
 
-      const json: any = await res.json();
+      const json = (await res.json()) as AzureRetailPriceResponse;
       allItems.push(...(json?.Items ?? []));
       url = json?.NextPageLink ?? null;
       pages++;
@@ -403,7 +308,7 @@ export class AzureRetailClient {
     service: string,
     armRegion: string,
     skuName?: string,
-    exactArmSku?: boolean
+    exactArmSku?: boolean,
   ): string {
     let filter = `serviceName eq '${service}' and armRegionName eq '${armRegion}' and priceType eq 'Consumption'`;
     if (skuName) {
@@ -416,14 +321,8 @@ export class AzureRetailClient {
     return filter;
   }
 
-  private buildCacheKey(
-    service: string,
-    region: string,
-    ...parts: string[]
-  ): string {
-    return ["azure", service, region, ...parts]
-      .map((p) => p.toLowerCase())
-      .join("/");
+  private buildCacheKey(service: string, region: string, ...parts: string[]): string {
+    return ["azure", service, region, ...parts].map((p) => p.toLowerCase()).join("/");
   }
 
   /**
@@ -431,13 +330,15 @@ export class AzureRetailClient {
    * VM size and OS.  Prefers exact skuName matches and the correct OS suffix
    * ("Windows" vs everything else being Linux).
    */
-  private pickVmItem(items: any[], vmSize: string, os: string): any | null {
+  private pickVmItem(
+    items: AzureRetailPriceItem[],
+    vmSize: string,
+    os: string,
+  ): AzureRetailPriceItem | null {
     if (items.length === 0) return null;
 
     // Sort by skuId for deterministic selection across runs
-    const sorted = [...items].sort((a, b) =>
-      (a.skuId ?? "").localeCompare(b.skuId ?? "")
-    );
+    const sorted = [...items].sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
 
     const vmLower = vmSize.toLowerCase();
     const isWindows = os.toLowerCase().includes("windows");
@@ -470,15 +371,8 @@ export class AzureRetailClient {
    * Delegated to the shared `interpolateByVcpuRatio` utility with a VM-specific
    * normaliser that lowercases and collapses whitespace to underscores.
    */
-  private interpolateVmPrice(
-    vmSize: string,
-    table: Record<string, number>
-  ): number | undefined {
-    return interpolateByVcpuRatio(
-      vmSize,
-      table,
-      (name) => name.toLowerCase().replace(/\s+/g, "_")
-    );
+  private interpolateVmPrice(vmSize: string, table: Record<string, number>): number | undefined {
+    return interpolateByVcpuRatio(vmSize, table, (name) => name.toLowerCase().replace(/\s+/g, "_"));
   }
 
   /**
@@ -488,14 +382,9 @@ export class AzureRetailClient {
    * Delegated to the shared `interpolateByVcpuRatio` utility with a DB-tier
    * normaliser that also collapses hyphens to underscores.
    */
-  private interpolateDbPrice(
-    tier: string,
-    table: Record<string, number>
-  ): number | undefined {
-    return interpolateByVcpuRatio(
-      tier,
-      table,
-      (name) => name.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_")
+  private interpolateDbPrice(tier: string, table: Record<string, number>): number | undefined {
+    return interpolateByVcpuRatio(tier, table, (name) =>
+      name.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_"),
     );
   }
 
@@ -507,13 +396,11 @@ export class AzureRetailClient {
     vmSize: string,
     region: string,
     os: string,
-    cacheKey: string
+    cacheKey: string,
   ): NormalizedPrice | null {
     const key = vmSize.toLowerCase().replace(/\s+/g, "_");
     const basePrice: number =
-      VM_BASE_PRICES[key] ??
-      this.interpolateVmPrice(vmSize, VM_BASE_PRICES) ??
-      NaN;
+      VM_BASE_PRICES[key] ?? this.interpolateVmPrice(vmSize, VM_BASE_PRICES) ?? NaN;
     if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for Azure VM size", { vmSize });
       return null;
@@ -545,13 +432,11 @@ export class AzureRetailClient {
     tier: string,
     region: string,
     engine: string,
-    cacheKey: string
+    cacheKey: string,
   ): NormalizedPrice | null {
     const key = tier.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
     const basePrice: number =
-      DB_BASE_PRICES[key] ??
-      this.interpolateDbPrice(tier, DB_BASE_PRICES) ??
-      NaN;
+      DB_BASE_PRICES[key] ?? this.interpolateDbPrice(tier, DB_BASE_PRICES) ?? NaN;
     if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for Azure DB tier", { tier });
       return null;
@@ -582,7 +467,7 @@ export class AzureRetailClient {
   private fallbackStoragePrice(
     diskType: string,
     region: string,
-    cacheKey: string
+    cacheKey: string,
   ): NormalizedPrice | null {
     const key = diskType.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
     const basePrice = DISK_BASE_PRICES[key];

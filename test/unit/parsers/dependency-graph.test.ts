@@ -3,10 +3,7 @@ import {
   buildDependencyGraph,
   generateMermaidDiagram,
 } from "../../../src/parsers/dependency-graph.js";
-import type {
-  DependencyGraph,
-  DependencyEdge,
-} from "../../../src/parsers/dependency-graph.js";
+import type { DependencyGraph } from "../../../src/parsers/dependency-graph.js";
 import type { ParsedResource } from "../../../src/types/index.js";
 
 // ---------------------------------------------------------------------------
@@ -16,7 +13,7 @@ import type { ParsedResource } from "../../../src/types/index.js";
 function makeResource(
   type: string,
   name: string,
-  provider: "aws" | "azure" | "gcp" = "aws"
+  provider: "aws" | "azure" | "gcp" = "aws",
 ): ParsedResource {
   return {
     id: `${type}.${name}`,
@@ -35,7 +32,7 @@ function makeHcl(
     type: string;
     name: string;
     block: Record<string, unknown>;
-  }>
+  }>,
 ): Record<string, unknown> {
   const resourceSection: Record<string, Record<string, unknown[]>> = {};
   for (const { type, name, block } of resources) {
@@ -53,10 +50,7 @@ function makeHcl(
 
 describe("buildDependencyGraph – nodes", () => {
   it("creates one node per resource", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       { type: "aws_instance", name: "web", block: {} },
       { type: "aws_subnet", name: "main", block: {} },
@@ -97,10 +91,7 @@ describe("buildDependencyGraph – nodes", () => {
 
 describe("buildDependencyGraph – reference detection", () => {
   it("creates a reference edge when a string attribute matches another resource ID", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       {
         type: "aws_instance",
@@ -115,7 +106,7 @@ describe("buildDependencyGraph – reference detection", () => {
       (e) =>
         e.from === "aws_instance.web" &&
         e.to === "aws_subnet.main" &&
-        e.relationship === "reference"
+        e.relationship === "reference",
     );
     expect(edge).toBeDefined();
   });
@@ -139,16 +130,13 @@ describe("buildDependencyGraph – reference detection", () => {
       (e) =>
         e.from === "aws_instance.web" &&
         e.to === "aws_security_group.sg" &&
-        e.relationship === "reference"
+        e.relationship === "reference",
     );
     expect(edge).toBeDefined();
   });
 
   it("finds references nested inside objects", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       {
         type: "aws_instance",
@@ -162,7 +150,7 @@ describe("buildDependencyGraph – reference detection", () => {
 
     const graph = buildDependencyGraph(resources, hcl);
     const edge = graph.edges.find(
-      (e) => e.from === "aws_instance.web" && e.to === "aws_subnet.main"
+      (e) => e.from === "aws_instance.web" && e.to === "aws_subnet.main",
     );
     expect(edge).toBeDefined();
   });
@@ -194,16 +182,13 @@ describe("buildDependencyGraph – reference detection", () => {
 
     const graph = buildDependencyGraph(resources, hcl);
     const selfEdges = graph.edges.filter(
-      (e) => e.from === "aws_instance.web" && e.to === "aws_instance.web"
+      (e) => e.from === "aws_instance.web" && e.to === "aws_instance.web",
     );
     expect(selfEdges).toHaveLength(0);
   });
 
   it("deduplicates edges when the same reference appears multiple times", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       {
         type: "aws_instance",
@@ -222,16 +207,13 @@ describe("buildDependencyGraph – reference detection", () => {
       (e) =>
         e.from === "aws_instance.web" &&
         e.to === "aws_subnet.main" &&
-        e.relationship === "reference"
+        e.relationship === "reference",
     );
     expect(dupes).toHaveLength(1);
   });
 
   it("produces no edges when no resources have dependencies", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_s3_bucket", "data"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_s3_bucket", "data")];
     const hcl = makeHcl([
       { type: "aws_instance", name: "web", block: { ami: "ami-abc123" } },
       { type: "aws_s3_bucket", name: "data", block: { bucket: "my-bucket" } },
@@ -248,10 +230,7 @@ describe("buildDependencyGraph – reference detection", () => {
 
 describe("buildDependencyGraph – depends_on edges", () => {
   it("creates a depends_on edge from an explicit depends_on array", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       {
         type: "aws_instance",
@@ -266,7 +245,7 @@ describe("buildDependencyGraph – depends_on edges", () => {
       (e) =>
         e.from === "aws_instance.web" &&
         e.to === "aws_subnet.main" &&
-        e.relationship === "depends_on"
+        e.relationship === "depends_on",
     );
     expect(edge).toBeDefined();
   });
@@ -290,7 +269,7 @@ describe("buildDependencyGraph – depends_on edges", () => {
       (e) =>
         e.from === "aws_instance.web" &&
         e.to === "aws_security_group.sg" &&
-        e.relationship === "depends_on"
+        e.relationship === "depends_on",
     );
     expect(edge).toBeDefined();
   });
@@ -306,17 +285,12 @@ describe("buildDependencyGraph – depends_on edges", () => {
     ]);
 
     const graph = buildDependencyGraph(resources, hcl);
-    const depEdges = graph.edges.filter(
-      (e) => e.relationship === "depends_on"
-    );
+    const depEdges = graph.edges.filter((e) => e.relationship === "depends_on");
     expect(depEdges).toHaveLength(0);
   });
 
   it("coexists with reference edges on the same resource without duplication", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       {
         type: "aws_instance",
@@ -333,10 +307,16 @@ describe("buildDependencyGraph – depends_on edges", () => {
     const graph = buildDependencyGraph(resources, hcl);
     // Both edge types are distinct and should each appear once
     const refEdge = graph.edges.find(
-      (e) => e.from === "aws_instance.web" && e.to === "aws_subnet.main" && e.relationship === "reference"
+      (e) =>
+        e.from === "aws_instance.web" &&
+        e.to === "aws_subnet.main" &&
+        e.relationship === "reference",
     );
     const depEdge = graph.edges.find(
-      (e) => e.from === "aws_instance.web" && e.to === "aws_subnet.main" && e.relationship === "depends_on"
+      (e) =>
+        e.from === "aws_instance.web" &&
+        e.to === "aws_subnet.main" &&
+        e.relationship === "depends_on",
     );
     expect(refEdge).toBeDefined();
     expect(depEdge).toBeDefined();
@@ -356,10 +336,7 @@ describe("generateMermaidDiagram", () => {
   });
 
   it("includes node declarations for every resource", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       { type: "aws_instance", name: "web", block: {} },
       { type: "aws_subnet", name: "main", block: {} },
@@ -372,10 +349,7 @@ describe("generateMermaidDiagram", () => {
   });
 
   it("renders edge arrows between connected nodes", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_subnet", "main"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_subnet", "main")];
     const hcl = makeHcl([
       {
         type: "aws_instance",
@@ -406,9 +380,7 @@ describe("generateMermaidDiagram", () => {
     const graph = buildDependencyGraph(resources, hcl);
     const diagram = generateMermaidDiagram(graph);
 
-    expect(diagram).toContain(
-      "aws_instance_web -->|depends_on| aws_security_group_sg"
-    );
+    expect(diagram).toContain("aws_instance_web -->|depends_on| aws_security_group_sg");
   });
 
   it("sanitises dots in node IDs to underscores", () => {
@@ -427,10 +399,7 @@ describe("generateMermaidDiagram", () => {
   });
 
   it("produces a valid diagram for a graph with no edges", () => {
-    const resources = [
-      makeResource("aws_instance", "web"),
-      makeResource("aws_s3_bucket", "data"),
-    ];
+    const resources = [makeResource("aws_instance", "web"), makeResource("aws_s3_bucket", "data")];
     const hcl = makeHcl([
       { type: "aws_instance", name: "web", block: {} },
       { type: "aws_s3_bucket", name: "data", block: {} },
@@ -484,21 +453,17 @@ describe("buildDependencyGraph – multi-resource integration", () => {
 
     const subnetToVpc = graph.edges.find(
       (e) =>
-        e.from === "aws_subnet.public" &&
-        e.to === "aws_vpc.main" &&
-        e.relationship === "reference"
+        e.from === "aws_subnet.public" && e.to === "aws_vpc.main" && e.relationship === "reference",
     );
     const webToSubnet = graph.edges.find(
       (e) =>
         e.from === "aws_instance.web" &&
         e.to === "aws_subnet.public" &&
-        e.relationship === "reference"
+        e.relationship === "reference",
     );
     const webToVpc = graph.edges.find(
       (e) =>
-        e.from === "aws_instance.web" &&
-        e.to === "aws_vpc.main" &&
-        e.relationship === "depends_on"
+        e.from === "aws_instance.web" && e.to === "aws_vpc.main" && e.relationship === "depends_on",
     );
 
     expect(subnetToVpc).toBeDefined();
@@ -507,10 +472,7 @@ describe("buildDependencyGraph – multi-resource integration", () => {
   });
 
   it("handles a resource with no attributes or depends_on without crashing", () => {
-    const resources = [
-      makeResource("aws_instance", "solo"),
-      makeResource("aws_s3_bucket", "logs"),
-    ];
+    const resources = [makeResource("aws_instance", "solo"), makeResource("aws_s3_bucket", "logs")];
     const hcl = makeHcl([
       { type: "aws_instance", name: "solo", block: {} },
       { type: "aws_s3_bucket", name: "logs", block: {} },
