@@ -21,15 +21,13 @@ const DEFAULT_REGIONS: Record<CloudProvider, string> = {
 export function mapRegion(
   region: string,
   sourceProvider: CloudProvider,
-  targetProvider: CloudProvider
+  targetProvider: CloudProvider,
 ): string {
   if (sourceProvider === targetProvider) return region;
 
   const mappings = getRegionMappings();
 
-  const row = mappings.find(
-    (entry: RegionMapping) => entry[sourceProvider] === region
-  );
+  const row = mappings.find((entry: RegionMapping) => entry[sourceProvider] === region);
 
   if (!row) {
     const fallback = DEFAULT_REGIONS[targetProvider];

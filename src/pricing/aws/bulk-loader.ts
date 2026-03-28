@@ -1,5 +1,6 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
 import type { PricingCache } from "../cache.js";
+import type { AwsBulkPricingResponse } from "./types.js";
 import { logger } from "../../logger.js";
 import {
   normalizeAwsCompute,
@@ -7,228 +8,22 @@ import {
   normalizeAwsStorage,
 } from "./aws-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
-import { getRegionPriceMultipliers } from "../../data/loader.js";
 import { interpolateByStepOrder } from "../interpolation.js";
-
-// ---------------------------------------------------------------------------
-// CSV parsing helper
-// ---------------------------------------------------------------------------
-
-/**
- * Parse a single CSV line into an array of fields. Handles:
- *   - Fields wrapped in double-quotes
- *   - Embedded commas inside quoted fields
- *   - Escaped double-quotes represented as two consecutive double-quotes ("")
- */
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = [];
-  let i = 0;
-  const len = line.length;
-
-  while (i <= len) {
-    if (i === len) {
-      // Trailing empty field after a terminal comma
-      if (fields.length > 0 && line[len - 1] === ",") {
-        fields.push("");
-      }
-      break;
-    }
-
-    if (line[i] === '"') {
-      // Quoted field
-      i++; // skip opening quote
-      let field = "";
-      while (i < len) {
-        if (line[i] === '"') {
-          if (i + 1 < len && line[i + 1] === '"') {
-            // Escaped double-quote
-            field += '"';
-            i += 2;
-          } else {
-            // Closing quote
-            i++;
-            break;
-          }
-        } else {
-          field += line[i];
-          i++;
-        }
-      }
-      fields.push(field);
-      // Skip the comma separator (or end of string)
-      if (i < len && line[i] === ",") i++;
-    } else {
-      // Unquoted field — read until next comma or end
-      const start = i;
-      while (i < len && line[i] !== ",") i++;
-      fields.push(line.slice(start, i));
-      if (i < len) i++; // skip comma
-    }
-  }
-
-  return fields;
-}
-
-// ---------------------------------------------------------------------------
-// Fallback pricing data (approximate us-east-1 on-demand prices, 2024)
-// Used when the live AWS Bulk Pricing API is unreachable.
-// ---------------------------------------------------------------------------
-
-const EC2_BASE_PRICES: Record<string, number> = {
-  "t2.micro": 0.0116,
-  "t2.small": 0.023,
-  "t2.medium": 0.0464,
-  "t2.large": 0.0928,
-  "t3.micro": 0.0104,
-  "t3.small": 0.0208,
-  "t3.medium": 0.0416,
-  "t3.large": 0.0832,
-  "t3.xlarge": 0.1664,
-  "t3.2xlarge": 0.3328,
-  "t3a.micro": 0.0094,
-  "t3a.small": 0.0188,
-  "t3a.medium": 0.0376,
-  "t3a.large": 0.0752,
-  "t3a.xlarge": 0.1504,
-  "t4g.micro": 0.0084,
-  "t4g.small": 0.0168,
-  "t4g.medium": 0.0336,
-  "t4g.large": 0.0672,
-  "t4g.xlarge": 0.1344,
-  "m5.large": 0.096,
-  "m5.xlarge": 0.192,
-  "m5.2xlarge": 0.384,
-  "m5.4xlarge": 0.768,
-  "m5a.large": 0.086,
-  "m5a.xlarge": 0.172,
-  "m5a.2xlarge": 0.344,
-  "m5a.4xlarge": 0.688,
-  "m6i.large": 0.096,
-  "m6i.xlarge": 0.192,
-  "m6i.2xlarge": 0.384,
-  "m6i.4xlarge": 0.768,
-  "m6i.8xlarge": 1.536,
-  "m6g.large": 0.077,
-  "m6g.xlarge": 0.154,
-  "m6g.2xlarge": 0.308,
-  "m6g.4xlarge": 0.616,
-  "m7i.large": 0.1008,
-  "m7i.xlarge": 0.2016,
-  "m7i.2xlarge": 0.4032,
-  "m7g.large": 0.0816,
-  "m7g.xlarge": 0.1632,
-  "m7g.2xlarge": 0.3264,
-  "m7g.4xlarge": 0.6528,
-  "c5.large": 0.085,
-  "c5.xlarge": 0.170,
-  "c5.2xlarge": 0.340,
-  "c5a.large": 0.077,
-  "c5a.xlarge": 0.154,
-  "c5a.2xlarge": 0.308,
-  "c6i.large": 0.085,
-  "c6i.xlarge": 0.170,
-  "c6i.2xlarge": 0.340,
-  "c6g.large": 0.068,
-  "c6g.xlarge": 0.136,
-  "c6g.2xlarge": 0.272,
-  "c6g.4xlarge": 0.544,
-  "c7i.large": 0.089,
-  "c7i.xlarge": 0.178,
-  "c7i.2xlarge": 0.357,
-  "c7g.large": 0.072,
-  "c7g.xlarge": 0.145,
-  "c7g.2xlarge": 0.290,
-  "c7g.4xlarge": 0.580,
-  "r5.large": 0.126,
-  "r5.xlarge": 0.252,
-  "r5.2xlarge": 0.504,
-  "r5a.large": 0.113,
-  "r5a.xlarge": 0.226,
-  "r5a.2xlarge": 0.452,
-  "r6i.large": 0.126,
-  "r6i.xlarge": 0.252,
-  "r6i.2xlarge": 0.504,
-  "r6g.large": 0.101,
-  "r6g.xlarge": 0.202,
-  "r6g.2xlarge": 0.403,
-  "r6g.4xlarge": 0.806,
-  "r7i.large": 0.133,
-  "r7i.xlarge": 0.266,
-  "r7i.2xlarge": 0.532,
-  "r7g.large": 0.107,
-  "r7g.xlarge": 0.214,
-  "r7g.2xlarge": 0.428,
-  "r7g.4xlarge": 0.856,
-};
-
-const RDS_BASE_PRICES: Record<string, number> = {
-  "db.t3.micro": 0.017,
-  "db.t3.small": 0.034,
-  "db.t3.medium": 0.068,
-  "db.t3.large": 0.136,
-  "db.t4g.micro": 0.016,
-  "db.t4g.small": 0.032,
-  "db.t4g.medium": 0.065,
-  "db.t4g.large": 0.129,
-  "db.t4g.xlarge": 0.258,
-  "db.m5.large": 0.171,
-  "db.m5.xlarge": 0.342,
-  "db.m6g.large": 0.154,
-  "db.m6g.xlarge": 0.308,
-  "db.m6g.2xlarge": 0.616,
-  "db.m6i.large": 0.171,
-  "db.m6i.xlarge": 0.342,
-  "db.m6i.2xlarge": 0.684,
-  "db.m7g.large": 0.168,
-  "db.m7g.xlarge": 0.336,
-  "db.m7g.2xlarge": 0.672,
-  "db.r5.large": 0.250,
-  "db.r5.xlarge": 0.500,
-  "db.r5.2xlarge": 1.000,
-  "db.r6g.large": 0.218,
-  "db.r6g.xlarge": 0.437,
-  "db.r6g.2xlarge": 0.874,
-  "db.r6i.large": 0.250,
-  "db.r6i.xlarge": 0.500,
-  "db.r6i.2xlarge": 1.000,
-};
-
-const EBS_BASE_PRICES: Record<string, number> = {
-  "gp3": 0.08,
-  "gp2": 0.10,
-  "io2": 0.125,
-  "io1": 0.125,
-  "st1": 0.045,
-  "sc1": 0.015,
-};
-
-// ALB pricing per hour (fixed component)
-const ALB_HOURLY = 0.0225;
-const ALB_LCU_HOURLY = 0.008;
-
-// NAT Gateway pricing
-const NAT_HOURLY = 0.045;
-const NAT_PER_GB = 0.045;
-
-// EKS control plane
-const EKS_HOURLY = 0.10;
-
-// ---------------------------------------------------------------------------
-// Regional price multiplier lookup – reads from the shared data file so all
-// providers use consistent values sourced from one place.
-// ---------------------------------------------------------------------------
-
-function regionMultiplier(region: string): number {
-  const multipliers = getRegionPriceMultipliers();
-  return multipliers.aws[region.toLowerCase()] ?? 1.0;
-}
-
-const CACHE_TTL = 86400; // 24 hours in seconds
-
-// AWS Bulk Pricing API base URL.
-// Service codes used: AmazonEC2, AmazonRDS, AmazonEBS
-const BULK_PRICING_BASE =
-  "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws";
+import { parseCsvLine } from "./csv-parser.js";
+import {
+  EC2_BASE_PRICES,
+  RDS_BASE_PRICES,
+  EBS_BASE_PRICES,
+  ALB_HOURLY,
+  ALB_LCU_HOURLY,
+  NAT_HOURLY,
+  NAT_PER_GB,
+  EKS_HOURLY,
+  CACHE_TTL,
+  BULK_PRICING_BASE,
+  SIZE_ORDER,
+  regionMultiplier,
+} from "./fallback-data.js";
 
 export class AwsBulkLoader {
   private cache: PricingCache;
@@ -250,7 +45,7 @@ export class AwsBulkLoader {
   async getComputePrice(
     instanceType: string,
     region: string,
-    os: string = "Linux"
+    os: string = "Linux",
   ): Promise<NormalizedPrice | null> {
     const cacheKey = this.buildCacheKey("ec2", region, instanceType, os);
 
@@ -298,7 +93,7 @@ export class AwsBulkLoader {
   async getDatabasePrice(
     instanceClass: string,
     region: string,
-    engine: string = "MySQL"
+    engine: string = "MySQL",
   ): Promise<NormalizedPrice | null> {
     const cacheKey = this.buildCacheKey("rds", region, instanceClass, engine);
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
@@ -324,10 +119,7 @@ export class AwsBulkLoader {
     return this.fallbackDatabasePrice(instanceClass, region, engine, cacheKey);
   }
 
-  async getStoragePrice(
-    volumeType: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async getStoragePrice(volumeType: string, region: string): Promise<NormalizedPrice | null> {
     const cacheKey = this.buildCacheKey("ebs", region, volumeType);
     const cached = this.cache.get<NormalizedPrice>(cacheKey);
     if (cached) return cached;
@@ -445,11 +237,15 @@ export class AwsBulkLoader {
     const timeoutId = setTimeout(() => controller.abort(), 120_000);
 
     try {
-      const res = await fetchWithRetryAndCircuitBreaker(url, { signal: controller.signal }, {
-        maxRetries: 1,
-        baseDelay: 500,
-        maxDelay: 2_000,
-      });
+      const res = await fetchWithRetryAndCircuitBreaker(
+        url,
+        { signal: controller.signal },
+        {
+          maxRetries: 1,
+          baseDelay: 500,
+          maxDelay: 2_000,
+        },
+      );
       if (!res.ok) {
         logger.debug("AWS EC2 CSV fetch returned non-OK status", {
           region,
@@ -464,9 +260,7 @@ export class AwsBulkLoader {
       }
 
       // Stream the response body through a TextDecoder so we work with strings
-      const reader = res.body
-        .pipeThrough(new TextDecoderStream())
-        .getReader();
+      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
 
       // Open a single SQLite transaction for all cache.set() calls during this
       // CSV stream. AWS EC2 CSVs contain 1000+ rows; batching yields ~100x
@@ -520,11 +314,7 @@ export class AwsBulkLoader {
               }
 
               // Only proceed if we found the minimum required columns
-              if (
-                colInstanceType === -1 ||
-                colOS === -1 ||
-                colPrice === -1
-              ) {
+              if (colInstanceType === -1 || colOS === -1 || colPrice === -1) {
                 logger.debug("AWS EC2 CSV header missing required columns", {
                   region,
                   colInstanceType,
@@ -603,10 +393,7 @@ export class AwsBulkLoader {
       // Handle any remaining partial line
       if (leftover.trim() && headerFound) {
         const line = leftover.trimEnd();
-        if (
-          line.includes("OnDemand") &&
-          line.includes("Compute Instance")
-        ) {
+        if (line.includes("OnDemand") && line.includes("Compute Instance")) {
           const fields = parseCsvLine(line);
           const instanceType = fields[colInstanceType] ?? "";
           const os = fields[colOS] ?? "";
@@ -638,7 +425,7 @@ export class AwsBulkLoader {
               "aws",
               "ec2",
               region,
-              CACHE_TTL
+              CACHE_TTL,
             );
             cachedCount++;
           }
@@ -679,33 +466,31 @@ export class AwsBulkLoader {
 
   private async fetchBulkPricing(
     service: string,
-    region: string
-  ): Promise<any> {
+    region: string,
+  ): Promise<AwsBulkPricingResponse | null> {
     const url = `${BULK_PRICING_BASE}/${service}/current/${region}/index.json`;
     logger.debug("Fetching AWS bulk pricing", { url });
 
     // Use circuit breaker but no retry here — the caller already has a
     // fallback chain (CSV → JSON → hardcoded). Retrying the JSON bulk fetch
     // would add excessive latency when the live API is unavailable.
-    const res = await fetchWithRetryAndCircuitBreaker(url, {
-      signal: AbortSignal.timeout(30_000),
-    }, { maxRetries: 0 });
+    const res = await fetchWithRetryAndCircuitBreaker(
+      url,
+      {
+        signal: AbortSignal.timeout(30_000),
+      },
+      { maxRetries: 0 },
+    );
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} from ${url}`);
     }
 
-    return res.json();
+    return (await res.json()) as AwsBulkPricingResponse;
   }
 
-  private buildCacheKey(
-    service: string,
-    region: string,
-    ...parts: string[]
-  ): string {
-    return ["aws", service, region, ...parts]
-      .map((p) => p.toLowerCase())
-      .join("/");
+  private buildCacheKey(service: string, region: string, ...parts: string[]): string {
+    return ["aws", service, region, ...parts].map((p) => p.toLowerCase()).join("/");
   }
 
   // -------------------------------------------------------------------------
@@ -713,13 +498,13 @@ export class AwsBulkLoader {
   // -------------------------------------------------------------------------
 
   private extractEc2Price(
-    bulk: any,
+    bulk: AwsBulkPricingResponse,
     instanceType: string,
     region: string,
-    os: string
+    os: string,
   ): NormalizedPrice | null {
-    const products: Record<string, any> = bulk?.products ?? {};
-    const onDemand: Record<string, any> = bulk?.terms?.OnDemand ?? {};
+    const products = bulk?.products ?? {};
+    const onDemand = bulk?.terms?.OnDemand ?? {};
 
     // Sort by SKU for deterministic selection when multiple entries match
     const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
@@ -734,7 +519,11 @@ export class AwsBulkLoader {
       ) {
         const priceTerms = onDemand[sku];
         if (priceTerms) {
-          return normalizeAwsCompute(product, { terms: { OnDemand: { [sku]: priceTerms } } }, region);
+          return normalizeAwsCompute(
+            product,
+            { terms: { OnDemand: { [sku]: priceTerms } } },
+            region,
+          );
         }
       }
     }
@@ -742,13 +531,13 @@ export class AwsBulkLoader {
   }
 
   private extractRdsPrice(
-    bulk: any,
+    bulk: AwsBulkPricingResponse,
     instanceClass: string,
     region: string,
-    engine: string
+    engine: string,
   ): NormalizedPrice | null {
-    const products: Record<string, any> = bulk?.products ?? {};
-    const onDemand: Record<string, any> = bulk?.terms?.OnDemand ?? {};
+    const products = bulk?.products ?? {};
+    const onDemand = bulk?.terms?.OnDemand ?? {};
 
     // Sort by SKU for deterministic selection when multiple entries match
     const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
@@ -762,7 +551,11 @@ export class AwsBulkLoader {
       ) {
         const priceTerms = onDemand[sku];
         if (priceTerms) {
-          return normalizeAwsDatabase(product, { terms: { OnDemand: { [sku]: priceTerms } } }, region);
+          return normalizeAwsDatabase(
+            product,
+            { terms: { OnDemand: { [sku]: priceTerms } } },
+            region,
+          );
         }
       }
     }
@@ -770,12 +563,12 @@ export class AwsBulkLoader {
   }
 
   private extractEbsPrice(
-    bulk: any,
+    bulk: AwsBulkPricingResponse,
     volumeType: string,
-    region: string
+    region: string,
   ): NormalizedPrice | null {
-    const products: Record<string, any> = bulk?.products ?? {};
-    const onDemand: Record<string, any> = bulk?.terms?.OnDemand ?? {};
+    const products = bulk?.products ?? {};
+    const onDemand = bulk?.terms?.OnDemand ?? {};
 
     // Sort by SKU for deterministic selection when multiple entries match
     const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
@@ -790,29 +583,16 @@ export class AwsBulkLoader {
       ) {
         const priceTerms = onDemand[sku];
         if (priceTerms) {
-          return normalizeAwsStorage(product, { terms: { OnDemand: { [sku]: priceTerms } } }, region);
+          return normalizeAwsStorage(
+            product,
+            { terms: { OnDemand: { [sku]: priceTerms } } },
+            region,
+          );
         }
       }
     }
     return null;
   }
-
-  // -------------------------------------------------------------------------
-  // Internal helpers – size interpolation
-  // -------------------------------------------------------------------------
-
-  /**
-   * AWS instance sizes follow a predictable doubling pattern:
-   * nano → micro → small → medium → large → xlarge → 2xlarge → 4xlarge → …
-   * Each step roughly doubles the price.
-   *
-   * Delegated to the shared `interpolateByStepOrder` utility.
-   */
-  private static readonly SIZE_ORDER: readonly string[] = [
-    "nano", "micro", "small", "medium", "large",
-    "xlarge", "2xlarge", "4xlarge", "8xlarge", "12xlarge",
-    "16xlarge", "24xlarge", "32xlarge", "48xlarge",
-  ];
 
   // -------------------------------------------------------------------------
   // Internal helpers – fallback hardcoded prices
@@ -822,11 +602,11 @@ export class AwsBulkLoader {
     instanceType: string,
     region: string,
     os: string,
-    cacheKey: string
+    cacheKey: string,
   ): NormalizedPrice | null {
     const basePrice: number =
       EC2_BASE_PRICES[instanceType.toLowerCase()] ??
-      interpolateByStepOrder(instanceType, EC2_BASE_PRICES, AwsBulkLoader.SIZE_ORDER) ??
+      interpolateByStepOrder(instanceType, EC2_BASE_PRICES, SIZE_ORDER) ??
       NaN;
     if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for EC2 instance type", { instanceType });
@@ -860,11 +640,11 @@ export class AwsBulkLoader {
     instanceClass: string,
     region: string,
     engine: string,
-    cacheKey: string
+    cacheKey: string,
   ): NormalizedPrice | null {
     const basePrice: number =
       RDS_BASE_PRICES[instanceClass.toLowerCase()] ??
-      interpolateByStepOrder(instanceClass, RDS_BASE_PRICES, AwsBulkLoader.SIZE_ORDER) ??
+      interpolateByStepOrder(instanceClass, RDS_BASE_PRICES, SIZE_ORDER) ??
       NaN;
     if (!isFinite(basePrice)) {
       logger.warn("No fallback price found for RDS instance class", { instanceClass });
@@ -897,7 +677,7 @@ export class AwsBulkLoader {
   private fallbackStoragePrice(
     volumeType: string,
     region: string,
-    cacheKey: string
+    cacheKey: string,
   ): NormalizedPrice | null {
     const basePrice = EBS_BASE_PRICES[volumeType.toLowerCase()];
     if (basePrice === undefined) {

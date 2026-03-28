@@ -21,25 +21,22 @@ export interface PricingProvider {
   getComputePrice(
     instanceType: string,
     region: string,
-    os?: string
+    os?: string,
   ): Promise<NormalizedPrice | null>;
 
   getDatabasePrice(
     instanceType: string,
     region: string,
-    engine?: string
+    engine?: string,
   ): Promise<NormalizedPrice | null>;
 
   getStoragePrice(
     storageType: string,
     region: string,
-    sizeGb?: number
+    sizeGb?: number,
   ): Promise<NormalizedPrice | null>;
 
-  getLoadBalancerPrice(
-    type: string,
-    region: string
-  ): Promise<NormalizedPrice | null>;
+  getLoadBalancerPrice(type: string, region: string): Promise<NormalizedPrice | null>;
 
   getNatGatewayPrice(region: string): Promise<NormalizedPrice | null>;
 
@@ -61,7 +58,7 @@ class AwsProvider implements PricingProvider {
   getComputePrice(
     instanceType: string,
     region: string,
-    os?: string
+    os?: string,
   ): Promise<NormalizedPrice | null> {
     return this.loader.getComputePrice(instanceType, region, os);
   }
@@ -69,7 +66,7 @@ class AwsProvider implements PricingProvider {
   getDatabasePrice(
     instanceType: string,
     region: string,
-    engine?: string
+    engine?: string,
   ): Promise<NormalizedPrice | null> {
     return this.loader.getDatabasePrice(instanceType, region, engine);
   }
@@ -77,15 +74,12 @@ class AwsProvider implements PricingProvider {
   getStoragePrice(
     storageType: string,
     region: string,
-    _sizeGb?: number
+    _sizeGb?: number,
   ): Promise<NormalizedPrice | null> {
     return this.loader.getStoragePrice(storageType, region);
   }
 
-  getLoadBalancerPrice(
-    _type: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  getLoadBalancerPrice(_type: string, region: string): Promise<NormalizedPrice | null> {
     return this.loader.getLoadBalancerPrice(region);
   }
 
@@ -108,7 +102,7 @@ class AzureProvider implements PricingProvider {
   getComputePrice(
     instanceType: string,
     region: string,
-    os?: string
+    os?: string,
   ): Promise<NormalizedPrice | null> {
     return this.client.getComputePrice(instanceType, region, os);
   }
@@ -116,7 +110,7 @@ class AzureProvider implements PricingProvider {
   getDatabasePrice(
     instanceType: string,
     region: string,
-    engine?: string
+    engine?: string,
   ): Promise<NormalizedPrice | null> {
     return this.client.getDatabasePrice(instanceType, region, engine);
   }
@@ -124,15 +118,12 @@ class AzureProvider implements PricingProvider {
   getStoragePrice(
     storageType: string,
     region: string,
-    _sizeGb?: number
+    _sizeGb?: number,
   ): Promise<NormalizedPrice | null> {
     return this.client.getStoragePrice(storageType, region);
   }
 
-  getLoadBalancerPrice(
-    _type: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  getLoadBalancerPrice(_type: string, region: string): Promise<NormalizedPrice | null> {
     return this.client.getLoadBalancerPrice(region);
   }
 
@@ -157,7 +148,7 @@ class GcpProvider implements PricingProvider {
   async getComputePrice(
     instanceType: string,
     region: string,
-    _os?: string
+    _os?: string,
   ): Promise<NormalizedPrice | null> {
     try {
       const live = await this.liveClient.fetchComputeSkus(instanceType, region);
@@ -175,7 +166,7 @@ class GcpProvider implements PricingProvider {
   async getDatabasePrice(
     instanceType: string,
     region: string,
-    _engine?: string
+    _engine?: string,
   ): Promise<NormalizedPrice | null> {
     try {
       const live = await this.liveClient.fetchDatabaseSkus(instanceType, region);
@@ -193,7 +184,7 @@ class GcpProvider implements PricingProvider {
   async getStoragePrice(
     storageType: string,
     region: string,
-    _sizeGb?: number
+    _sizeGb?: number,
   ): Promise<NormalizedPrice | null> {
     // Persistent disk types (pd-*) are not in the Cloud Storage service;
     // they come from the Compute Engine service and are not individually
@@ -216,10 +207,7 @@ class GcpProvider implements PricingProvider {
     return this.loader.getStoragePrice(storageType, region);
   }
 
-  getLoadBalancerPrice(
-    _type: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  getLoadBalancerPrice(_type: string, region: string): Promise<NormalizedPrice | null> {
     // Load balancer pricing is fixed/infrastructure — bundled data is accurate.
     return this.loader.getLoadBalancerPrice(region);
   }
@@ -231,10 +219,7 @@ class GcpProvider implements PricingProvider {
 
   getKubernetesPrice(region: string, mode?: string): Promise<NormalizedPrice | null> {
     // GKE control plane pricing is fixed — bundled data is accurate.
-    return this.loader.getKubernetesPrice(
-      region,
-      mode === "autopilot" ? "autopilot" : "standard"
-    );
+    return this.loader.getKubernetesPrice(region, mode === "autopilot" ? "autopilot" : "standard");
   }
 }
 
@@ -288,7 +273,7 @@ export class PricingEngine {
     service: string,
     resourceType: string,
     region: string,
-    attributes: Record<string, string> = {}
+    attributes: Record<string, string> = {},
   ): Promise<NormalizedPrice | null> {
     const p = this.getProvider(provider);
     const svc = service.toLowerCase();
@@ -330,9 +315,7 @@ export class PricingEngine {
       svc === "persistent-disk" ||
       svc === "cloud-storage"
     ) {
-      const sizeGb = attributes.size_gb
-        ? parseFloat(attributes.size_gb)
-        : undefined;
+      const sizeGb = attributes.size_gb ? parseFloat(attributes.size_gb) : undefined;
       return p.getStoragePrice(resourceType, region, sizeGb);
     }
 
@@ -351,13 +334,7 @@ export class PricingEngine {
       return p.getNatGatewayPrice(region);
     }
 
-    if (
-      svc === "k8s" ||
-      svc === "kubernetes" ||
-      svc === "eks" ||
-      svc === "aks" ||
-      svc === "gke"
-    ) {
+    if (svc === "k8s" || svc === "kubernetes" || svc === "eks" || svc === "aks" || svc === "gke") {
       return p.getKubernetesPrice(region, attributes.mode);
     }
 

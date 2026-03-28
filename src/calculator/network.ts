@@ -20,14 +20,12 @@ export async function calculateNatGatewayCost(
   targetProvider: CloudProvider,
   targetRegion: string,
   pricingEngine: PricingEngine,
-  monthlyHours: number = 730
+  monthlyHours: number = 730,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const natPrice = await pricingEngine
-    .getProvider(targetProvider)
-    .getNatGatewayPrice(targetRegion);
+  const natPrice = await pricingEngine.getProvider(targetProvider).getNatGatewayPrice(targetRegion);
 
   let totalMonthly = 0;
   let natPricingSource: "live" | "fallback" | "bundled" = "fallback";
@@ -53,20 +51,17 @@ export async function calculateNatGatewayCost(
     totalMonthly += hourlyCharge;
 
     // Data processing component.
-    const perGbPrice = parseFloat(
-      natPrice.attributes?.per_gb_price ?? "0"
-    );
+    const perGbPrice = parseFloat(natPrice.attributes?.per_gb_price ?? "0");
     if (perGbPrice > 0) {
       const dataGb =
-        (resource.attributes.data_processed_gb as number | undefined) ??
-        DEFAULT_NAT_DATA_GB;
+        (resource.attributes.data_processed_gb as number | undefined) ?? DEFAULT_NAT_DATA_GB;
 
       if (
         !resource.attributes.data_processed_gb ||
         (resource.attributes.data_processed_gb as number) <= 0
       ) {
         notes.push(
-          `Data processing cost estimated at ${dataGb} GB/month; provide data_processed_gb attribute for accuracy`
+          `Data processing cost estimated at ${dataGb} GB/month; provide data_processed_gb attribute for accuracy`,
         );
       }
 
@@ -111,13 +106,12 @@ export async function calculateLoadBalancerCost(
   targetProvider: CloudProvider,
   targetRegion: string,
   pricingEngine: PricingEngine,
-  monthlyHours: number = 730
+  monthlyHours: number = 730,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const lbType =
-    (resource.attributes.load_balancer_type as string | undefined) ?? "application";
+  const lbType = (resource.attributes.load_balancer_type as string | undefined) ?? "application";
 
   const lbPrice = await pricingEngine
     .getProvider(targetProvider)
@@ -145,7 +139,7 @@ export async function calculateLoadBalancerCost(
       monthly_cost: totalMonthly,
     });
     notes.push(
-      "Traffic-based charges (LCU/data processing) are excluded; this is the fixed hourly component only"
+      "Traffic-based charges (LCU/data processing) are excluded; this is the fixed hourly component only",
     );
   } else {
     notes.push(`No pricing data found for ${resource.type} in ${targetRegion}`);

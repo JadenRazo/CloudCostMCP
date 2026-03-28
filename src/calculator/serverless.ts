@@ -20,7 +20,7 @@ const DEFAULT_DYNAMO_STORAGE_GB = 1;
 // AWS Lambda pricing (us-east-1 on-demand, 2024)
 // ---------------------------------------------------------------------------
 
-const LAMBDA_REQUEST_PRICE_PER_MILLION = 0.20;
+const LAMBDA_REQUEST_PRICE_PER_MILLION = 0.2;
 
 // GB-second pricing varies by architecture
 const LAMBDA_GB_SECOND_PRICE: Record<string, number> = {
@@ -38,33 +38,29 @@ const LAMBDA_GB_SECOND_PRICE: Record<string, number> = {
 export function calculateLambdaCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const memoryMb =
-    (resource.attributes.memory_size as number | undefined) ??
-    DEFAULT_LAMBDA_MEMORY_MB;
-  const timeoutSec =
-    (resource.attributes.timeout as number | undefined) ?? 3;
-  const architecture =
-    (resource.attributes.architecture as string | undefined) ?? "x86_64";
+    (resource.attributes.memory_size as number | undefined) ?? DEFAULT_LAMBDA_MEMORY_MB;
+  const timeoutSec = (resource.attributes.timeout as number | undefined) ?? 3;
+  const architecture = (resource.attributes.architecture as string | undefined) ?? "x86_64";
 
   const invocationsPerMonth =
     (resource.attributes.monthly_invocations as number | undefined) ??
     DEFAULT_LAMBDA_INVOCATIONS_MONTHLY;
 
   const avgDurationMs =
-    (resource.attributes.avg_duration_ms as number | undefined) ??
-    DEFAULT_LAMBDA_DURATION_MS;
+    (resource.attributes.avg_duration_ms as number | undefined) ?? DEFAULT_LAMBDA_DURATION_MS;
 
   const memoryGb = memoryMb / 1024;
   const durationSeconds = avgDurationMs / 1000;
 
   notes.push(
     `Estimated ${invocationsPerMonth.toLocaleString()} invocations/month, ` +
-    `${avgDurationMs}ms avg duration, ${memoryMb}MB memory (${architecture})`
+      `${avgDurationMs}ms avg duration, ${memoryMb}MB memory (${architecture})`,
   );
 
   // Request charges
@@ -79,8 +75,7 @@ export function calculateLambdaCost(
 
   // Compute charges (GB-seconds)
   const gbSecondsPerMonth = invocationsPerMonth * durationSeconds * memoryGb;
-  const gbSecondPrice =
-    LAMBDA_GB_SECOND_PRICE[architecture] ?? LAMBDA_GB_SECOND_PRICE["x86_64"]!;
+  const gbSecondPrice = LAMBDA_GB_SECOND_PRICE[architecture] ?? LAMBDA_GB_SECOND_PRICE["x86_64"]!;
   const computeCost = gbSecondsPerMonth * gbSecondPrice;
 
   breakdown.push({
@@ -94,7 +89,7 @@ export function calculateLambdaCost(
   if (!resource.attributes.monthly_invocations) {
     notes.push(
       `Default invocation assumption: ${DEFAULT_LAMBDA_INVOCATIONS_MONTHLY.toLocaleString()}/month — ` +
-      "provide monthly_invocations attribute for accuracy"
+        "provide monthly_invocations attribute for accuracy",
     );
   }
 
@@ -139,13 +134,14 @@ const MONTHLY_HOURS = 730;
 export function calculateDynamoDbCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const billingMode =
-    ((resource.attributes.billing_mode as string | undefined) ?? "PAY_PER_REQUEST").toUpperCase();
+  const billingMode = (
+    (resource.attributes.billing_mode as string | undefined) ?? "PAY_PER_REQUEST"
+  ).toUpperCase();
 
   const readCapacity = (resource.attributes.read_capacity as number | undefined) ?? 5;
   const writeCapacity = (resource.attributes.write_capacity as number | undefined) ?? 5;
@@ -184,7 +180,7 @@ export function calculateDynamoDbCost(
     if (!resource.attributes.monthly_reads && !resource.attributes.monthly_writes) {
       notes.push(
         `Default usage assumption: ${DEFAULT_DYNAMO_READS_MONTHLY.toLocaleString()} reads and ` +
-        `${DEFAULT_DYNAMO_WRITES_MONTHLY.toLocaleString()} writes/month (on-demand)`
+          `${DEFAULT_DYNAMO_WRITES_MONTHLY.toLocaleString()} writes/month (on-demand)`,
       );
     }
   } else {
@@ -243,8 +239,8 @@ export function calculateDynamoDbCost(
 // AWS SQS pricing
 // ---------------------------------------------------------------------------
 
-const SQS_STANDARD_PER_MILLION = 0.40;
-const SQS_FIFO_PER_MILLION = 0.50;
+const SQS_STANDARD_PER_MILLION = 0.4;
+const SQS_FIFO_PER_MILLION = 0.5;
 
 /**
  * Calculates the monthly cost for an AWS SQS queue.
@@ -255,15 +251,14 @@ const SQS_FIFO_PER_MILLION = 0.50;
 export function calculateSqsCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const isFifo = Boolean(resource.attributes.fifo_queue);
   const messagesPerMonth =
-    (resource.attributes.monthly_messages as number | undefined) ??
-    DEFAULT_SQS_MESSAGES_MONTHLY;
+    (resource.attributes.monthly_messages as number | undefined) ?? DEFAULT_SQS_MESSAGES_MONTHLY;
 
   const pricePerMillion = isFifo ? SQS_FIFO_PER_MILLION : SQS_STANDARD_PER_MILLION;
   const queueType = isFifo ? "FIFO" : "Standard";
@@ -280,7 +275,7 @@ export function calculateSqsCost(
   if (!resource.attributes.monthly_messages) {
     notes.push(
       `Default assumption: ${DEFAULT_SQS_MESSAGES_MONTHLY.toLocaleString()} messages/month — ` +
-      "provide monthly_messages attribute for accuracy"
+        "provide monthly_messages attribute for accuracy",
     );
   }
 

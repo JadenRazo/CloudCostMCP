@@ -43,7 +43,7 @@ function normaliseKey(name: string): string {
 export function interpolateByVcpuRatio(
   resourceName: string,
   table: Record<string, number>,
-  keyNormaliser: (name: string) => string = normaliseKey
+  keyNormaliser: (name: string) => string = normaliseKey,
 ): number | undefined {
   const key = keyNormaliser(resourceName);
 
@@ -99,7 +99,7 @@ export function interpolateByVcpuRatio(
 export function interpolateByStepOrder(
   requestedType: string,
   table: Record<string, number>,
-  sizeOrder: readonly string[]
+  sizeOrder: readonly string[],
 ): number | undefined {
   const lower = requestedType.toLowerCase();
   // Split on the last dot: "m5.2xlarge" → family "m5", size "2xlarge"

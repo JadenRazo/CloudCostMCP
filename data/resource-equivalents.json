@@ -1,17 +1,156 @@
 [
-  { "category": "compute_instance", "aws": "aws_instance", "azure": "azurerm_linux_virtual_machine", "gcp": "google_compute_instance", "notes": "General purpose VM" },
-  { "category": "compute_instance_windows", "aws": "aws_instance", "azure": "azurerm_windows_virtual_machine", "gcp": "google_compute_instance", "notes": "Windows VM" },
-  { "category": "managed_database_postgres", "aws": "aws_db_instance", "azure": "azurerm_postgresql_flexible_server", "gcp": "google_sql_database_instance", "notes": "Managed PostgreSQL" },
-  { "category": "managed_database_mysql", "aws": "aws_db_instance", "azure": "azurerm_mysql_flexible_server", "gcp": "google_sql_database_instance", "notes": "Managed MySQL" },
-  { "category": "object_storage", "aws": "aws_s3_bucket", "azure": "azurerm_storage_account", "gcp": "google_storage_bucket", "notes": "Object storage" },
-  { "category": "block_storage", "aws": "aws_ebs_volume", "azure": "azurerm_managed_disk", "gcp": "google_compute_disk", "notes": "Block storage volume" },
-  { "category": "load_balancer", "aws": "aws_lb", "azure": "azurerm_lb", "gcp": "google_compute_forwarding_rule", "notes": "Load balancer" },
-  { "category": "nat_gateway", "aws": "aws_nat_gateway", "azure": "azurerm_nat_gateway", "gcp": "google_compute_router_nat", "notes": "NAT gateway" },
-  { "category": "kubernetes_cluster", "aws": "aws_eks_cluster", "azure": "azurerm_kubernetes_cluster", "gcp": "google_container_cluster", "notes": "Managed Kubernetes" },
-  { "category": "kubernetes_node_group", "aws": "aws_eks_node_group", "azure": "azurerm_kubernetes_cluster_node_pool", "gcp": "google_container_node_pool", "notes": "Kubernetes node pool" },
-  { "category": "dns_zone", "aws": "aws_route53_zone", "azure": "azurerm_dns_zone", "gcp": "google_dns_managed_zone", "notes": "DNS hosted zone" },
-  { "category": "cdn", "aws": "aws_cloudfront_distribution", "azure": "azurerm_cdn_profile", "gcp": "google_compute_backend_bucket", "notes": "CDN distribution" },
-  { "category": "redis_cache", "aws": "aws_elasticache_cluster", "azure": "azurerm_redis_cache", "gcp": "google_redis_instance", "notes": "Managed Redis" },
-  { "category": "container_registry", "aws": "aws_ecr_repository", "azure": "azurerm_container_registry", "gcp": "google_artifact_registry_repository", "notes": "Container registry" },
-  { "category": "secrets", "aws": "aws_secretsmanager_secret", "azure": "azurerm_key_vault", "gcp": "google_secret_manager_secret", "notes": "Secrets management" }
+  {
+    "category": "compute_instance",
+    "aws": "aws_instance",
+    "azure": "azurerm_linux_virtual_machine",
+    "gcp": "google_compute_instance",
+    "notes": "General purpose VM"
+  },
+  {
+    "category": "compute_instance_windows",
+    "aws": "aws_instance",
+    "azure": "azurerm_windows_virtual_machine",
+    "gcp": "google_compute_instance",
+    "notes": "Windows VM"
+  },
+  {
+    "category": "managed_database_postgres",
+    "aws": "aws_db_instance",
+    "azure": "azurerm_postgresql_flexible_server",
+    "gcp": "google_sql_database_instance",
+    "notes": "Managed PostgreSQL"
+  },
+  {
+    "category": "managed_database_mysql",
+    "aws": "aws_db_instance",
+    "azure": "azurerm_mysql_flexible_server",
+    "gcp": "google_sql_database_instance",
+    "notes": "Managed MySQL"
+  },
+  {
+    "category": "object_storage",
+    "aws": "aws_s3_bucket",
+    "azure": "azurerm_storage_account",
+    "gcp": "google_storage_bucket",
+    "notes": "Object storage"
+  },
+  {
+    "category": "block_storage",
+    "aws": "aws_ebs_volume",
+    "azure": "azurerm_managed_disk",
+    "gcp": "google_compute_disk",
+    "notes": "Block storage volume"
+  },
+  {
+    "category": "load_balancer",
+    "aws": "aws_lb",
+    "azure": "azurerm_lb",
+    "gcp": "google_compute_forwarding_rule",
+    "notes": "Load balancer"
+  },
+  {
+    "category": "nat_gateway",
+    "aws": "aws_nat_gateway",
+    "azure": "azurerm_nat_gateway",
+    "gcp": "google_compute_router_nat",
+    "notes": "NAT gateway"
+  },
+  {
+    "category": "kubernetes_cluster",
+    "aws": "aws_eks_cluster",
+    "azure": "azurerm_kubernetes_cluster",
+    "gcp": "google_container_cluster",
+    "notes": "Managed Kubernetes"
+  },
+  {
+    "category": "kubernetes_node_group",
+    "aws": "aws_eks_node_group",
+    "azure": "azurerm_kubernetes_cluster_node_pool",
+    "gcp": "google_container_node_pool",
+    "notes": "Kubernetes node pool"
+  },
+  {
+    "category": "dns_zone",
+    "aws": "aws_route53_zone",
+    "azure": "azurerm_dns_zone",
+    "gcp": "google_dns_managed_zone",
+    "notes": "DNS hosted zone"
+  },
+  {
+    "category": "cdn",
+    "aws": "aws_cloudfront_distribution",
+    "azure": "azurerm_cdn_profile",
+    "gcp": "google_compute_backend_bucket",
+    "notes": "CDN distribution"
+  },
+  {
+    "category": "redis_cache",
+    "aws": "aws_elasticache_cluster",
+    "azure": "azurerm_redis_cache",
+    "gcp": "google_redis_instance",
+    "notes": "Managed Redis"
+  },
+  {
+    "category": "container_registry",
+    "aws": "aws_ecr_repository",
+    "azure": "azurerm_container_registry",
+    "gcp": "google_artifact_registry_repository",
+    "notes": "Container registry"
+  },
+  {
+    "category": "secrets",
+    "aws": "aws_secretsmanager_secret",
+    "azure": "azurerm_key_vault",
+    "gcp": "google_secret_manager_secret",
+    "notes": "Secrets management"
+  },
+  {
+    "category": "api_gateway",
+    "aws": "aws_api_gateway_rest_api",
+    "azure": "azurerm_api_management",
+    "gcp": "google_apigateway_api",
+    "notes": "API Gateway / Management"
+  },
+  {
+    "category": "waf",
+    "aws": "aws_wafv2_web_acl",
+    "azure": "azurerm_web_application_firewall_policy",
+    "gcp": "google_compute_security_policy",
+    "notes": "Web Application Firewall"
+  },
+  {
+    "category": "search",
+    "aws": "aws_opensearch_domain",
+    "azure": "azurerm_search_service",
+    "gcp": "google_elasticsearch_domain",
+    "notes": "Managed search / OpenSearch"
+  },
+  {
+    "category": "messaging",
+    "aws": "aws_sns_topic",
+    "azure": "azurerm_servicebus_namespace",
+    "gcp": "google_pubsub_topic",
+    "notes": "Messaging / notifications"
+  },
+  {
+    "category": "ml_inference_endpoint",
+    "aws": "aws_sagemaker_endpoint",
+    "azure": "azurerm_machine_learning_inference_cluster",
+    "gcp": "google_vertex_ai_endpoint",
+    "notes": "ML/AI inference endpoint"
+  },
+  {
+    "category": "message_broker",
+    "aws": "aws_mq_broker",
+    "azure": "azurerm_eventhub_namespace",
+    "gcp": "google_pubsub_subscription",
+    "notes": "Message broker / event streaming"
+  },
+  {
+    "category": "redis_replication_group",
+    "aws": "aws_elasticache_replication_group",
+    "azure": "azurerm_redis_cache",
+    "gcp": "google_redis_instance",
+    "notes": "Redis replication / HA cache"
+  }
 ]

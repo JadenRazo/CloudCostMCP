@@ -21,15 +21,13 @@ export async function calculateKubernetesCost(
   targetProvider: CloudProvider,
   targetRegion: string,
   pricingEngine: PricingEngine,
-  monthlyHours: number = 730
+  monthlyHours: number = 730,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   // Control plane pricing.
-  const k8sPrice = await pricingEngine
-    .getProvider(targetProvider)
-    .getKubernetesPrice(targetRegion);
+  const k8sPrice = await pricingEngine.getProvider(targetProvider).getKubernetesPrice(targetRegion);
 
   let totalMonthly = 0;
   let pricingSource: "live" | "fallback" | "bundled" = "fallback";
@@ -87,7 +85,7 @@ export async function calculateKubernetesCost(
         targetProvider,
         targetRegion,
         pricingEngine,
-        monthlyHours
+        monthlyHours,
       );
 
       if (nodeCostEstimate.monthly_cost > 0) {
@@ -100,13 +98,11 @@ export async function calculateKubernetesCost(
           monthly_cost: nodeGroupCost,
         });
         totalMonthly += nodeGroupCost;
-        notes.push(
-          `Node cost estimated for ${nodeCount} nodes of type ${nodeInstanceType}`
-        );
+        notes.push(`Node cost estimated for ${nodeCount} nodes of type ${nodeInstanceType}`);
       }
     } else {
       notes.push(
-        `node_count=${nodeCount} specified but no instance_type found; node compute cost excluded`
+        `node_count=${nodeCount} specified but no instance_type found; node compute cost excluded`,
       );
     }
   }

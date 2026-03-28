@@ -2,11 +2,7 @@ import { dirname } from "node:path";
 import type { CloudProvider, ResourceInventory, ParsedResource } from "../types/index.js";
 import { parseHclToJson } from "./hcl-parser.js";
 import { resolveVariables } from "./variable-resolver.js";
-import {
-  extractResources,
-  detectRegionFromProviders,
-} from "./resource-extractor.js";
-import { detectProvider } from "./provider-detector.js";
+import { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
 import { resolveModules } from "./module-resolver.js";
 import { logger } from "../logger.js";
 
@@ -15,6 +11,12 @@ export { detectProvider } from "./provider-detector.js";
 export { resolveVariables, substituteVariables } from "./variable-resolver.js";
 export { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
 export { resolveModules } from "./module-resolver.js";
+export type { IaCParser, FileInput, ParseOptions } from "./iac-parser.js";
+export { TerraformParser } from "./terraform-parser.js";
+export { CloudFormationParser } from "./cloudformation/cfn-parser.js";
+export { ArmParser } from "./bicep/arm-parser.js";
+export { PulumiParser } from "./pulumi/pulumi-parser.js";
+export { detectFormat, getParser, registerParser, listParsers } from "./format-detector.js";
 
 // ---------------------------------------------------------------------------
 // Provider + region inference
@@ -81,11 +83,10 @@ export async function parseTerraform(
   files: { path: string; content: string }[],
   tfvarsContent?: string,
   basePath?: string,
-  resolveModulesEnabled = true
+  resolveModulesEnabled = true,
 ): Promise<ResourceInventory> {
   const warnings: string[] = [];
-  const parsedJsons: Array<{ path: string; json: Record<string, unknown> }> =
-    [];
+  const parsedJsons: Array<{ path: string; json: Record<string, unknown> }> = [];
 
   // Step 1: Parse all files
   for (const file of files) {
@@ -93,8 +94,7 @@ export async function parseTerraform(
       const json = await parseHclToJson(file.content, file.path);
       parsedJsons.push({ path: file.path, json });
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error ? err.message : String(err);
       warnings.push(`Parse error in ${file.path}: ${msg}`);
       logger.warn("Skipping file due to parse error", {
         path: file.path,
@@ -148,16 +148,10 @@ export async function parseTerraform(
     // Use the explicit basePath if provided, otherwise derive it from the
     // first successfully parsed file path as a reasonable fallback.
     const moduleBasePath =
-      basePath ??
-      (parsedJsons.length > 0 ? dirname(parsedJsons[0].path) : process.cwd());
+      basePath ?? (parsedJsons.length > 0 ? dirname(parsedJsons[0].path) : process.cwd());
 
     try {
-      const moduleResources = await resolveModules(
-        combined,
-        moduleBasePath,
-        variables,
-        warnings
-      );
+      const moduleResources = await resolveModules(combined, moduleBasePath, variables, warnings);
       allResources.push(...moduleResources);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -168,8 +162,7 @@ export async function parseTerraform(
 
   // Step 7: Build inventory
   const dominantProvider = inferDominantProvider(allResources);
-  const dominantRegion =
-    defaultRegions[dominantProvider] ?? PROVIDER_DEFAULTS[dominantProvider];
+  const dominantRegion = defaultRegions[dominantProvider] ?? PROVIDER_DEFAULTS[dominantProvider];
 
   const byType: Record<string, number> = {};
   for (const r of allResources) {
@@ -206,9 +199,7 @@ export async function parseTerraform(
  * in one place during resolution. Block-level arrays are concatenated rather
  * than overwritten, and the `resource` section is merged at the type level.
  */
-function mergeHclJsons(
-  jsons: Record<string, unknown>[]
-): Record<string, unknown> {
+function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
 
   for (const json of jsons) {
@@ -231,7 +222,7 @@ function mergeHclJsons(
         // Recursively merge objects (handles provider, resource, variable blocks)
         merged[key] = mergeObjects(
           existing as Record<string, unknown>,
-          value as Record<string, unknown>
+          value as Record<string, unknown>,
         );
       } else if (Array.isArray(existing) && Array.isArray(value)) {
         merged[key] = [...existing, ...value];
@@ -247,7 +238,7 @@ function mergeHclJsons(
 
 function mergeObjects(
   a: Record<string, unknown>,
-  b: Record<string, unknown>
+  b: Record<string, unknown>,
 ): Record<string, unknown> {
   const result = { ...a };
   for (const [key, bVal] of Object.entries(b)) {
@@ -260,10 +251,7 @@ function mergeObjects(
       typeof bVal === "object" &&
       !Array.isArray(bVal)
     ) {
-      result[key] = mergeObjects(
-        aVal as Record<string, unknown>,
-        bVal as Record<string, unknown>
-      );
+      result[key] = mergeObjects(aVal as Record<string, unknown>, bVal as Record<string, unknown>);
     } else if (Array.isArray(aVal) && Array.isArray(bVal)) {
       result[key] = [...aVal, ...bVal];
     } else {

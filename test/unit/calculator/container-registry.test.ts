@@ -30,8 +30,8 @@ describe("calculateContainerRegistryCost", () => {
 
     const estimate = calculateContainerRegistryCost(resource, "aws", "us-east-1");
 
-    expect(estimate.monthly_cost).toBeCloseTo(0.10 * 10, 5);
-    expect(estimate.yearly_cost).toBeCloseTo(0.10 * 10 * 12, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.1 * 10, 5);
+    expect(estimate.yearly_cost).toBeCloseTo(0.1 * 10 * 12, 5);
     expect(estimate.provider).toBe("aws");
     expect(estimate.currency).toBe("USD");
     expect(estimate.pricing_source).toBe("bundled");
@@ -48,7 +48,7 @@ describe("calculateContainerRegistryCost", () => {
 
     const estimate = calculateContainerRegistryCost(resource, "aws", "us-east-1");
 
-    expect(estimate.monthly_cost).toBeCloseTo(0.10 * 50, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.1 * 50, 5);
     expect(estimate.confidence).toBe("high");
     expect(estimate.notes.some((n) => n.includes("assuming"))).toBe(false);
   });
@@ -146,7 +146,7 @@ describe("calculateContainerRegistryCost", () => {
 
     const estimate = calculateContainerRegistryCost(resource, "gcp", "us-central1");
 
-    expect(estimate.monthly_cost).toBeCloseTo(0.10 * 25, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.1 * 25, 5);
     expect(estimate.provider).toBe("gcp");
   });
 
@@ -159,7 +159,7 @@ describe("calculateContainerRegistryCost", () => {
 
     const estimate = calculateContainerRegistryCost(resource, "gcp", "us-central1");
 
-    expect(estimate.monthly_cost).toBeCloseTo(0.10 * 10, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.1 * 10, 5);
     expect(estimate.confidence).toBe("medium");
   });
 
@@ -177,7 +177,7 @@ describe("calculateContainerRegistryCost", () => {
     const estimate = calculateContainerRegistryCost(resource, "gcp", "us-central1");
 
     // GCP price is $0.10/GB, same as AWS, so result should be the same
-    expect(estimate.monthly_cost).toBeCloseTo(0.10 * 10, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.1 * 10, 5);
     expect(estimate.provider).toBe("gcp");
   });
 

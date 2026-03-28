@@ -11,30 +11,30 @@ const MONTHLY_HOURS = 730;
 // Hourly price by sku_name (new provider) or tier+size (old provider)
 const APP_SERVICE_PRICES: Record<string, number> = {
   // Free / Shared
-  "f1": 0.0,
-  "free": 0.0,
-  "d1": 0.013,
-  "shared": 0.013,
+  f1: 0.0,
+  free: 0.0,
+  d1: 0.013,
+  shared: 0.013,
   // Basic
-  "b1": 0.075,
-  "b2": 0.15,
-  "b3": 0.30,
+  b1: 0.075,
+  b2: 0.15,
+  b3: 0.3,
   // Standard
-  "s1": 0.10,
-  "s2": 0.20,
-  "s3": 0.40,
+  s1: 0.1,
+  s2: 0.2,
+  s3: 0.4,
   // Premium v2
-  "p1v2": 0.20,
-  "p2v2": 0.40,
-  "p3v2": 0.80,
+  p1v2: 0.2,
+  p2v2: 0.4,
+  p3v2: 0.8,
   // Premium v3
-  "p1v3": 0.175,
-  "p2v3": 0.35,
-  "p3v3": 0.70,
+  p1v3: 0.175,
+  p2v3: 0.35,
+  p3v3: 0.7,
   // Isolated
-  "i1": 0.30,
-  "i2": 0.60,
-  "i3": 1.20,
+  i1: 0.3,
+  i2: 0.6,
+  i3: 1.2,
 };
 
 /**
@@ -45,7 +45,7 @@ const APP_SERVICE_PRICES: Record<string, number> = {
 export function calculateAppServicePlanCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -70,7 +70,9 @@ export function calculateAppServicePlanCost(
     totalMonthly = hourlyPrice * MONTHLY_HOURS;
 
     if (totalMonthly === 0) {
-      notes.push(`App Service Plan ${skuName || skuSize || skuTier} is on the free tier ($0/month)`);
+      notes.push(
+        `App Service Plan ${skuName || skuSize || skuTier} is on the free tier ($0/month)`,
+      );
     } else {
       breakdown.push({
         description: `App Service Plan ${skuName || skuSize || skuTier} (${MONTHLY_HOURS}h/month)`,
@@ -85,7 +87,7 @@ export function calculateAppServicePlanCost(
     notes.push(`Azure App Service Plan: SKU ${skuName || `${skuTier} ${skuSize}`}`);
   } else {
     notes.push(
-      `No pricing found for App Service Plan SKU "${skuName || skuSize || skuTier}"; cost reported as $0`
+      `No pricing found for App Service Plan SKU "${skuName || skuSize || skuTier}"; cost reported as $0`,
     );
   }
 
@@ -127,16 +129,18 @@ const DEFAULT_COSMOS_SERVERLESS_RU_MILLION = 1;
 export function calculateCosmosDbCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const offerType = ((resource.attributes.offer_type as string | undefined) ?? "Standard").toLowerCase();
+  const offerType = (
+    (resource.attributes.offer_type as string | undefined) ?? "Standard"
+  ).toLowerCase();
   const capabilities = resource.attributes.capabilities as string[] | undefined;
   const isServerless = capabilities?.includes("EnableServerless") || offerType === "serverless";
 
-  const throughput = (resource.attributes.throughput as number | undefined);
+  const throughput = resource.attributes.throughput as number | undefined;
 
   let totalMonthly = 0;
   const pricingSource: "live" | "fallback" | "bundled" = "fallback";
@@ -156,7 +160,7 @@ export function calculateCosmosDbCost(
 
     notes.push(
       `Cosmos DB serverless — assuming ${DEFAULT_COSMOS_SERVERLESS_RU_MILLION}M RU/month; ` +
-      "provide actual usage for accuracy"
+        "provide actual usage for accuracy",
     );
   } else {
     const ruS = throughput ?? DEFAULT_COSMOS_PROVISIONED_RU;
@@ -213,7 +217,7 @@ export function calculateCosmosDbCost(
 // Azure Function App pricing (Consumption plan)
 // ---------------------------------------------------------------------------
 
-const AZURE_FUNC_PER_MILLION_EXECUTIONS = 0.20;
+const AZURE_FUNC_PER_MILLION_EXECUTIONS = 0.2;
 const AZURE_FUNC_GB_SECOND_PRICE = 0.000016;
 const DEFAULT_AZURE_FUNC_EXECUTIONS = 1_000_000;
 const DEFAULT_AZURE_FUNC_DURATION_MS = 200;
@@ -227,20 +231,17 @@ const DEFAULT_AZURE_FUNC_MEMORY_MB = 128;
 export function calculateAzureFunctionCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const executions =
-    (resource.attributes.monthly_executions as number | undefined) ??
-    DEFAULT_AZURE_FUNC_EXECUTIONS;
+    (resource.attributes.monthly_executions as number | undefined) ?? DEFAULT_AZURE_FUNC_EXECUTIONS;
   const durationMs =
-    (resource.attributes.avg_duration_ms as number | undefined) ??
-    DEFAULT_AZURE_FUNC_DURATION_MS;
+    (resource.attributes.avg_duration_ms as number | undefined) ?? DEFAULT_AZURE_FUNC_DURATION_MS;
   const memoryMb =
-    (resource.attributes.memory_size as number | undefined) ??
-    DEFAULT_AZURE_FUNC_MEMORY_MB;
+    (resource.attributes.memory_size as number | undefined) ?? DEFAULT_AZURE_FUNC_MEMORY_MB;
 
   const executionCost = (executions / 1_000_000) * AZURE_FUNC_PER_MILLION_EXECUTIONS;
   const gbSeconds = executions * (durationMs / 1000) * (memoryMb / 1024);
@@ -267,7 +268,7 @@ export function calculateAzureFunctionCost(
   if (!resource.attributes.monthly_executions) {
     notes.push(
       `Default assumption: ${DEFAULT_AZURE_FUNC_EXECUTIONS.toLocaleString()} executions/month, ` +
-      `${DEFAULT_AZURE_FUNC_DURATION_MS}ms avg duration, ${DEFAULT_AZURE_FUNC_MEMORY_MB}MB memory`
+        `${DEFAULT_AZURE_FUNC_DURATION_MS}ms avg duration, ${DEFAULT_AZURE_FUNC_MEMORY_MB}MB memory`,
     );
   }
 
@@ -293,8 +294,8 @@ export function calculateAzureFunctionCost(
 // Google Cloud Run pricing
 // ---------------------------------------------------------------------------
 
-const CLOUD_RUN_VCPU_PER_SECOND = 0.00002400;
-const CLOUD_RUN_MEMORY_GIB_PER_SECOND = 0.00000250;
+const CLOUD_RUN_VCPU_PER_SECOND = 0.000024;
+const CLOUD_RUN_MEMORY_GIB_PER_SECOND = 0.0000025;
 const DEFAULT_CLOUD_RUN_REQUESTS = 1_000_000;
 const DEFAULT_CLOUD_RUN_DURATION_MS = 200;
 const DEFAULT_CLOUD_RUN_VCPUS = 1;
@@ -349,7 +350,7 @@ function parseMemoryLimitGiB(raw: string | undefined): number {
 export function calculateCloudRunCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -361,11 +362,9 @@ export function calculateCloudRunCost(
   const memoryGib = parseMemoryLimitGiB(memoryRaw);
 
   const requestsPerMonth =
-    (resource.attributes.monthly_requests as number | undefined) ??
-    DEFAULT_CLOUD_RUN_REQUESTS;
+    (resource.attributes.monthly_requests as number | undefined) ?? DEFAULT_CLOUD_RUN_REQUESTS;
   const avgDurationMs =
-    (resource.attributes.avg_duration_ms as number | undefined) ??
-    DEFAULT_CLOUD_RUN_DURATION_MS;
+    (resource.attributes.avg_duration_ms as number | undefined) ?? DEFAULT_CLOUD_RUN_DURATION_MS;
 
   const durationSeconds = avgDurationMs / 1000;
   const cpuSeconds = requestsPerMonth * durationSeconds * vcpus;
@@ -394,7 +393,7 @@ export function calculateCloudRunCost(
   if (!resource.attributes.monthly_requests) {
     notes.push(
       `Default assumption: ${DEFAULT_CLOUD_RUN_REQUESTS.toLocaleString()} requests/month, ` +
-      `${DEFAULT_CLOUD_RUN_DURATION_MS}ms avg duration`
+        `${DEFAULT_CLOUD_RUN_DURATION_MS}ms avg duration`,
     );
   }
 
@@ -434,17 +433,15 @@ const DEFAULT_BIGQUERY_STORAGE_GB = 10;
 export function calculateBigQueryCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const queryTbPerMonth =
-    (resource.attributes.monthly_query_tb as number | undefined) ??
-    DEFAULT_BIGQUERY_QUERY_TB;
+    (resource.attributes.monthly_query_tb as number | undefined) ?? DEFAULT_BIGQUERY_QUERY_TB;
   const storageGb =
-    (resource.attributes.storage_size_gb as number | undefined) ??
-    DEFAULT_BIGQUERY_STORAGE_GB;
+    (resource.attributes.storage_size_gb as number | undefined) ?? DEFAULT_BIGQUERY_STORAGE_GB;
 
   const queryCost = queryTbPerMonth * BIGQUERY_QUERY_PER_TB;
   const storageCost = storageGb * BIGQUERY_STORAGE_PER_GB;
@@ -469,7 +466,7 @@ export function calculateBigQueryCost(
   if (!resource.attributes.monthly_query_tb) {
     notes.push(
       `Default assumption: ${DEFAULT_BIGQUERY_QUERY_TB}TB queries/month — ` +
-      "provide monthly_query_tb attribute for accuracy"
+        "provide monthly_query_tb attribute for accuracy",
     );
   }
 
@@ -499,7 +496,7 @@ export function calculateBigQueryCost(
 // Google Cloud Functions pricing
 // ---------------------------------------------------------------------------
 
-const GCF_PER_MILLION_INVOCATIONS = 0.40;
+const GCF_PER_MILLION_INVOCATIONS = 0.4;
 const GCF_GB_SECOND_PRICE = 0.0000025;
 const DEFAULT_GCF_INVOCATIONS = 1_000_000;
 const DEFAULT_GCF_DURATION_MS = 200;
@@ -513,20 +510,16 @@ const DEFAULT_GCF_MEMORY_MB = 256;
 export function calculateGcpFunctionCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const invocations =
-    (resource.attributes.monthly_invocations as number | undefined) ??
-    DEFAULT_GCF_INVOCATIONS;
+    (resource.attributes.monthly_invocations as number | undefined) ?? DEFAULT_GCF_INVOCATIONS;
   const durationMs =
-    (resource.attributes.avg_duration_ms as number | undefined) ??
-    DEFAULT_GCF_DURATION_MS;
-  const memoryMb =
-    (resource.attributes.memory_size as number | undefined) ??
-    DEFAULT_GCF_MEMORY_MB;
+    (resource.attributes.avg_duration_ms as number | undefined) ?? DEFAULT_GCF_DURATION_MS;
+  const memoryMb = (resource.attributes.memory_size as number | undefined) ?? DEFAULT_GCF_MEMORY_MB;
 
   const invocationCost = (invocations / 1_000_000) * GCF_PER_MILLION_INVOCATIONS;
   const gbSeconds = invocations * (durationMs / 1000) * (memoryMb / 1024);
@@ -552,7 +545,7 @@ export function calculateGcpFunctionCost(
   if (!resource.attributes.monthly_invocations) {
     notes.push(
       `Default assumption: ${DEFAULT_GCF_INVOCATIONS.toLocaleString()} invocations/month, ` +
-      `${DEFAULT_GCF_DURATION_MS}ms avg, ${DEFAULT_GCF_MEMORY_MB}MB memory`
+        `${DEFAULT_GCF_DURATION_MS}ms avg, ${DEFAULT_GCF_MEMORY_MB}MB memory`,
     );
   }
 

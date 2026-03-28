@@ -7,7 +7,7 @@ import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 // ---------------------------------------------------------------------------
 
 // AWS ECR: $0.10/GB-month for storage
-const AWS_ECR_STORAGE_PRICE_PER_GB = 0.10;
+const AWS_ECR_STORAGE_PRICE_PER_GB = 0.1;
 
 // Azure Container Registry pricing per GB-month by tier
 const AZURE_ACR_STORAGE_PRICE: Record<string, number> = {
@@ -17,7 +17,7 @@ const AZURE_ACR_STORAGE_PRICE: Record<string, number> = {
 };
 
 // GCP Artifact Registry: $0.10/GB-month for storage
-const GCP_ARTIFACT_REGISTRY_STORAGE_PRICE_PER_GB = 0.10;
+const GCP_ARTIFACT_REGISTRY_STORAGE_PRICE_PER_GB = 0.1;
 
 // Default storage assumption when no storage_gb attribute is specified
 const DEFAULT_STORAGE_GB = 10;
@@ -34,7 +34,7 @@ const DEFAULT_STORAGE_GB = 10;
 export function calculateContainerRegistryCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -48,7 +48,7 @@ export function calculateContainerRegistryCost(
 
   if (!hasExplicitStorage) {
     notes.push(
-      `No storage_gb specified; assuming ${DEFAULT_STORAGE_GB} GB for container registry cost estimate`
+      `No storage_gb specified; assuming ${DEFAULT_STORAGE_GB} GB for container registry cost estimate`,
     );
   }
 
@@ -65,7 +65,7 @@ export function calculateContainerRegistryCost(
     tierLabel = `ACR ${rawSku}`;
     if (!AZURE_ACR_STORAGE_PRICE[sku]) {
       notes.push(
-        `Unknown Azure Container Registry SKU "${rawSku}"; defaulting to Basic tier pricing`
+        `Unknown Azure Container Registry SKU "${rawSku}"; defaulting to Basic tier pricing`,
       );
     }
   } else {

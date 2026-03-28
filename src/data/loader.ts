@@ -88,7 +88,7 @@ function loadJsonFile<T>(relativePath: string): T {
     return JSON.parse(readFileSync(fullPath, "utf-8")) as T;
   } catch (err) {
     throw new Error(
-      `Failed to load data file "${fullPath}": ${err instanceof Error ? err.message : String(err)}`
+      `Failed to load data file "${fullPath}": ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 }
@@ -120,9 +120,7 @@ let _regionPriceMultipliers: RegionPriceMultipliers | null = null;
  */
 export function getResourceEquivalents(): ResourceEquivalent[] {
   if (_resourceEquivalents === null) {
-    _resourceEquivalents = loadJsonFile<ResourceEquivalent[]>(
-      "resource-equivalents.json"
-    );
+    _resourceEquivalents = loadJsonFile<ResourceEquivalent[]>("resource-equivalents.json");
   }
   return _resourceEquivalents;
 }
@@ -164,9 +162,7 @@ export function getStorageMap(): StorageMapData {
  */
 export function getAwsInstances(): InstanceSpec[] {
   if (_awsInstances === null) {
-    _awsInstances = loadJsonFile<InstanceSpec[]>(
-      "instance-types/aws-instances.json"
-    );
+    _awsInstances = loadJsonFile<InstanceSpec[]>("instance-types/aws-instances.json");
   }
   return _awsInstances;
 }
@@ -176,9 +172,7 @@ export function getAwsInstances(): InstanceSpec[] {
  */
 export function getAzureVmSizes(): InstanceSpec[] {
   if (_azureVmSizes === null) {
-    _azureVmSizes = loadJsonFile<InstanceSpec[]>(
-      "instance-types/azure-vm-sizes.json"
-    );
+    _azureVmSizes = loadJsonFile<InstanceSpec[]>("instance-types/azure-vm-sizes.json");
   }
   return _azureVmSizes;
 }
@@ -188,9 +182,7 @@ export function getAzureVmSizes(): InstanceSpec[] {
  */
 export function getGcpMachineTypes(): InstanceSpec[] {
   if (_gcpMachineTypes === null) {
-    _gcpMachineTypes = loadJsonFile<InstanceSpec[]>(
-      "instance-types/gcp-machine-types.json"
-    );
+    _gcpMachineTypes = loadJsonFile<InstanceSpec[]>("instance-types/gcp-machine-types.json");
   }
   return _gcpMachineTypes;
 }
@@ -202,7 +194,7 @@ export function getGcpMachineTypes(): InstanceSpec[] {
 export function getGcpComputePricing(): Record<string, Record<string, number>> {
   if (_gcpComputePricing === null) {
     _gcpComputePricing = loadJsonFile<Record<string, Record<string, number>>>(
-      "gcp-pricing/compute-engine.json"
+      "gcp-pricing/compute-engine.json",
     );
   }
   return _gcpComputePricing;
@@ -216,7 +208,7 @@ export function getGcpComputePricing(): Record<string, Record<string, number>> {
 export function getGcpSqlPricing(): Record<string, GcpSqlRegionPricing> {
   if (_gcpSqlPricing === null) {
     _gcpSqlPricing = loadJsonFile<Record<string, GcpSqlRegionPricing>>(
-      "gcp-pricing/cloud-sql.json"
+      "gcp-pricing/cloud-sql.json",
     );
   }
   return _gcpSqlPricing;
@@ -229,7 +221,7 @@ export function getGcpSqlPricing(): Record<string, GcpSqlRegionPricing> {
 export function getGcpStoragePricing(): Record<string, GcpStorageRegionPricing> {
   if (_gcpStoragePricing === null) {
     _gcpStoragePricing = loadJsonFile<Record<string, GcpStorageRegionPricing>>(
-      "gcp-pricing/cloud-storage.json"
+      "gcp-pricing/cloud-storage.json",
     );
   }
   return _gcpStoragePricing;
@@ -242,7 +234,7 @@ export function getGcpStoragePricing(): Record<string, GcpStorageRegionPricing> 
 export function getGcpDiskPricing(): Record<string, GcpDiskRegionPricing> {
   if (_gcpDiskPricing === null) {
     _gcpDiskPricing = loadJsonFile<Record<string, GcpDiskRegionPricing>>(
-      "gcp-pricing/persistent-disk.json"
+      "gcp-pricing/persistent-disk.json",
     );
   }
   return _gcpDiskPricing;
@@ -256,9 +248,7 @@ export function getGcpDiskPricing(): Record<string, GcpDiskRegionPricing> {
  */
 export function getRegionPriceMultipliers(): RegionPriceMultipliers {
   if (_regionPriceMultipliers === null) {
-    _regionPriceMultipliers = loadJsonFile<RegionPriceMultipliers>(
-      "region-price-multipliers.json"
-    );
+    _regionPriceMultipliers = loadJsonFile<RegionPriceMultipliers>("region-price-multipliers.json");
   }
   return _regionPriceMultipliers;
 }

@@ -112,7 +112,12 @@ describe("calculateDatabaseCost", () => {
     });
 
     const noStorageEst = await calculateDatabaseCost(noStorage, "aws", "us-east-1", pricingEngine);
-    const withStorageEst = await calculateDatabaseCost(withStorage, "aws", "us-east-1", pricingEngine);
+    const withStorageEst = await calculateDatabaseCost(
+      withStorage,
+      "aws",
+      "us-east-1",
+      pricingEngine,
+    );
 
     expect(withStorageEst.monthly_cost).toBeGreaterThan(noStorageEst.monthly_cost);
   });

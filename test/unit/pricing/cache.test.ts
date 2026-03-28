@@ -124,15 +124,8 @@ describe("PricingCache", () => {
     // interleaved operations without SQLITE_BUSY errors.
     const writes = Array.from({ length: 20 }, (_, i) =>
       Promise.resolve(
-        cache.set(
-          `concurrent/key/${i}`,
-          { index: i },
-          "aws",
-          "ec2",
-          "us-east-1",
-          3600
-        )
-      )
+        cache.set(`concurrent/key/${i}`, { index: i }, "aws", "ec2", "us-east-1", 3600),
+      ),
     );
 
     await expect(Promise.all(writes)).resolves.not.toThrow();
@@ -142,7 +135,7 @@ describe("PricingCache", () => {
 
     // Concurrent reads should all succeed
     const reads = Array.from({ length: 20 }, (_, i) =>
-      Promise.resolve(cache.get<{ index: number }>(`concurrent/key/${i}`))
+      Promise.resolve(cache.get<{ index: number }>(`concurrent/key/${i}`)),
     );
 
     const results = await Promise.all(reads);

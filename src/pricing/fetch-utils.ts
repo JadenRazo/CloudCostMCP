@@ -23,7 +23,7 @@ export interface RetryOptions {
 export async function fetchWithRetry(
   url: string,
   init?: RequestInit,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): Promise<Response> {
   const maxRetries = options.maxRetries ?? 3;
   const baseDelay = options.baseDelay ?? 1000;
@@ -178,12 +178,12 @@ export function recordCircuitFailure(url: string): void {
 export async function fetchWithRetryAndCircuitBreaker(
   url: string,
   init?: RequestInit,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): Promise<Response> {
   if (isCircuitOpen(url)) {
     const key = circuitKey(url);
     throw new Error(
-      `Circuit breaker is open for ${key} — skipping request to avoid repeated failures`
+      `Circuit breaker is open for ${key} — skipping request to avoid repeated failures`,
     );
   }
 

@@ -30,7 +30,7 @@ const NAT_PER_GB = 0.045;
 // Standard cluster: $0.10/hr
 // Autopilot: $0.0445/vCPU/hr estimate (actual billing is per-pod resources;
 // this approximation provides a per-cluster ballpark for cost comparisons)
-const GKE_STANDARD_HOURLY = 0.10;
+const GKE_STANDARD_HOURLY = 0.1;
 const GKE_AUTOPILOT_VCPU_HOURLY = 0.0445;
 
 // ---------------------------------------------------------------------------
@@ -49,10 +49,7 @@ export class GcpBundledLoader {
   // Public API
   // -------------------------------------------------------------------------
 
-  async getComputePrice(
-    machineType: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async getComputePrice(machineType: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpComputePricing();
       const regionPrices = pricing[region];
@@ -85,10 +82,7 @@ export class GcpBundledLoader {
     }
   }
 
-  async getDatabasePrice(
-    tier: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async getDatabasePrice(tier: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpSqlPricing();
       const regionPrices = pricing[region];
@@ -122,10 +116,7 @@ export class GcpBundledLoader {
     }
   }
 
-  async getStoragePrice(
-    storageClass: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async getStoragePrice(storageClass: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpStoragePricing();
       const regionPrices = pricing[region];
@@ -159,10 +150,7 @@ export class GcpBundledLoader {
     }
   }
 
-  async getDiskPrice(
-    diskType: string,
-    region: string
-  ): Promise<NormalizedPrice | null> {
+  async getDiskPrice(diskType: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpDiskPricing();
       const regionPrices = pricing[region];
@@ -234,11 +222,10 @@ export class GcpBundledLoader {
 
   async getKubernetesPrice(
     region: string,
-    mode: "standard" | "autopilot" = "standard"
+    mode: "standard" | "autopilot" = "standard",
   ): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier(region);
-    const baseHourly =
-      mode === "autopilot" ? GKE_AUTOPILOT_VCPU_HOURLY : GKE_STANDARD_HOURLY;
+    const baseHourly = mode === "autopilot" ? GKE_AUTOPILOT_VCPU_HOURLY : GKE_STANDARD_HOURLY;
 
     return {
       provider: "gcp",
@@ -256,7 +243,8 @@ export class GcpBundledLoader {
         mode,
         ...(mode === "autopilot" && {
           pricing_model: "per_vcpu_hour",
-          pricing_note: "Autopilot charges per pod vCPU and memory. This price is a per-vCPU/hr approximation for cluster-level cost estimation.",
+          pricing_note:
+            "Autopilot charges per pod vCPU and memory. This price is a per-vCPU/hr approximation for cluster-level cost estimation.",
         }),
       },
       effective_date: new Date().toISOString(),

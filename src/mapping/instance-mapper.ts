@@ -19,10 +19,7 @@ type DirectionKey =
   | "gcp_to_aws"
   | "gcp_to_azure";
 
-function directionKey(
-  source: CloudProvider,
-  target: CloudProvider
-): DirectionKey | null {
+function directionKey(source: CloudProvider, target: CloudProvider): DirectionKey | null {
   if (source === target) return null;
   return `${source}_to_${target}` as DirectionKey;
 }
@@ -70,7 +67,7 @@ const SCORE_CATEGORY = 20;
 export function mapInstance(
   instanceType: string,
   sourceProvider: CloudProvider,
-  targetProvider: CloudProvider
+  targetProvider: CloudProvider,
 ): string | null {
   if (sourceProvider === targetProvider) return instanceType;
 
@@ -96,9 +93,7 @@ export function mapInstance(
 
   // Step 2: spec-based fallback.
   const sourceSpecs = getSpecsForProvider(sourceProvider);
-  const sourceSpec = sourceSpecs.find(
-    (s) => s.instance_type === instanceType
-  );
+  const sourceSpec = sourceSpecs.find((s) => s.instance_type === instanceType);
 
   if (!sourceSpec) {
     logger.debug("instance-mapper: source spec not found, cannot map", {
@@ -114,7 +109,7 @@ export function mapInstance(
       memory_gb: sourceSpec.memory_gb,
       category: sourceSpec.category,
     },
-    targetProvider
+    targetProvider,
   );
 }
 
@@ -131,7 +126,7 @@ export function mapInstance(
  */
 export function findNearestInstance(
   spec: { vcpus: number; memory_gb: number; category: string },
-  targetProvider: CloudProvider
+  targetProvider: CloudProvider,
 ): string | null {
   const candidates = getSpecsForProvider(targetProvider);
 

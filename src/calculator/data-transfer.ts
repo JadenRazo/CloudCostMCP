@@ -52,25 +52,25 @@ const AWS_REGION_MULTIPLIERS: Record<string, number> = {
 };
 
 const AZURE_REGION_MULTIPLIERS: Record<string, number> = {
-  "eastus": 1.0,
-  "eastus2": 1.0,
-  "westus": 1.0,
-  "westus2": 1.0,
-  "westus3": 1.0,
-  "centralus": 1.0,
-  "northeurope": 1.0,
-  "westeurope": 1.0,
-  "uksouth": 1.0,
-  "ukwest": 1.0,
-  "germanywestcentral": 1.0,
-  "francecentral": 1.0,
-  "eastasia": 1.16, // Zone 2 rate
-  "southeastasia": 1.16,
-  "japaneast": 1.16,
-  "koreacentral": 1.16,
-  "australiaeast": 1.24, // Zone 3 rate
-  "brazilsouth": 1.31,
-  "southafricanorth": 1.31,
+  eastus: 1.0,
+  eastus2: 1.0,
+  westus: 1.0,
+  westus2: 1.0,
+  westus3: 1.0,
+  centralus: 1.0,
+  northeurope: 1.0,
+  westeurope: 1.0,
+  uksouth: 1.0,
+  ukwest: 1.0,
+  germanywestcentral: 1.0,
+  francecentral: 1.0,
+  eastasia: 1.16, // Zone 2 rate
+  southeastasia: 1.16,
+  japaneast: 1.16,
+  koreacentral: 1.16,
+  australiaeast: 1.24, // Zone 3 rate
+  brazilsouth: 1.31,
+  southafricanorth: 1.31,
 };
 
 const GCP_REGION_MULTIPLIERS: Record<string, number> = {
@@ -126,14 +126,13 @@ function gcpRegionMultiplier(region: string): number {
  */
 export async function calculateAwsDataTransferCost(
   resource: ParsedResource,
-  targetRegion: string
+  targetRegion: string,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const egressGb =
-    (resource.attributes.monthly_egress_gb as number | undefined) ??
-    DEFAULT_EGRESS_GB;
+    (resource.attributes.monthly_egress_gb as number | undefined) ?? DEFAULT_EGRESS_GB;
 
   if (
     !resource.attributes.monthly_egress_gb ||
@@ -141,7 +140,7 @@ export async function calculateAwsDataTransferCost(
   ) {
     notes.push(
       `Data transfer cost estimated at ${egressGb} GB/month egress; ` +
-        `actual costs depend on traffic volume and destination`
+        `actual costs depend on traffic volume and destination`,
     );
   }
 
@@ -159,7 +158,7 @@ export async function calculateAwsDataTransferCost(
 
   notes.push(
     "Data transfer costs cover internet egress only; intra-region and inter-AZ " +
-      "traffic charges are excluded from this estimate"
+      "traffic charges are excluded from this estimate",
   );
 
   return {
@@ -186,14 +185,13 @@ export async function calculateAwsDataTransferCost(
  */
 export async function calculateAzureDataTransferCost(
   resource: ParsedResource,
-  targetRegion: string
+  targetRegion: string,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const egressGb =
-    (resource.attributes.monthly_egress_gb as number | undefined) ??
-    DEFAULT_EGRESS_GB;
+    (resource.attributes.monthly_egress_gb as number | undefined) ?? DEFAULT_EGRESS_GB;
 
   if (
     !resource.attributes.monthly_egress_gb ||
@@ -201,7 +199,7 @@ export async function calculateAzureDataTransferCost(
   ) {
     notes.push(
       `Data transfer cost estimated at ${egressGb} GB/month egress; ` +
-        `actual costs depend on traffic volume and destination`
+        `actual costs depend on traffic volume and destination`,
     );
   }
 
@@ -219,7 +217,7 @@ export async function calculateAzureDataTransferCost(
 
   notes.push(
     "Data transfer costs cover internet egress only; intra-region traffic " +
-      "is free on Azure and excluded from this estimate"
+      "is free on Azure and excluded from this estimate",
   );
 
   return {
@@ -246,14 +244,13 @@ export async function calculateAzureDataTransferCost(
  */
 export async function calculateGcpDataTransferCost(
   resource: ParsedResource,
-  targetRegion: string
+  targetRegion: string,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const egressGb =
-    (resource.attributes.monthly_egress_gb as number | undefined) ??
-    DEFAULT_EGRESS_GB;
+    (resource.attributes.monthly_egress_gb as number | undefined) ?? DEFAULT_EGRESS_GB;
 
   if (
     !resource.attributes.monthly_egress_gb ||
@@ -261,7 +258,7 @@ export async function calculateGcpDataTransferCost(
   ) {
     notes.push(
       `Data transfer cost estimated at ${egressGb} GB/month egress; ` +
-        `actual costs depend on traffic volume and destination`
+        `actual costs depend on traffic volume and destination`,
     );
   }
 
@@ -279,7 +276,7 @@ export async function calculateGcpDataTransferCost(
 
   notes.push(
     "Data transfer costs cover internet egress only; intra-region and " +
-      "Google network traffic charges are excluded from this estimate"
+      "Google network traffic charges are excluded from this estimate",
   );
 
   return {

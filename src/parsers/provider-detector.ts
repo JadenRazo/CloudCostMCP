@@ -20,6 +20,6 @@ export function detectProvider(resourceType: string): CloudProvider {
 
   throw new Error(
     `Cannot determine cloud provider for resource type "${resourceType}". ` +
-      `Supported prefixes: aws_, azurerm_, google_`
+      `Supported prefixes: aws_, azurerm_, google_`,
   );
 }

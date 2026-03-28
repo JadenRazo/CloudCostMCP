@@ -3,7 +3,11 @@ import { generateMarkdownReport } from "../../../src/reporting/markdown-report.j
 import { generateJsonReport } from "../../../src/reporting/json-report.js";
 import { generateCsvReport } from "../../../src/reporting/csv-report.js";
 import type { ParsedResource } from "../../../src/types/resources.js";
-import type { ProviderComparison, CostBreakdown, CostEstimate } from "../../../src/types/pricing.js";
+import type {
+  ProviderComparison,
+  CostBreakdown,
+  CostEstimate,
+} from "../../../src/types/pricing.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -80,17 +84,37 @@ function makeComparison(overrides: Partial<ProviderComparison> = {}): ProviderCo
  */
 function makeTaggedFixture() {
   const resources: ParsedResource[] = [
-    makeResource({ id: "r-be-api", name: "backend-api",  tags: { team: "backend" } }),
-    makeResource({ id: "r-be-db",  name: "backend-db",   tags: { team: "backend" } }),
+    makeResource({ id: "r-be-api", name: "backend-api", tags: { team: "backend" } }),
+    makeResource({ id: "r-be-db", name: "backend-db", tags: { team: "backend" } }),
     makeResource({ id: "r-fe-web", name: "frontend-web", tags: { team: "frontend" } }),
-    makeResource({ id: "r-orphan", name: "orphan",        tags: {} }),
+    makeResource({ id: "r-orphan", name: "orphan", tags: {} }),
   ];
 
   const estimates: CostEstimate[] = [
-    makeEstimate({ resource_id: "r-be-api", resource_name: "backend-api",  monthly_cost: 150, yearly_cost: 1800 }),
-    makeEstimate({ resource_id: "r-be-db",  resource_name: "backend-db",   monthly_cost: 300, yearly_cost: 3600 }),
-    makeEstimate({ resource_id: "r-fe-web", resource_name: "frontend-web", monthly_cost: 200, yearly_cost: 2400 }),
-    makeEstimate({ resource_id: "r-orphan", resource_name: "orphan",        monthly_cost: 50,  yearly_cost: 600 }),
+    makeEstimate({
+      resource_id: "r-be-api",
+      resource_name: "backend-api",
+      monthly_cost: 150,
+      yearly_cost: 1800,
+    }),
+    makeEstimate({
+      resource_id: "r-be-db",
+      resource_name: "backend-db",
+      monthly_cost: 300,
+      yearly_cost: 3600,
+    }),
+    makeEstimate({
+      resource_id: "r-fe-web",
+      resource_name: "frontend-web",
+      monthly_cost: 200,
+      yearly_cost: 2400,
+    }),
+    makeEstimate({
+      resource_id: "r-orphan",
+      resource_name: "orphan",
+      monthly_cost: 50,
+      yearly_cost: 600,
+    }),
   ];
 
   const comparison = makeComparison({

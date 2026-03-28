@@ -7,16 +7,22 @@ import type { PricingEngine } from "../pricing/pricing-engine.js";
 // ---------------------------------------------------------------------------
 
 export const getPricingSchema = z.object({
-  provider: z
-    .enum(["aws", "azure", "gcp"])
-    .describe("Cloud provider to look up pricing for"),
+  provider: z.enum(["aws", "azure", "gcp"]).describe("Cloud provider to look up pricing for"),
   service: z
-    .enum(["compute", "database", "storage", "network", "load_balancer", "nat_gateway", "kubernetes"])
+    .enum([
+      "compute",
+      "database",
+      "storage",
+      "network",
+      "load_balancer",
+      "nat_gateway",
+      "kubernetes",
+    ])
     .describe("Service category (network defaults to nat_gateway for backward compatibility)"),
   resource_type: z
     .string()
     .describe(
-      "Instance type, storage type, or resource identifier (e.g. t3.large, gp3, Standard_D4s_v3)"
+      "Instance type, storage type, or resource identifier (e.g. t3.large, gp3, Standard_D4s_v3)",
     ),
   region: z.string().describe("Cloud region (e.g. us-east-1, eastus, us-central1)"),
 });
@@ -34,7 +40,7 @@ export const getPricingSchema = z.object({
  */
 export async function getPricing(
   params: z.infer<typeof getPricingSchema>,
-  pricingEngine: PricingEngine
+  pricingEngine: PricingEngine,
 ): Promise<object> {
   const provider = params.provider as CloudProvider;
 
@@ -56,14 +62,17 @@ export async function getPricing(
     provider,
     service,
     params.resource_type,
-    params.region
+    params.region,
   );
 
   // Strip verbose / redundant fields from the price object when present.
   let price: Record<string, unknown> | null = null;
   if (rawPrice !== null) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { description: _d, attributes, ...priceRest } = rawPrice as typeof rawPrice & {
+    const {
+      description: _d,
+      attributes,
+      ...priceRest
+    } = rawPrice as typeof rawPrice & {
       description?: unknown;
       attributes?: Record<string, string>;
     };

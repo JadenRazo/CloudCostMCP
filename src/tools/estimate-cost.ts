@@ -16,17 +16,15 @@ export const estimateCostSchema = z.object({
     z.object({
       path: z.string().describe("File path"),
       content: z.string().describe("File content (HCL)"),
-    })
+    }),
   ),
   tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
-  provider: z
-    .enum(["aws", "azure", "gcp"])
-    .describe("Target cloud provider to estimate costs for"),
+  provider: z.enum(["aws", "azure", "gcp"]).describe("Target cloud provider to estimate costs for"),
   region: z
     .string()
     .optional()
     .describe(
-      "Target region for pricing lookup. Defaults to the source region mapped to the target provider."
+      "Target region for pricing lookup. Defaults to the source region mapped to the target provider.",
     ),
   currency: z
     .enum(SUPPORTED_CURRENCIES)
@@ -46,7 +44,7 @@ export const estimateCostSchema = z.object({
 export async function estimateCost(
   params: z.infer<typeof estimateCostSchema>,
   pricingEngine: PricingEngine,
-  config: CloudCostConfig
+  config: CloudCostConfig,
 ): Promise<object> {
   const inventory = await parseTerraform(params.files, params.tfvars);
 
@@ -56,14 +54,13 @@ export async function estimateCost(
   // otherwise map the source region to the nearest equivalent on the target
   // provider.
   const targetRegion =
-    params.region ??
-    mapRegion(inventory.region, inventory.provider, targetProvider);
+    params.region ?? mapRegion(inventory.region, inventory.provider, targetProvider);
 
   const costEngine = new CostEngine(pricingEngine, config);
   const breakdown = await costEngine.calculateBreakdown(
     inventory.resources,
     targetProvider,
-    targetRegion
+    targetRegion,
   );
 
   // Surface parse warnings alongside the cost breakdown so callers have a
@@ -79,8 +76,13 @@ export async function estimateCost(
   // yearly_cost === monthly_cost * 12). Also omit empty notes and breakdown
   // arrays to keep payload size minimal.
   const byResource = converted.by_resource.map((r) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { provider: _p, region: _r, currency: _c, yearly_cost: _y, ...rest } = r as typeof r & {
+    const {
+      provider: _p,
+      region: _r,
+      currency: _c,
+      yearly_cost: _y,
+      ...rest
+    } = r as typeof r & {
       provider: unknown;
       region: unknown;
       currency: unknown;
@@ -98,8 +100,10 @@ export async function estimateCost(
 
   // Omit generated_at and the separate parse_warnings field; warnings is the
   // deduplicated union already.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { generated_at: _ga, ...convertedRest } = converted as typeof converted & { generated_at: unknown };
+
+  const { generated_at: _ga, ...convertedRest } = converted as typeof converted & {
+    generated_at: unknown;
+  };
 
   return {
     ...convertedRest,

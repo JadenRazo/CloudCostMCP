@@ -91,7 +91,7 @@ describe("fetchWithRetry", () => {
       fetchWithRetry(TEST_URL, undefined, {
         maxRetries: 2,
         baseDelay: 100,
-      })
+      }),
     ).rejects.toThrow("persistent failure");
 
     expect(mockFetch).toHaveBeenCalledTimes(3); // initial + 2 retries
@@ -206,7 +206,7 @@ describe("fetchWithRetryAndCircuitBreaker", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     await expect(fetchWithRetryAndCircuitBreaker(TEST_URL)).rejects.toThrow(
-      "Circuit breaker is open"
+      "Circuit breaker is open",
     );
 
     // fetch should never have been called

@@ -44,7 +44,7 @@ export async function calculateStorageCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
   targetRegion: string,
-  pricingEngine: PricingEngine
+  pricingEngine: PricingEngine,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -59,8 +59,7 @@ export async function calculateStorageCost(
     (block ? "gp3" : "STANDARD");
 
   const mappedStorageType =
-    mapStorageType(sourceStorageType, resource.provider, targetProvider) ??
-    sourceStorageType;
+    mapStorageType(sourceStorageType, resource.provider, targetProvider) ?? sourceStorageType;
 
   // Resolve size.
   let sizeGb =
@@ -76,7 +75,7 @@ export async function calculateStorageCost(
     } else {
       sizeGb = DEFAULT_OBJECT_STORAGE_GB;
       notes.push(
-        `No storage size specified; assuming ${DEFAULT_OBJECT_STORAGE_GB} GB for object storage cost estimate`
+        `No storage size specified; assuming ${DEFAULT_OBJECT_STORAGE_GB} GB for object storage cost estimate`,
       );
     }
   }
@@ -101,7 +100,7 @@ export async function calculateStorageCost(
       if (storagePrice) {
         resolvedStorageType = fallbackType;
         notes.push(
-          `Object storage class "${mappedStorageType}" not directly priced; using ${fallbackType} rate as an approximation`
+          `Object storage class "${mappedStorageType}" not directly priced; using ${fallbackType} rate as an approximation`,
         );
       }
     }
@@ -116,7 +115,9 @@ export async function calculateStorageCost(
       pricingSource = "bundled";
     } else if (rawSource === "fallback") {
       pricingSource = "fallback";
-      notes.push(`Pricing for ${resolvedStorageType} uses bundled fallback data (live API unavailable)`);
+      notes.push(
+        `Pricing for ${resolvedStorageType} uses bundled fallback data (live API unavailable)`,
+      );
     } else {
       pricingSource = "live";
     }
@@ -130,9 +131,7 @@ export async function calculateStorageCost(
       monthly_cost: totalMonthly,
     });
   } else {
-    notes.push(
-      `No pricing data found for ${resource.type} in ${targetRegion}`
-    );
+    notes.push(`No pricing data found for ${resource.type} in ${targetRegion}`);
     logger.debug("calculateStorageCost: no price", {
       mappedStorageType,
       targetRegion,

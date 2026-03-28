@@ -59,13 +59,10 @@ describe("CLI", () => {
     tmpDir = makeTempDir();
     writeTfFile(tmpDir, SAMPLE_TF);
 
-    const result = execSync(
-      `node --import tsx/esm ${CLI_PATH} analyze ${tmpDir} --json`,
-      {
-        env: { ...process.env, CLOUDCOST_LOG_LEVEL: "error" },
-        encoding: "utf-8",
-      }
-    );
+    const result = execSync(`node --import tsx/esm ${CLI_PATH} analyze ${tmpDir} --json`, {
+      env: { ...process.env, CLOUDCOST_LOG_LEVEL: "error" },
+      encoding: "utf-8",
+    });
 
     const parsed = JSON.parse(result);
     expect(parsed).toHaveProperty("resources");
@@ -83,7 +80,7 @@ describe("CLI", () => {
       {
         env: { ...process.env, CLOUDCOST_LOG_LEVEL: "error" },
         encoding: "utf-8",
-      }
+      },
     );
 
     const parsed = JSON.parse(result);

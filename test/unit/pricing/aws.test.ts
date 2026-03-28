@@ -69,7 +69,7 @@ describe("AwsBulkLoader", () => {
     const result = await loader.getComputePrice("m5.large", "ap-southeast-1");
 
     expect(result).not.toBeNull();
-    const expectedPrice = 0.096 * 1.10;
+    const expectedPrice = 0.096 * 1.1;
     expect(result!.price_per_unit).toBeCloseTo(expectedPrice, 4);
   });
 
@@ -117,7 +117,7 @@ describe("AwsBulkLoader", () => {
     const result = await loader.getDatabasePrice("db.r5.large", "us-east-1");
 
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.250, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.25, 4);
   });
 
   it("applies regional multiplier to RDS pricing", async () => {
@@ -171,7 +171,7 @@ describe("AwsBulkLoader", () => {
     expect(usResult).not.toBeNull();
     expect(apResult).not.toBeNull();
     expect(apResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
-    expect(apResult!.price_per_unit).toBeCloseTo(0.08 * 1.10, 4);
+    expect(apResult!.price_per_unit).toBeCloseTo(0.08 * 1.1, 4);
   });
 
   it("returns null for unknown volume type", async () => {
@@ -208,7 +208,7 @@ describe("AwsBulkLoader", () => {
     expect(result).not.toBeNull();
     expect(result!.provider).toBe("aws");
     expect(result!.service).toBe("eks");
-    expect(result!.price_per_unit).toBeCloseTo(0.10, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.1, 4);
   });
 
   // -------------------------------------------------------------------------

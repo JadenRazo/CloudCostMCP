@@ -3,22 +3,17 @@ import type { CloudCostConfig } from "../types/config.js";
 import { PricingCache } from "../pricing/cache.js";
 import { PricingEngine } from "../pricing/pricing-engine.js";
 
-import {
-  analyzeTerraformSchema,
-  analyzeTerraform,
-} from "./analyze-terraform.js";
+import { analyzeTerraformSchema, analyzeTerraform } from "./analyze-terraform.js";
 import { estimateCostSchema, estimateCost } from "./estimate-cost.js";
-import {
-  compareProvidersSchema,
-  compareProviders,
-} from "./compare-providers.js";
-import {
-  getEquivalentsSchema,
-  getEquivalents,
-} from "./get-equivalents.js";
+import { compareProvidersSchema, compareProviders } from "./compare-providers.js";
+import { getEquivalentsSchema, getEquivalents } from "./get-equivalents.js";
 import { getPricingSchema, getPricing } from "./get-pricing.js";
 import { optimizeCostSchema, optimizeCost } from "./optimize-cost.js";
 import { whatIfSchema, whatIf } from "./what-if.js";
+import { analyzePlanSchema, analyzePlan } from "./analyze-plan.js";
+import { compareActualSchema, compareActual } from "./compare-actual.js";
+import { priceTrendsSchema, priceTrends } from "./price-trends.js";
+import { detectAnomaliesSchema, detectAnomalies } from "./detect-anomalies.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration
@@ -46,7 +41,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
   );
 
   // -------------------------------------------------------------------------
@@ -61,7 +56,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
   );
 
   // -------------------------------------------------------------------------
@@ -76,7 +71,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
   );
 
   // -------------------------------------------------------------------------
@@ -91,7 +86,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
   );
 
   // -------------------------------------------------------------------------
@@ -106,7 +101,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
   );
 
   // -------------------------------------------------------------------------
@@ -121,7 +116,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
   );
 
   // -------------------------------------------------------------------------
@@ -136,6 +131,66 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
-    }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // analyze_plan
+  // -------------------------------------------------------------------------
+  server.tool(
+    "analyze_plan",
+    "Parse Terraform plan JSON (from 'terraform show -json' or 'terraform plan -json') and return a cost-of-change analysis showing before/after costs and per-resource deltas.",
+    analyzePlanSchema.shape,
+    async (params) => {
+      const result = await analyzePlan(params, pricingEngine, config);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      };
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // compare_actual
+  // -------------------------------------------------------------------------
+  server.tool(
+    "compare_actual",
+    "Parse a Terraform state file (.tfstate) and calculate actual infrastructure costs. Optionally compare against planned costs from HCL files to show drift.",
+    compareActualSchema.shape,
+    async (params) => {
+      const result = await compareActual(params, pricingEngine, config);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      };
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // price_trends
+  // -------------------------------------------------------------------------
+  server.tool(
+    "price_trends",
+    "Query historical pricing trends for a specific cloud resource. Returns recorded price history, the most recent price change, and summary metadata.",
+    priceTrendsSchema.shape,
+    (params) => {
+      const result = priceTrends(params, cache);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      };
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // detect_anomalies
+  // -------------------------------------------------------------------------
+  server.tool(
+    "detect_anomalies",
+    "Analyze infrastructure costs and flag anomalies — resources whose estimated costs are unusual compared to historical baselines or configured thresholds.",
+    detectAnomaliesSchema.shape,
+    async (params) => {
+      const result = await detectAnomalies(params, pricingEngine, cache, config);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      };
+    },
   );
 }

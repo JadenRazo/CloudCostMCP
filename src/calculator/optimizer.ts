@@ -48,7 +48,7 @@ function isLikelyOversized(resource: ParsedResource): boolean {
     "";
 
   const isLarge = LARGE_INSTANCE_SUFFIXES.some((suffix) =>
-    instanceType.toLowerCase().includes(suffix.toLowerCase())
+    instanceType.toLowerCase().includes(suffix.toLowerCase()),
   );
   if (!isLarge) return false;
 
@@ -59,7 +59,7 @@ function isLikelyOversized(resource: ParsedResource): boolean {
   const allTagText = [...tagKeys, ...tagValues].join(" ");
 
   const hasHighUtilisationSignal = HIGH_UTILISATION_INDICATORS.some((signal) =>
-    allTagText.includes(signal)
+    allTagText.includes(signal),
   );
 
   return !hasHighUtilisationSignal;
@@ -110,14 +110,12 @@ const OBJECT_STORAGE_RESOURCE_TYPES = new Set([
  */
 export function generateOptimizations(
   estimates: CostEstimate[],
-  resources: ParsedResource[]
+  resources: ParsedResource[],
 ): OptimizationRecommendation[] {
   const recommendations: OptimizationRecommendation[] = [];
 
   // Build a lookup from resource_id to ParsedResource for quick access.
-  const resourceById = new Map<string, ParsedResource>(
-    resources.map((r) => [r.id, r])
-  );
+  const resourceById = new Map<string, ParsedResource>(resources.map((r) => [r.id, r]));
 
   // Group estimates by resource_id so we can compare providers.
   const estimatesByResourceId = new Map<string, CostEstimate[]>();
@@ -138,7 +136,7 @@ export function generateOptimizations(
     if (resource && COMPUTE_RESOURCE_TYPES.has(resource.type)) {
       if (isLikelyOversized(resource) && current.monthly_cost > 0) {
         // Estimate savings at 30% (moving down one instance size tier).
-        const estimatedSavings = current.monthly_cost * 0.30;
+        const estimatedSavings = current.monthly_cost * 0.3;
         recommendations.push({
           resource_id: resourceId,
           resource_name: current.resource_name,
@@ -159,14 +157,10 @@ export function generateOptimizations(
     // Reserved instance recommendation for compute and DB resources.
     if (
       resource &&
-      (COMPUTE_RESOURCE_TYPES.has(resource.type) ||
-        DATABASE_RESOURCE_TYPES.has(resource.type)) &&
+      (COMPUTE_RESOURCE_TYPES.has(resource.type) || DATABASE_RESOURCE_TYPES.has(resource.type)) &&
       current.monthly_cost > 0
     ) {
-      const reserved = calculateReservedPricing(
-        current.monthly_cost,
-        current.provider
-      );
+      const reserved = calculateReservedPricing(current.monthly_cost, current.provider);
       const best = reserved.best_option;
 
       if (best.percentage_savings >= 20) {
@@ -191,7 +185,7 @@ export function generateOptimizations(
     if (resourceEstimates.length > 1 && current.monthly_cost > 0) {
       const cheapest = resourceEstimates.reduce(
         (min, e) => (e.monthly_cost < min.monthly_cost ? e : min),
-        current
+        current,
       );
 
       if (cheapest.provider !== current.provider) {
@@ -220,15 +214,14 @@ export function generateOptimizations(
 
     // Object storage tier recommendation.
     if (resource && OBJECT_STORAGE_RESOURCE_TYPES.has(resource.type)) {
-      const storageClass =
-        (resource.attributes.storage_class as string | undefined) ?? "";
+      const storageClass = (resource.attributes.storage_class as string | undefined) ?? "";
       const isHotTier =
         storageClass === "" ||
         storageClass.toLowerCase() === "standard" ||
         storageClass.toLowerCase() === "hot";
 
       if (isHotTier && current.monthly_cost > 0) {
-        const estimatedSavings = current.monthly_cost * 0.40;
+        const estimatedSavings = current.monthly_cost * 0.4;
         recommendations.push({
           resource_id: resourceId,
           resource_name: current.resource_name,

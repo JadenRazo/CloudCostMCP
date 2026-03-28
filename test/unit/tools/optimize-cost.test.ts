@@ -108,14 +108,14 @@ describe("optimizeCost", () => {
   // -------------------------------------------------------------------------
 
   it("returns recommendations, reserved_pricing, and total_potential_savings", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: LARGE_INSTANCE_TF }],
         providers: ["aws", "azure", "gcp"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(Array.isArray(result.recommendations)).toBe(true);
     expect(Array.isArray(result.reserved_pricing)).toBe(true);
@@ -123,32 +123,32 @@ describe("optimizeCost", () => {
   });
 
   it("total_potential_savings is the sum of all recommendation monthly_savings", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: MULTI_RESOURCE_TF }],
         providers: ["aws", "azure", "gcp"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const recommendations = result.recommendations as Array<Record<string, unknown>>;
     const summedSavings = recommendations.reduce(
       (acc, r) => acc + (r.monthly_savings as number),
-      0
+      0,
     );
     expect(result.total_potential_savings as number).toBeCloseTo(summedSavings, 2);
   });
 
   it("total_potential_savings is non-negative", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: LARGE_INSTANCE_TF }],
         providers: ["aws", "azure", "gcp"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.total_potential_savings as number).toBeGreaterThanOrEqual(0);
   });
@@ -158,14 +158,14 @@ describe("optimizeCost", () => {
   // -------------------------------------------------------------------------
 
   it("each recommendation entry has the required fields when recommendations exist", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: LARGE_INSTANCE_TF }],
         providers: ["aws", "azure", "gcp"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const recommendations = result.recommendations as Array<Record<string, unknown>>;
     for (const rec of recommendations) {
@@ -181,14 +181,14 @@ describe("optimizeCost", () => {
   // -------------------------------------------------------------------------
 
   it("reserved_pricing entries have the required fields", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: MULTI_RESOURCE_TF }],
         providers: ["aws"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const reserved = result.reserved_pricing as Array<Record<string, unknown>>;
     // There should be reserved pricing for resources with a non-zero cost.
@@ -208,14 +208,14 @@ provider "aws" {
   region = "us-east-1"
 }
 `;
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: emptyTf }],
         providers: ["aws"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const reserved = result.reserved_pricing as Array<Record<string, unknown>>;
     expect(reserved.length).toBe(0);
@@ -227,14 +227,14 @@ provider "aws" {
   // -------------------------------------------------------------------------
 
   it("runs against only aws when providers is [aws]", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: SINGLE_SMALL_INSTANCE_TF }],
         providers: ["aws"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     // Should complete without throwing and return the standard structure.
     expect(Array.isArray(result.recommendations)).toBe(true);
@@ -243,14 +243,14 @@ provider "aws" {
   });
 
   it("runs against aws and gcp when providers is [aws, gcp]", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: SINGLE_SMALL_INSTANCE_TF }],
         providers: ["aws", "gcp"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(Array.isArray(result.recommendations)).toBe(true);
     expect(typeof result.total_potential_savings).toBe("number");
@@ -261,14 +261,14 @@ provider "aws" {
   // -------------------------------------------------------------------------
 
   it("handles a single minimal resource without throwing", async () => {
-    const result = await optimizeCost(
+    const result = (await optimizeCost(
       {
         files: [{ path: "main.tf", content: SINGLE_SMALL_INSTANCE_TF }],
         providers: ["aws", "azure", "gcp"],
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(typeof result.total_potential_savings).toBe("number");
     expect(result.total_potential_savings as number).toBeGreaterThanOrEqual(0);

@@ -13,16 +13,14 @@ import { getResourceEquivalents } from "../data/loader.js";
 export function findEquivalent(
   resourceType: string,
   sourceProvider: CloudProvider,
-  targetProvider: CloudProvider
+  targetProvider: CloudProvider,
 ): string | null {
   if (sourceProvider === targetProvider) {
     return resourceType;
   }
 
   const equivalents = getResourceEquivalents();
-  const row = equivalents.find(
-    (entry) => entry[sourceProvider] === resourceType
-  );
+  const row = equivalents.find((entry) => entry[sourceProvider] === resourceType);
 
   if (!row) return null;
   return row[targetProvider] ?? null;
@@ -35,12 +33,10 @@ export function findEquivalent(
  */
 export function findAllEquivalents(
   resourceType: string,
-  sourceProvider: CloudProvider
+  sourceProvider: CloudProvider,
 ): Record<CloudProvider, string> {
   const equivalents = getResourceEquivalents();
-  const row = equivalents.find(
-    (entry) => entry[sourceProvider] === resourceType
-  );
+  const row = equivalents.find((entry) => entry[sourceProvider] === resourceType);
 
   if (!row) return {} as Record<CloudProvider, string>;
 

@@ -56,10 +56,7 @@ describe("GcpBundledLoader", () => {
   // -------------------------------------------------------------------------
 
   it("returns price for db-custom-2-7680 in us-central1", async () => {
-    const result = await loader.getDatabasePrice(
-      "db-custom-2-7680",
-      "us-central1"
-    );
+    const result = await loader.getDatabasePrice("db-custom-2-7680", "us-central1");
 
     expect(result).not.toBeNull();
     expect(result!.provider).toBe("gcp");
@@ -67,48 +64,33 @@ describe("GcpBundledLoader", () => {
     expect(result!.resource_type).toBe("db-custom-2-7680");
     expect(result!.unit).toBe("h");
     // Bundled data: db-custom-2-7680 us-central1 = 0.1000
-    expect(result!.price_per_unit).toBeCloseTo(0.1000, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.1, 4);
   });
 
   it("returns price for db-custom-4-15360 in europe-west1", async () => {
-    const result = await loader.getDatabasePrice(
-      "db-custom-4-15360",
-      "europe-west1"
-    );
+    const result = await loader.getDatabasePrice("db-custom-4-15360", "europe-west1");
 
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.2200, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.22, 4);
   });
 
   it("does not expose storage_per_gb as a database tier", async () => {
-    const result = await loader.getDatabasePrice(
-      "storage_per_gb",
-      "us-central1"
-    );
+    const result = await loader.getDatabasePrice("storage_per_gb", "us-central1");
     expect(result).toBeNull();
   });
 
   it("does not expose ha_multiplier as a database tier", async () => {
-    const result = await loader.getDatabasePrice(
-      "ha_multiplier",
-      "us-central1"
-    );
+    const result = await loader.getDatabasePrice("ha_multiplier", "us-central1");
     expect(result).toBeNull();
   });
 
   it("returns null for unknown SQL tier", async () => {
-    const result = await loader.getDatabasePrice(
-      "db-turbo-9999",
-      "us-central1"
-    );
+    const result = await loader.getDatabasePrice("db-turbo-9999", "us-central1");
     expect(result).toBeNull();
   });
 
   it("returns null for unknown region", async () => {
-    const result = await loader.getDatabasePrice(
-      "db-custom-2-7680",
-      "mars-west1"
-    );
+    const result = await loader.getDatabasePrice("db-custom-2-7680", "mars-west1");
     expect(result).toBeNull();
   });
 
@@ -125,14 +107,14 @@ describe("GcpBundledLoader", () => {
     expect(result!.resource_type).toBe("STANDARD");
     expect(result!.unit).toBe("GiBy.mo");
     // Bundled data: STANDARD us-central1 = 0.020
-    expect(result!.price_per_unit).toBeCloseTo(0.020, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.02, 4);
   });
 
   it("returns price for NEARLINE class", async () => {
     const result = await loader.getStoragePrice("NEARLINE", "us-central1");
 
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.010, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.01, 4);
   });
 
   it("returns price for COLDLINE class", async () => {
@@ -183,14 +165,14 @@ describe("GcpBundledLoader", () => {
     expect(result!.resource_type).toBe("pd-ssd");
     expect(result!.unit).toBe("GiBy.mo");
     // Bundled data: pd-ssd us-central1 = 0.170
-    expect(result!.price_per_unit).toBeCloseTo(0.170, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.17, 4);
   });
 
   it("returns price for pd-standard", async () => {
     const result = await loader.getDiskPrice("pd-standard", "us-central1");
 
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.040, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.04, 4);
   });
 
   it("returns null for unknown disk type", async () => {
@@ -232,7 +214,7 @@ describe("GcpBundledLoader", () => {
     expect(result).not.toBeNull();
     expect(result!.provider).toBe("gcp");
     expect(result!.service).toBe("gke");
-    expect(result!.price_per_unit).toBeCloseTo(0.10, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.1, 4);
     expect(result!.attributes.mode).toBe("standard");
   });
 

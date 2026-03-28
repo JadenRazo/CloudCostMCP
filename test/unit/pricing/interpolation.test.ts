@@ -57,13 +57,11 @@ describe("interpolateByVcpuRatio", () => {
 
   it("accepts a custom key normaliser", () => {
     const customTable: Record<string, number> = {
-      "D2S_V5": 0.1,
-      "D4S_V5": 0.2,
+      D2S_V5: 0.1,
+      D4S_V5: 0.2,
     };
 
-    const result = interpolateByVcpuRatio("D8S_V5", customTable, (name) =>
-      name.toUpperCase()
-    );
+    const result = interpolateByVcpuRatio("D8S_V5", customTable, (name) => name.toUpperCase());
     expect(result).toBeDefined();
     expect(result!).toBeCloseTo(0.2 * (8 / 4), 4);
   });
