@@ -1,7 +1,7 @@
 <h1 align="center">CloudCost MCP Server</h1>
 
 <p align="center">
-  Multi-cloud cost analysis for Terraform. Live pricing from AWS, Azure, and GCP.
+  Multi-cloud cost analysis for Terraform, CloudFormation, Pulumi, and Bicep/ARM. Live pricing from AWS, Azure, and GCP.
   <br />
   Built on the <a href="https://modelcontextprotocol.io">Model Context Protocol</a> for seamless AI agent integration.
 </p>
@@ -28,11 +28,12 @@
 
 ---
 
-CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets AI agents parse Terraform codebases, query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS, Azure, and GCP. No API keys or cloud credentials required.
+CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets AI agents parse infrastructure-as-code across multiple formats (Terraform, CloudFormation, Pulumi, Bicep/ARM), query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS, Azure, and GCP. No API keys or cloud credentials required.
 
 ### What it does
 
-- Parses Terraform HCL files and extracts resource inventories with variable resolution, including referenced modules and OpenTofu `.tofu` files
+- Parses Terraform HCL files, CloudFormation templates, Pulumi stack exports, and Bicep/ARM templates with automatic format detection
+- Extracts resource inventories with variable resolution, including referenced modules and OpenTofu `.tofu` files
 - Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API; GCP via live Cloud Billing Catalog API with bundled fallback
 - Maps equivalent resources across AWS, Azure, and GCP (compute, database, storage, networking, Kubernetes, container registries, secrets management, DNS)
 - Generates cost estimates with per-resource breakdowns (monthly and yearly) across multiple currencies
@@ -42,6 +43,15 @@ CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) ser
 - Projects costs over 3, 6, 12, and 36-month horizons with reserved instance comparisons
 - Tags resources for cost attribution and groups report output by team, environment, or any custom label
 - Posts cost estimate comments to pull requests via a reusable GitHub Actions composite action
+
+### Supported IaC Formats
+
+| Format | Extensions | Auto-detected |
+|---|---|---|
+| Terraform/OpenTofu | `.tf`, `.tofu` | Yes |
+| CloudFormation | `.yaml`, `.yml`, `.json`, `.template` | Yes |
+| Pulumi | `.json` (stack export) | Yes |
+| Bicep/ARM | `.json` (ARM template) | Yes |
 
 ---
 
@@ -117,7 +127,7 @@ node dist/index.js
 
 ## Tools
 
-The server exposes seven MCP tools. Each accepts JSON input and returns structured JSON output.
+The server exposes eleven MCP tools. Each accepts JSON input and returns structured JSON output.
 
 ### `analyze_terraform`
 
@@ -207,6 +217,50 @@ Run hypothetical pricing scenarios against existing Terraform resources. Change 
   ]
 }
 ```
+
+### `analyze_plan`
+
+Parse terraform plan JSON output for before/after cost-of-change analysis. Shows what resources are being added, changed, or destroyed and the cost impact of each change.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `plan_json` | `string` | Yes | JSON output from `terraform show -json planfile` |
+| `provider` | `aws \| azure \| gcp` | No | Target provider for pricing (auto-detected if omitted) |
+| `currency` | `string` | No | Output currency (default: `USD`) |
+
+### `compare_actual`
+
+Parse `.tfstate` files to compare actual infrastructure costs vs estimates. Identifies drift between planned and deployed resources.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `state_json` | `string` | Yes | Contents of a `terraform.tfstate` file |
+| `provider` | `aws \| azure \| gcp` | No | Target provider for pricing (auto-detected if omitted) |
+| `currency` | `string` | No | Output currency (default: `USD`) |
+
+### `price_trends`
+
+Query historical pricing trends and price change tracking. Shows how pricing has changed over time for specific resource types.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `provider` | `aws \| azure \| gcp` | Yes | Cloud provider |
+| `service` | `string` | Yes | Service category |
+| `resource_type` | `string` | Yes | Instance type, storage type, etc. |
+| `region` | `string` | Yes | Cloud region |
+| `period_days` | `number` | No | Lookback period in days (default: `90`) |
+
+### `detect_anomalies`
+
+Cost anomaly detection with budget checks, price changes, concentration risk, and right-sizing hints. Analyzes parsed resources and flags potential cost issues.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `files` | `{path, content}[]` | Yes | IaC files to analyze |
+| `tfvars` | `string` | No | Variable overrides |
+| `provider` | `aws \| azure \| gcp` | No | Target provider (auto-detected if omitted) |
+| `budget_monthly` | `number` | No | Monthly budget cap in USD |
+| `currency` | `string` | No | Output currency (default: `USD`) |
 
 ---
 
@@ -409,6 +463,11 @@ Configuration priority: environment variables > config file > built-in defaults.
 | **Container Registries** | `aws_ecr_repository` | `azurerm_container_registry` | `google_artifact_registry_repository` |
 | **Secrets Management** | `aws_secretsmanager_secret` | `azurerm_key_vault` | `google_secret_manager_secret` |
 | **DNS** | `aws_route53_zone` | `azurerm_dns_zone` | `google_dns_managed_zone` |
+| **API Gateway** | `aws_api_gateway_rest_api`, `aws_apigatewayv2_api` | `azurerm_api_management` | `google_api_gateway_api` |
+| **WAF** | `aws_wafv2_web_acl` | `azurerm_web_application_firewall_policy` | |
+| **OpenSearch** | `aws_opensearch_domain` | | |
+| **Messaging** | `aws_sns_topic`, `aws_mq_broker` | `azurerm_servicebus_namespace`, `azurerm_eventhub_namespace` | `google_pubsub_topic` |
+| **ML/AI** | `aws_sagemaker_notebook_instance` | | `google_vertex_ai_endpoint` |
 
 Instance type mapping covers 70+ AWS instance types (including Graviton/ARM families: m6g, m7g, c6g, c7g, r6g, r7g, t4g), 40+ Azure VM sizes, and 20+ GCP machine types with full bidirectional cross-provider mapping.
 

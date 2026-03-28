@@ -7,4 +7,6 @@ CLAUDE.md
 *.log
 .DS_Store
 coverage/
+*.lcov
 linkedin-post*
+AGENT_EXECUTION_PLAN*
