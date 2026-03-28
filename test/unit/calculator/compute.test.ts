@@ -104,8 +104,22 @@ describe("calculateComputeCost", () => {
 
     const spotConfig: PricingConfig = { ...DEFAULT_CONFIG.pricing, pricing_model: "spot" };
 
-    const onDemand = await calculateComputeCost(resource, "aws", "us-east-1", pricingEngine, 730, DEFAULT_CONFIG.pricing);
-    const spot = await calculateComputeCost(resource, "aws", "us-east-1", pricingEngine, 730, spotConfig);
+    const onDemand = await calculateComputeCost(
+      resource,
+      "aws",
+      "us-east-1",
+      pricingEngine,
+      730,
+      DEFAULT_CONFIG.pricing,
+    );
+    const spot = await calculateComputeCost(
+      resource,
+      "aws",
+      "us-east-1",
+      pricingEngine,
+      730,
+      spotConfig,
+    );
 
     expect(spot.monthly_cost).toBeLessThan(onDemand.monthly_cost);
     expect(spot.pricing_source).toBe("spot-estimate");

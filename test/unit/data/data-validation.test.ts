@@ -206,9 +206,7 @@ describe("storage-map.json", () => {
   });
 
   it("block_storage contains ssd_general with correct iops_baseline", () => {
-    const ssdGeneral = getStorageMap().block_storage.find(
-      (e) => e.category === "ssd_general"
-    );
+    const ssdGeneral = getStorageMap().block_storage.find((e) => e.category === "ssd_general");
     expect(ssdGeneral).toBeDefined();
     expect(ssdGeneral?.iops_baseline).toBe(3000);
     expect(ssdGeneral?.aws).toBe("gp3");
@@ -245,9 +243,7 @@ describe("aws-instances.json", () => {
   });
 
   it("t3.micro has the expected spec values", () => {
-    const t3micro = getAwsInstances().find(
-      (s) => s.instance_type === "t3.micro"
-    );
+    const t3micro = getAwsInstances().find((s) => s.instance_type === "t3.micro");
     expect(t3micro).toBeDefined();
     expect(t3micro?.vcpus).toBe(2);
     expect(t3micro?.memory_gb).toBe(1);
@@ -288,9 +284,7 @@ describe("azure-vm-sizes.json", () => {
   });
 
   it("Standard_D2s_v5 has the expected spec values", () => {
-    const spec = getAzureVmSizes().find(
-      (s) => s.instance_type === "Standard_D2s_v5"
-    );
+    const spec = getAzureVmSizes().find((s) => s.instance_type === "Standard_D2s_v5");
     expect(spec).toBeDefined();
     expect(spec?.vcpus).toBe(2);
     expect(spec?.memory_gb).toBe(8);
@@ -323,18 +317,14 @@ describe("gcp-machine-types.json", () => {
   });
 
   it("e2-micro has fractional vcpu and correct memory", () => {
-    const spec = getGcpMachineTypes().find(
-      (s) => s.instance_type === "e2-micro"
-    );
+    const spec = getGcpMachineTypes().find((s) => s.instance_type === "e2-micro");
     expect(spec).toBeDefined();
     expect(spec?.vcpus).toBe(0.25);
     expect(spec?.memory_gb).toBe(1);
   });
 
   it("includes database category entries", () => {
-    const dbEntries = getGcpMachineTypes().filter(
-      (s) => s.category === "database"
-    );
+    const dbEntries = getGcpMachineTypes().filter((s) => s.category === "database");
     expect(dbEntries.length).toBeGreaterThan(0);
   });
 });
@@ -417,8 +407,8 @@ describe("GCP cloud-sql.json", () => {
   it("us-central1 contains tier pricing and metadata keys", () => {
     const region = getGcpSqlPricing()["us-central1"];
     expect(region).toBeDefined();
-    expect(region["db-custom-1-3840"]).toBe(0.0500);
-    expect(region["storage_per_gb"]).toBe(0.170);
+    expect(region["db-custom-1-3840"]).toBe(0.05);
+    expect(region["storage_per_gb"]).toBe(0.17);
     expect(region["ha_multiplier"]).toBe(2.0);
   });
 });
@@ -443,9 +433,7 @@ describe("GCP cloud-storage.json", () => {
 
   it("asia-southeast1 STANDARD is more expensive than us-central1", () => {
     const pricing = getGcpStoragePricing();
-    expect(pricing["asia-southeast1"].STANDARD).toBeGreaterThan(
-      pricing["us-central1"].STANDARD
-    );
+    expect(pricing["asia-southeast1"].STANDARD).toBeGreaterThan(pricing["us-central1"].STANDARD);
   });
 });
 

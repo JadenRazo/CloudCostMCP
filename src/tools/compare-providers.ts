@@ -21,7 +21,7 @@ export const compareProvidersSchema = z.object({
     z.object({
       path: z.string().describe("File path"),
       content: z.string().describe("File content (HCL)"),
-    })
+    }),
   ),
   tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
   format: z
@@ -51,7 +51,7 @@ export const compareProvidersSchema = z.object({
 export async function compareProviders(
   params: z.infer<typeof compareProvidersSchema>,
   pricingEngine: PricingEngine,
-  config: CloudCostConfig
+  config: CloudCostConfig,
 ): Promise<object> {
   const inventory = await parseTerraform(params.files, params.tfvars);
   const sourceProvider = inventory.provider;
@@ -65,7 +65,7 @@ export async function compareProviders(
     providerList.map((provider) => {
       const targetRegion = mapRegion(inventory.region, sourceProvider, provider);
       return costEngine.calculateBreakdown(inventory.resources, provider, targetRegion);
-    })
+    }),
   );
   comparisons.push(...breakdowns);
 
@@ -73,21 +73,22 @@ export async function compareProviders(
   // first breakdown when the source provider was not requested).
   // Savings percentages are computed on the original USD figures before any
   // currency conversion so the ratios remain accurate.
-  const sourceBreakdown =
-    comparisons.find((b) => b.provider === sourceProvider) ?? comparisons[0];
+  const sourceBreakdown = comparisons.find((b) => b.provider === sourceProvider) ?? comparisons[0];
   const sourceMonthly = sourceBreakdown?.total_monthly ?? 0;
 
   const currency = params.currency ?? "USD";
 
-  const convertedComparisons = currency !== "USD"
-    ? comparisons.map((b) => convertBreakdownCurrency(b, currency))
-    : comparisons;
+  const convertedComparisons =
+    currency !== "USD"
+      ? comparisons.map((b) => convertBreakdownCurrency(b, currency))
+      : comparisons;
 
   const savingsSummary: SavingsSummary[] = convertedComparisons.map((b) => {
     // Use original USD monthly figures for percentage calculation when converted.
-    const bMonthlyUsd = currency !== "USD"
-      ? (b as ReturnType<typeof convertBreakdownCurrency>).original_usd.total_monthly
-      : b.total_monthly;
+    const bMonthlyUsd =
+      currency !== "USD"
+        ? (b as ReturnType<typeof convertBreakdownCurrency>).original_usd.total_monthly
+        : b.total_monthly;
     const diff = b.total_monthly - convertCurrency(sourceMonthly, currency);
     const pct = sourceMonthly !== 0 ? ((bMonthlyUsd - sourceMonthly) / sourceMonthly) * 100 : 0;
     return {
@@ -124,12 +125,7 @@ export async function compareProviders(
       break;
     case "markdown":
     default:
-      report = generateMarkdownReport(
-        comparison,
-        inventory.resources,
-        {},
-        parseWarnings
-      );
+      report = generateMarkdownReport(comparison, inventory.resources, {}, parseWarnings);
       break;
   }
 

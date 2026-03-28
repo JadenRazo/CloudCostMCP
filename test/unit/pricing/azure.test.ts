@@ -74,7 +74,7 @@ describe("AzureRetailClient", () => {
     const f4 = await client.getComputePrice("Standard_F4s_v2", "eastus");
 
     expect(d4!.price_per_unit).toBeCloseTo(0.192, 4);
-    expect(f4!.price_per_unit).toBeCloseTo(0.170, 4);
+    expect(f4!.price_per_unit).toBeCloseTo(0.17, 4);
   });
 
   it("returns null for an unknown VM size", async () => {
@@ -98,11 +98,7 @@ describe("AzureRetailClient", () => {
   // -------------------------------------------------------------------------
 
   it("returns fallback price for GP_Standard_D2s_v3 PostgreSQL", async () => {
-    const result = await client.getDatabasePrice(
-      "GP_Standard_D2s_v3",
-      "eastus",
-      "PostgreSQL"
-    );
+    const result = await client.getDatabasePrice("GP_Standard_D2s_v3", "eastus", "PostgreSQL");
 
     expect(result).not.toBeNull();
     expect(result!.provider).toBe("azure");
@@ -112,14 +108,8 @@ describe("AzureRetailClient", () => {
   });
 
   it("applies regional multiplier to database pricing", async () => {
-    const usResult = await client.getDatabasePrice(
-      "GP_Standard_D4s_v3",
-      "eastus"
-    );
-    const euResult = await client.getDatabasePrice(
-      "GP_Standard_D4s_v3",
-      "northeurope"
-    );
+    const usResult = await client.getDatabasePrice("GP_Standard_D4s_v3", "eastus");
+    const euResult = await client.getDatabasePrice("GP_Standard_D4s_v3", "northeurope");
 
     expect(usResult).not.toBeNull();
     expect(euResult).not.toBeNull();
@@ -197,7 +187,7 @@ describe("AzureRetailClient", () => {
     expect(result).not.toBeNull();
     expect(result!.provider).toBe("azure");
     expect(result!.service).toBe("aks");
-    expect(result!.price_per_unit).toBeCloseTo(0.10, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.1, 4);
   });
 
   // -------------------------------------------------------------------------

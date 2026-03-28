@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { calculateReservedPricing } from "../../../src/calculator/reserved.js";
-import type { ReservedComparison } from "../../../src/calculator/reserved.js";
 
 describe("calculateReservedPricing", () => {
   it("returns all AWS reserved options", () => {
@@ -40,7 +39,7 @@ describe("calculateReservedPricing", () => {
 
     // AWS 1yr no_upfront = 36% discount
     const oneYrNoUpfront = result.options.find(
-      (o) => o.term === "1yr" && o.payment === "no_upfront"
+      (o) => o.term === "1yr" && o.payment === "no_upfront",
     );
     expect(oneYrNoUpfront).toBeDefined();
     expect(oneYrNoUpfront!.percentage_savings).toBeCloseTo(36, 0);
@@ -48,7 +47,7 @@ describe("calculateReservedPricing", () => {
 
     // AWS 3yr all_upfront = 60% discount
     const threeYrAllUpfront = result.options.find(
-      (o) => o.term === "3yr" && o.payment === "all_upfront"
+      (o) => o.term === "3yr" && o.payment === "all_upfront",
     );
     expect(threeYrAllUpfront).toBeDefined();
     expect(threeYrAllUpfront!.percentage_savings).toBeCloseTo(60, 0);
@@ -79,7 +78,7 @@ describe("calculateReservedPricing", () => {
     // Best option savings should scale 10x
     expect(large.best_option.monthly_savings).toBeCloseTo(
       small.best_option.monthly_savings * 10,
-      0
+      0,
     );
   });
 });

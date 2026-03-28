@@ -22,9 +22,7 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
   const env = process.env;
 
   if (env.CLOUDCOST_CACHE_TTL || env.CLOUDCOST_CACHE_PATH) {
-    const parsedTtl = env.CLOUDCOST_CACHE_TTL
-      ? parseInt(env.CLOUDCOST_CACHE_TTL, 10)
-      : NaN;
+    const parsedTtl = env.CLOUDCOST_CACHE_TTL ? parseInt(env.CLOUDCOST_CACHE_TTL, 10) : NaN;
     config.cache = {
       ttl_seconds: !isNaN(parsedTtl) ? parsedTtl : DEFAULT_CONFIG.cache.ttl_seconds,
       db_path: env.CLOUDCOST_CACHE_PATH ?? "",
@@ -37,7 +35,11 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
     };
   }
 
-  if (env.CLOUDCOST_MONTHLY_HOURS || env.CLOUDCOST_INCLUDE_DATA_TRANSFER !== undefined || env.CLOUDCOST_PRICING_MODEL) {
+  if (
+    env.CLOUDCOST_MONTHLY_HOURS ||
+    env.CLOUDCOST_INCLUDE_DATA_TRANSFER !== undefined ||
+    env.CLOUDCOST_PRICING_MODEL
+  ) {
     const parsedHours = env.CLOUDCOST_MONTHLY_HOURS
       ? parseInt(env.CLOUDCOST_MONTHLY_HOURS, 10)
       : NaN;
@@ -48,9 +50,10 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
         : DEFAULT_CONFIG.pricing.include_data_transfer;
     const validModels = ["on-demand", "spot", "reserved-1yr", "reserved-3yr"] as const;
     const envModel = env.CLOUDCOST_PRICING_MODEL as string | undefined;
-    const pricingModel = envModel && (validModels as readonly string[]).includes(envModel)
-      ? (envModel as typeof validModels[number])
-      : DEFAULT_CONFIG.pricing.pricing_model;
+    const pricingModel =
+      envModel && (validModels as readonly string[]).includes(envModel)
+        ? (envModel as (typeof validModels)[number])
+        : DEFAULT_CONFIG.pricing.pricing_model;
     config.pricing = {
       ...DEFAULT_CONFIG.pricing,
       ...config.pricing,
@@ -62,7 +65,8 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
 
   if (env.CLOUDCOST_RESOLVE_MODULES !== undefined) {
     config.parser = {
-      resolve_modules: env.CLOUDCOST_RESOLVE_MODULES !== "false" && env.CLOUDCOST_RESOLVE_MODULES !== "0",
+      resolve_modules:
+        env.CLOUDCOST_RESOLVE_MODULES !== "false" && env.CLOUDCOST_RESOLVE_MODULES !== "0",
     };
   }
 

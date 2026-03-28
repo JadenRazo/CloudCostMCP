@@ -26,14 +26,16 @@ function csvEscape(value: string | number): string {
 export function generateCsvReport(
   comparison: ProviderComparison,
   resources: ParsedResource[],
-  options: Partial<ReportOptions> = {}
+  options: Partial<ReportOptions> = {},
 ): string {
   const lines: string[] = [];
 
   const tagKey = options.group_by === "tag" ? options.group_by_tag_key : undefined;
 
   // Comment header: not part of the CSV data but provides context to readers.
-  lines.push("# Prices are estimates based on on-demand pricing. See assumptions in JSON/Markdown reports.");
+  lines.push(
+    "# Prices are estimates based on on-demand pricing. See assumptions in JSON/Markdown reports.",
+  );
 
   // Column header row — append tag_group column when tag grouping is active.
   const headerRow = tagKey

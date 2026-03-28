@@ -7,16 +7,16 @@ import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 // ---------------------------------------------------------------------------
 
 // AWS Route 53: $0.50/hosted zone/month + $0.40 per million queries
-const AWS_ROUTE53_PER_ZONE = 0.50;
-const AWS_ROUTE53_PER_MILLION_QUERIES = 0.40;
+const AWS_ROUTE53_PER_ZONE = 0.5;
+const AWS_ROUTE53_PER_MILLION_QUERIES = 0.4;
 
 // Azure DNS: $0.50/zone/month + $0.40 per million queries
-const AZURE_DNS_PER_ZONE = 0.50;
-const AZURE_DNS_PER_MILLION_QUERIES = 0.40;
+const AZURE_DNS_PER_ZONE = 0.5;
+const AZURE_DNS_PER_MILLION_QUERIES = 0.4;
 
 // GCP Cloud DNS: $0.20/zone/month + $0.40 per million queries
-const GCP_CLOUD_DNS_PER_ZONE = 0.20;
-const GCP_CLOUD_DNS_PER_MILLION_QUERIES = 0.40;
+const GCP_CLOUD_DNS_PER_ZONE = 0.2;
+const GCP_CLOUD_DNS_PER_MILLION_QUERIES = 0.4;
 
 // Default query volume when not specified in resource attributes
 const DEFAULT_QUERIES_PER_MONTH = 1_000_000;
@@ -32,20 +32,19 @@ const DEFAULT_QUERIES_PER_MONTH = 1_000_000;
 export function calculateDnsCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
   const queriesPerMonth =
-    (resource.attributes.queries_per_month as number | undefined) ??
-    DEFAULT_QUERIES_PER_MONTH;
+    (resource.attributes.queries_per_month as number | undefined) ?? DEFAULT_QUERIES_PER_MONTH;
 
   const hasExplicitQueries = resource.attributes.queries_per_month !== undefined;
 
   if (!hasExplicitQueries) {
     notes.push(
-      `No queries_per_month specified; assuming ${DEFAULT_QUERIES_PER_MONTH.toLocaleString()} queries/month`
+      `No queries_per_month specified; assuming ${DEFAULT_QUERIES_PER_MONTH.toLocaleString()} queries/month`,
     );
   }
 

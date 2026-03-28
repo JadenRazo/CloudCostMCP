@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { parseTerraform, parseHclToJson } from "../parsers/index.js";
-import {
-  buildDependencyGraph,
-  generateMermaidDiagram,
-} from "../parsers/dependency-graph.js";
+import { buildDependencyGraph, generateMermaidDiagram } from "../parsers/dependency-graph.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -15,19 +12,16 @@ export const analyzeTerraformSchema = z.object({
       z.object({
         path: z.string().describe("File path"),
         content: z.string().describe("File content (HCL)"),
-      })
+      }),
     )
     .describe("Terraform files to analyze"),
-  tfvars: z
-    .string()
-    .optional()
-    .describe("Contents of terraform.tfvars file"),
+  tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
   include_dependencies: z
     .boolean()
     .optional()
     .default(false)
     .describe(
-      "When true, parse resource references and depends_on blocks to build a dependency graph and Mermaid diagram"
+      "When true, parse resource references and depends_on blocks to build a dependency graph and Mermaid diagram",
     ),
 });
 
@@ -44,7 +38,7 @@ export const analyzeTerraformSchema = z.object({
  * module blocks not expanded, count/for_each unresolved).
  */
 export async function analyzeTerraform(
-  params: z.infer<typeof analyzeTerraformSchema>
+  params: z.infer<typeof analyzeTerraformSchema>,
 ): Promise<object> {
   const inventory = await parseTerraform(params.files, params.tfvars);
 
@@ -60,7 +54,11 @@ export async function analyzeTerraform(
 
   const trimmedResources = resources.map((r) => {
     const trimmed: Record<string, unknown> = { ...r };
-    if (trimmed.tags && typeof trimmed.tags === "object" && Object.keys(trimmed.tags as object).length === 0) {
+    if (
+      trimmed.tags &&
+      typeof trimmed.tags === "object" &&
+      Object.keys(trimmed.tags as object).length === 0
+    ) {
       delete trimmed.tags;
     }
     if (sharedSourceFile) {
@@ -94,7 +92,7 @@ export async function analyzeTerraform(
           }
           Object.assign(
             mergedHcl["resource"] as Record<string, unknown>,
-            resourceBlock as Record<string, unknown>
+            resourceBlock as Record<string, unknown>,
           );
         }
       } catch {

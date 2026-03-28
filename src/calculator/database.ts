@@ -28,7 +28,7 @@ export async function calculateDatabaseCost(
   targetProvider: CloudProvider,
   targetRegion: string,
   pricingEngine: PricingEngine,
-  monthlyHours: number = 730
+  monthlyHours: number = 730,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -46,8 +46,7 @@ export async function calculateDatabaseCost(
     (resource.attributes.allocated_storage as number | undefined) ??
     (resource.attributes.storage_size_gb as number | undefined) ??
     0;
-  const engine =
-    (resource.attributes.engine as string | undefined) ?? "MySQL";
+  const engine = (resource.attributes.engine as string | undefined) ?? "MySQL";
 
   // Map instance class to target provider equivalent.
   // Strip the "db." prefix for AWS classes before feeding into the generic
@@ -90,7 +89,7 @@ export async function calculateDatabaseCost(
 
   if (!mappedInstance) {
     notes.push(
-      `No DB instance mapping found for ${sourceInstanceClass} (${resource.provider} -> ${targetProvider}); using source class`
+      `No DB instance mapping found for ${sourceInstanceClass} (${resource.provider} -> ${targetProvider}); using source class`,
     );
   }
 
@@ -108,7 +107,9 @@ export async function calculateDatabaseCost(
       pricingSource = "bundled";
     } else if (rawSource === "fallback") {
       pricingSource = "fallback";
-      notes.push(`Pricing for ${effectiveInstance} uses bundled fallback data (live API unavailable)`);
+      notes.push(
+        `Pricing for ${effectiveInstance} uses bundled fallback data (live API unavailable)`,
+      );
     } else {
       pricingSource = "live";
     }
@@ -119,9 +120,7 @@ export async function calculateDatabaseCost(
     let haMultiplier = 1;
     if (isMultiAz) {
       if (targetProvider === "gcp") {
-        const gcpMult = parseFloat(
-          dbPrice.attributes?.ha_multiplier ?? "2"
-        );
+        const gcpMult = parseFloat(dbPrice.attributes?.ha_multiplier ?? "2");
         haMultiplier = isNaN(gcpMult) ? 2 : gcpMult;
       } else {
         haMultiplier = 2;
@@ -150,8 +149,7 @@ export async function calculateDatabaseCost(
   let storageMonthlyCost = 0;
   if (allocatedStorageGb > 0) {
     // Use gp3 as the default EBS-style storage type for DB storage pricing.
-    const storageType =
-      (resource.attributes.storage_type as string | undefined) ?? "gp3";
+    const storageType = (resource.attributes.storage_type as string | undefined) ?? "gp3";
 
     const storagePrice = await pricingEngine
       .getProvider(targetProvider)

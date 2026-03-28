@@ -185,7 +185,7 @@ describe("calculateCloudRunCost", () => {
     // 1000m CPU cost = 1.0 * 1_000_000 * 0.2 * 0.00002400 = $4.80
     expect(milliEst.monthly_cost).toBeLessThan(fullEst.monthly_cost);
     // Specifically, the difference should equal the 0.5 vCPU cost
-    const vcpuCostPerUnit = 1_000_000 * 0.2 * 0.00002400; // 1 vCPU
+    const vcpuCostPerUnit = 1_000_000 * 0.2 * 0.000024; // 1 vCPU
     expect(fullEst.monthly_cost - milliEst.monthly_cost).toBeCloseTo(vcpuCostPerUnit * 0.5, 1);
   });
 });
@@ -205,7 +205,7 @@ describe("calculateBigQueryCost", () => {
     const estimate = calculateBigQueryCost(resource, "gcp", "us-central1");
 
     // 1TB * $5 + 10GB * $0.02 = $5.20
-    expect(estimate.monthly_cost).toBeCloseTo(5.20, 2);
+    expect(estimate.monthly_cost).toBeCloseTo(5.2, 2);
     expect(estimate.breakdown).toHaveLength(2);
   });
 
@@ -247,7 +247,7 @@ describe("calculateGcpFunctionCost", () => {
     // Invocation cost: 1 * $0.40 = $0.40
     // GB-seconds: 1_000_000 * 0.2 * (256/1024) = 50,000
     // Compute: 50,000 * $0.0000025 = $0.125
-    expect(estimate.monthly_cost).toBeCloseTo(0.40 + 0.125, 2);
+    expect(estimate.monthly_cost).toBeCloseTo(0.4 + 0.125, 2);
   });
 
   it("includes runtime note when runtime is set", () => {

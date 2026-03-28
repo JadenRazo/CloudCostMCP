@@ -32,10 +32,10 @@ describe("calculateProjection", () => {
     const monthly = 200;
     const result = calculateProjection(monthly, null);
 
-    expect(result.projections[0].on_demand_total).toBe(600);   // 3 months
-    expect(result.projections[1].on_demand_total).toBe(1200);  // 6 months
-    expect(result.projections[2].on_demand_total).toBe(2400);  // 12 months
-    expect(result.projections[3].on_demand_total).toBe(7200);  // 36 months
+    expect(result.projections[0].on_demand_total).toBe(600); // 3 months
+    expect(result.projections[1].on_demand_total).toBe(1200); // 6 months
+    expect(result.projections[2].on_demand_total).toBe(2400); // 12 months
+    expect(result.projections[3].on_demand_total).toBe(7200); // 36 months
   });
 
   // ---------------------------------------------------------------------------
@@ -69,11 +69,11 @@ describe("calculateProjection", () => {
 
     const threeMonth = result.projections.find((p) => p.months === 3)!;
     expect(threeMonth.reserved_total).toBe(350); // 200 + 50 * 3
-    expect(threeMonth.savings).toBe(-50);         // 300 - 350 = -50 (on-demand cheaper at 3 months)
+    expect(threeMonth.savings).toBe(-50); // 300 - 350 = -50 (on-demand cheaper at 3 months)
 
     const twelveMonth = result.projections.find((p) => p.months === 12)!;
     expect(twelveMonth.reserved_total).toBe(800); // 200 + 50 * 12
-    expect(twelveMonth.savings).toBe(400);         // 1200 - 800
+    expect(twelveMonth.savings).toBe(400); // 1200 - 800
   });
 
   // ---------------------------------------------------------------------------
@@ -185,9 +185,13 @@ describe("calculateProjection", () => {
     // on-demand $100/month, reserved $60/month, $800 upfront
     // break-even: 40m > 800 → m > 20 → month 21
     // If we pass horizons [3, 6, 12] the max is 12, so break-even should not be found
-    const result = calculateProjection(100, {
-      best_reserved: { monthly_cost: 60, term: "1yr", upfront: 800 },
-    }, [3, 6, 12]);
+    const result = calculateProjection(
+      100,
+      {
+        best_reserved: { monthly_cost: 60, term: "1yr", upfront: 800 },
+      },
+      [3, 6, 12],
+    );
 
     // Month 21 is beyond max horizon of 12, so break-even should be null
     expect(result.break_even_month).toBeNull();

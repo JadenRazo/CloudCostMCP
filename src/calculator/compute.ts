@@ -16,22 +16,22 @@ import { logger } from "../logger.js";
 
 const SPOT_DISCOUNT_FACTORS: Record<CloudProvider, Record<string, number>> = {
   aws: {
-    general:  0.35,
-    compute:  0.30,
-    memory:   0.35,
-    gpu:      0.40,
+    general: 0.35,
+    compute: 0.3,
+    memory: 0.35,
+    gpu: 0.4,
   },
   azure: {
-    general:  0.35,
-    compute:  0.30,
-    memory:   0.35,
-    gpu:      0.40,
+    general: 0.35,
+    compute: 0.3,
+    memory: 0.35,
+    gpu: 0.4,
   },
   gcp: {
-    general:  0.30,
-    compute:  0.25,
-    memory:   0.30,
-    gpu:      0.35,
+    general: 0.3,
+    compute: 0.25,
+    memory: 0.3,
+    gpu: 0.35,
   },
 };
 
@@ -89,7 +89,7 @@ export async function calculateComputeCost(
   targetRegion: string,
   pricingEngine: PricingEngine,
   monthlyHours: number = 730,
-  pricingConfig: PricingConfig = DEFAULT_CONFIG.pricing
+  pricingConfig: PricingConfig = DEFAULT_CONFIG.pricing,
 ): Promise<CostEstimate> {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -111,7 +111,7 @@ export async function calculateComputeCost(
 
   if (!mappedInstance) {
     notes.push(
-      `No instance mapping found for ${sourceInstanceType} (${resource.provider} -> ${targetProvider})`
+      `No instance mapping found for ${sourceInstanceType} (${resource.provider} -> ${targetProvider})`,
     );
   } else {
     // Check whether the mapping came from the direct table or was approximate.
@@ -129,7 +129,7 @@ export async function calculateComputeCost(
     if (!isExact) {
       specBasedMapping = true;
       notes.push(
-        `Instance mapping for ${sourceInstanceType} -> ${mappedInstance} is an approximate spec-based match`
+        `Instance mapping for ${sourceInstanceType} -> ${mappedInstance} is an approximate spec-based match`,
       );
     }
   }
@@ -140,7 +140,11 @@ export async function calculateComputeCost(
   const computePrice = effectiveInstance
     ? await pricingEngine
         .getProvider(targetProvider)
-        .getComputePrice(effectiveInstance, targetRegion, resource.attributes.os as string | undefined)
+        .getComputePrice(
+          effectiveInstance,
+          targetRegion,
+          resource.attributes.os as string | undefined,
+        )
     : null;
 
   let computeMonthlyCost = 0;
@@ -152,7 +156,9 @@ export async function calculateComputeCost(
       pricingSource = "bundled";
     } else if (rawSource === "fallback") {
       pricingSource = "fallback";
-      notes.push(`Pricing for ${effectiveInstance} uses bundled fallback data (live API unavailable)`);
+      notes.push(
+        `Pricing for ${effectiveInstance} uses bundled fallback data (live API unavailable)`,
+      );
     } else {
       pricingSource = "live";
     }
@@ -172,9 +178,7 @@ export async function calculateComputeCost(
 
       hourlyPrice = hourlyPrice * factor;
       pricingSource = "spot-estimate";
-      notes.push(
-        `Spot pricing applied (${savingsPct}% discount from on-demand)`
-      );
+      notes.push(`Spot pricing applied (${savingsPct}% discount from on-demand)`);
     }
 
     computeMonthlyCost = hourlyPrice * monthlyHours;
@@ -205,11 +209,8 @@ export async function calculateComputeCost(
     (resource.attributes.storage_size_gb as number | undefined);
 
   if (storageType && storageSizeGb && storageSizeGb > 0) {
-    const mappedStorageType = mapStorageType(
-      storageType,
-      resource.provider,
-      targetProvider
-    ) ?? storageType;
+    const mappedStorageType =
+      mapStorageType(storageType, resource.provider, targetProvider) ?? storageType;
 
     const storagePrice = await pricingEngine
       .getProvider(targetProvider)

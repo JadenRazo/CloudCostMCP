@@ -31,7 +31,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "aws", "us-east-1");
 
     // $0.50 zone + $0.40 * (1_000_000/1_000_000) = $0.90
-    expect(estimate.monthly_cost).toBeCloseTo(0.50 + 0.40, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.5 + 0.4, 5);
     expect(estimate.provider).toBe("aws");
     expect(estimate.currency).toBe("USD");
     expect(estimate.pricing_source).toBe("bundled");
@@ -49,7 +49,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "aws", "us-east-1");
 
     // $0.50 + $0.40 * 5 = $2.50
-    expect(estimate.monthly_cost).toBeCloseTo(0.50 + 0.40 * 5, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.5 + 0.4 * 5, 5);
     expect(estimate.confidence).toBe("high");
     expect(estimate.notes.some((n) => n.includes("queries_per_month"))).toBe(false);
   });
@@ -80,7 +80,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "aws", "us-east-1");
 
     expect(estimate.breakdown[0].quantity).toBe(1);
-    expect(estimate.breakdown[0].unit_price).toBeCloseTo(0.50, 5);
+    expect(estimate.breakdown[0].unit_price).toBeCloseTo(0.5, 5);
   });
 
   // -------------------------------------------------------------------------
@@ -97,7 +97,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "azure", "eastus");
 
     // $0.50 zone + $0.40 * 1 = $0.90
-    expect(estimate.monthly_cost).toBeCloseTo(0.50 + 0.40, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.5 + 0.4, 5);
     expect(estimate.provider).toBe("azure");
     expect(estimate.pricing_source).toBe("bundled");
   });
@@ -112,7 +112,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "azure", "eastus");
 
     // $0.50 + $0.40 * 2 = $1.30
-    expect(estimate.monthly_cost).toBeCloseTo(0.50 + 0.40 * 2, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.5 + 0.4 * 2, 5);
     expect(estimate.confidence).toBe("high");
   });
 
@@ -148,7 +148,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "gcp", "us-central1");
 
     // $0.20 zone + $0.40 * 1 = $0.60
-    expect(estimate.monthly_cost).toBeCloseTo(0.20 + 0.40, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.2 + 0.4, 5);
     expect(estimate.provider).toBe("gcp");
     expect(estimate.pricing_source).toBe("bundled");
     expect(estimate.confidence).toBe("medium");
@@ -164,7 +164,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "gcp", "us-central1");
 
     // $0.20 + $0.40 * 10 = $4.20
-    expect(estimate.monthly_cost).toBeCloseTo(0.20 + 0.40 * 10, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.2 + 0.4 * 10, 5);
     expect(estimate.confidence).toBe("high");
   });
 
@@ -230,7 +230,7 @@ describe("calculateDnsCost", () => {
     const estimate = calculateDnsCost(resource, "gcp", "us-central1");
 
     // GCP pricing: $0.20 zone + $0.40 * 1 = $0.60
-    expect(estimate.monthly_cost).toBeCloseTo(0.20 + 0.40, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.2 + 0.4, 5);
     expect(estimate.provider).toBe("gcp");
   });
 });

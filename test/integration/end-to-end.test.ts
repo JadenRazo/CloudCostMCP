@@ -97,7 +97,7 @@ describe("End-to-end tool functions", () => {
 
     it("includes parse warnings array in the result", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
-      const result = await analyzeTerraform({ files }) as { parse_warnings: string[] };
+      const result = (await analyzeTerraform({ files })) as { parse_warnings: string[] };
       expect(Array.isArray(result.parse_warnings)).toBe(true);
     });
 
@@ -108,13 +108,13 @@ describe("End-to-end tool functions", () => {
       ];
       const tfvars = fixtureFile("full-stack", "terraform.tfvars").content;
 
-      const result = await analyzeTerraform({ files, tfvars }) as {
+      const result = (await analyzeTerraform({ files, tfvars })) as {
         resources: Array<{ attributes: { instance_type?: string } }>;
       };
 
       // terraform.tfvars sets instance_type = "t3.xlarge"
       const appInstance = result.resources.find(
-        (r) => (r.attributes.instance_type as string | undefined) === "t3.xlarge"
+        (r) => (r.attributes.instance_type as string | undefined) === "t3.xlarge",
       );
       expect(appInstance).toBeDefined();
     });
@@ -131,11 +131,7 @@ describe("End-to-end tool functions", () => {
       ];
       const tfvars = fixtureFile("full-stack", "terraform.tfvars").content;
 
-      const result = await estimateCost(
-        { files, tfvars, provider: "aws" },
-        pricingEngine,
-        config
-      );
+      const result = await estimateCost({ files, tfvars, provider: "aws" }, pricingEngine, config);
 
       const breakdown = result as {
         provider: string;
@@ -163,22 +159,20 @@ describe("End-to-end tool functions", () => {
     it("respects an explicit region override", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
 
-      const result = await estimateCost(
+      const result = (await estimateCost(
         { files, provider: "aws", region: "eu-west-1" },
         pricingEngine,
-        config
-      ) as { region: string };
+        config,
+      )) as { region: string };
 
       expect(result.region).toBe("eu-west-1");
     });
 
     it("accepts azure as a target provider", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
-      const result = await estimateCost(
-        { files, provider: "azure" },
-        pricingEngine,
-        config
-      ) as { provider: string };
+      const result = (await estimateCost({ files, provider: "azure" }, pricingEngine, config)) as {
+        provider: string;
+      };
       expect(result.provider).toBe("azure");
     });
   });
@@ -193,11 +187,11 @@ describe("End-to-end tool functions", () => {
         fixtureFile("simple-ec2", "variables.tf"),
       ];
 
-      const result = await compareProviders(
+      const result = (await compareProviders(
         { files, format: "markdown", providers: ["aws", "azure", "gcp"] },
         pricingEngine,
-        config
-      ) as { report: string; format: string; comparison: { providers: unknown[] } };
+        config,
+      )) as { report: string; format: string; comparison: { providers: unknown[] } };
 
       expect(result.format).toBe("markdown");
       // Markdown report should contain a table header
@@ -209,11 +203,11 @@ describe("End-to-end tool functions", () => {
 
     it("generates a json report", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
-      const result = await compareProviders(
+      const result = (await compareProviders(
         { files, format: "json", providers: ["aws", "azure", "gcp"] },
         pricingEngine,
-        config
-      ) as { report: string; format: string };
+        config,
+      )) as { report: string; format: string };
 
       expect(result.format).toBe("json");
       // Should be valid JSON
@@ -224,23 +218,25 @@ describe("End-to-end tool functions", () => {
 
     it("generates a csv report", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
-      const result = await compareProviders(
+      const result = (await compareProviders(
         { files, format: "csv", providers: ["aws", "azure", "gcp"] },
         pricingEngine,
-        config
-      ) as { report: string; format: string };
+        config,
+      )) as { report: string; format: string };
 
       expect(result.format).toBe("csv");
-      expect(result.report).toContain("Resource,Type,AWS Monthly,Azure Monthly,GCP Monthly,Cheapest");
+      expect(result.report).toContain(
+        "Resource,Type,AWS Monthly,Azure Monthly,GCP Monthly,Cheapest",
+      );
     });
 
     it("limits comparison to a subset of providers", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
-      const result = await compareProviders(
+      const result = (await compareProviders(
         { files, format: "markdown", providers: ["aws", "gcp"] },
         pricingEngine,
-        config
-      ) as { comparison: { providers: Array<{ provider: string }> } };
+        config,
+      )) as { comparison: { providers: Array<{ provider: string }> } };
 
       expect(result.comparison.providers).toHaveLength(2);
       const providers = result.comparison.providers.map((c) => c.provider);
@@ -255,10 +251,10 @@ describe("End-to-end tool functions", () => {
   // -----------------------------------------------------------------------
   describe("getEquivalents", () => {
     it("returns cross-provider mappings for aws_instance", async () => {
-      const result = await getEquivalents({
+      const result = (await getEquivalents({
         resource_type: "aws_instance",
         source_provider: "aws",
-      }) as {
+      })) as {
         resource_equivalents: Record<string, string | null>;
       };
 
@@ -268,11 +264,11 @@ describe("End-to-end tool functions", () => {
     });
 
     it("returns only the requested target provider when specified", async () => {
-      const result = await getEquivalents({
+      const result = (await getEquivalents({
         resource_type: "aws_instance",
         source_provider: "aws",
         target_provider: "gcp",
-      }) as { resource_equivalents: Record<string, unknown> };
+      })) as { resource_equivalents: Record<string, unknown> };
 
       const keys = Object.keys(result.resource_equivalents);
       expect(keys).toHaveLength(1);
@@ -280,11 +276,11 @@ describe("End-to-end tool functions", () => {
     });
 
     it("includes instance equivalents when instance_type is provided", async () => {
-      const result = await getEquivalents({
+      const result = (await getEquivalents({
         resource_type: "aws_instance",
         source_provider: "aws",
         instance_type: "t3.large",
-      }) as {
+      })) as {
         instance_type: string;
         instance_equivalents: Record<string, string | null>;
       };
@@ -301,16 +297,22 @@ describe("End-to-end tool functions", () => {
   // -----------------------------------------------------------------------
   describe("getPricing", () => {
     it("returns a pricing result structure for t3.large on AWS", async () => {
-      const result = await getPricing(
+      const result = (await getPricing(
         {
           provider: "aws",
           service: "compute",
           resource_type: "t3.large",
           region: "us-east-1",
         },
-        pricingEngine
-      ) as {
-        price: { price_per_unit: number; provider: string; service: string; resource_type: string; region: string } | null;
+        pricingEngine,
+      )) as {
+        price: {
+          price_per_unit: number;
+          provider: string;
+          service: string;
+          resource_type: string;
+          region: string;
+        } | null;
       };
 
       // price may be null when live API is unavailable but the field must exist
@@ -327,29 +329,29 @@ describe("End-to-end tool functions", () => {
     });
 
     it("returns a result for storage pricing", async () => {
-      const result = await getPricing(
+      const result = (await getPricing(
         {
           provider: "aws",
           service: "storage",
           resource_type: "gp3",
           region: "us-east-1",
         },
-        pricingEngine
-      ) as { price: unknown };
+        pricingEngine,
+      )) as { price: unknown };
 
       expect("price" in result).toBe(true);
     });
 
     it("handles kubernetes service type", async () => {
-      const result = await getPricing(
+      const result = (await getPricing(
         {
           provider: "aws",
           service: "kubernetes",
           resource_type: "eks",
           region: "us-east-1",
         },
-        pricingEngine
-      ) as { price: { service: string } | null };
+        pricingEngine,
+      )) as { price: { service: string } | null };
 
       expect("price" in result).toBe(true);
     });
@@ -366,11 +368,11 @@ describe("End-to-end tool functions", () => {
       ];
       const tfvars = fixtureFile("full-stack", "terraform.tfvars").content;
 
-      const result = await optimizeCost(
+      const result = (await optimizeCost(
         { files, tfvars, providers: ["aws", "azure", "gcp"] },
         pricingEngine,
-        config
-      ) as {
+        config,
+      )) as {
         recommendations: Array<{ type: string; monthly_savings: number }>;
         reserved_pricing: unknown[];
         total_potential_savings: number;
@@ -383,11 +385,9 @@ describe("End-to-end tool functions", () => {
 
     it("returns non-negative total_potential_savings", async () => {
       const files = [fixtureFile("simple-ec2", "main.tf")];
-      const result = await optimizeCost(
-        { files, providers: ["aws"] },
-        pricingEngine,
-        config
-      ) as { total_potential_savings: number };
+      const result = (await optimizeCost({ files, providers: ["aws"] }, pricingEngine, config)) as {
+        total_potential_savings: number;
+      };
 
       expect(result.total_potential_savings).toBeGreaterThanOrEqual(0);
     });
@@ -398,11 +398,9 @@ describe("End-to-end tool functions", () => {
         fixtureFile("full-stack", "variables.tf"),
       ];
 
-      const result = await optimizeCost(
-        { files, providers: ["aws"] },
-        pricingEngine,
-        config
-      ) as { recommendations: Array<Record<string, unknown>> };
+      const result = (await optimizeCost({ files, providers: ["aws"] }, pricingEngine, config)) as {
+        recommendations: Array<Record<string, unknown>>;
+      };
 
       for (const rec of result.recommendations) {
         expect(typeof rec.resource_id).toBe("string");

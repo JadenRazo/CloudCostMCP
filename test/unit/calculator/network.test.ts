@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
-import { calculateNatGatewayCost, calculateLoadBalancerCost } from "../../../src/calculator/network.js";
+import {
+  calculateNatGatewayCost,
+  calculateLoadBalancerCost,
+} from "../../../src/calculator/network.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
 import type { ParsedResource } from "../../../src/types/resources.js";
 

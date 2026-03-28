@@ -31,7 +31,7 @@ describe("calculateSecretsCost", () => {
     const estimate = calculateSecretsCost(resource, "aws", "us-east-1");
 
     // $0.40 * 1 secret + $0.05 * (10000/10000) = $0.45
-    expect(estimate.monthly_cost).toBeCloseTo(0.40 + 0.05, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.4 + 0.05, 5);
     expect(estimate.provider).toBe("aws");
     expect(estimate.currency).toBe("USD");
     expect(estimate.pricing_source).toBe("bundled");
@@ -49,7 +49,7 @@ describe("calculateSecretsCost", () => {
     const estimate = calculateSecretsCost(resource, "aws", "us-east-1");
 
     // $0.40 * 5 + $0.05 * 1 (default 10k calls) = $2.05
-    expect(estimate.monthly_cost).toBeCloseTo(0.40 * 5 + 0.05, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.4 * 5 + 0.05, 5);
     expect(estimate.confidence).toBe("high");
   });
 
@@ -77,7 +77,7 @@ describe("calculateSecretsCost", () => {
     const estimate = calculateSecretsCost(resource, "aws", "us-east-1");
 
     // $0.40 * 1 + $0.05 * (100000/10000) = $0.40 + $0.50 = $0.90
-    expect(estimate.monthly_cost).toBeCloseTo(0.40 + 0.05 * 10, 5);
+    expect(estimate.monthly_cost).toBeCloseTo(0.4 + 0.05 * 10, 5);
   });
 
   // -------------------------------------------------------------------------

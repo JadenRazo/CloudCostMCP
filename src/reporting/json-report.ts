@@ -20,7 +20,7 @@ export function generateJsonReport(
   resources: ParsedResource[],
   monthlyHours: number = 730,
   parseWarnings: string[] = [],
-  options: Partial<ReportOptions> = {}
+  options: Partial<ReportOptions> = {},
 ): string {
   // Collect unique pricing sources across all resource estimates.
   const sourcesSet = new Set<string>();
@@ -43,8 +43,7 @@ export function generateJsonReport(
   let costByTag: Record<string, unknown> | undefined;
 
   if (tagKey) {
-    const sourceProvider =
-      comparison.source_provider ?? comparison.comparisons[0]?.provider;
+    const sourceProvider = comparison.source_provider ?? comparison.comparisons[0]?.provider;
 
     // Build resource_id -> monthly cost from the source provider breakdown.
     const costById = new Map<string, number>();

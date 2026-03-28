@@ -135,15 +135,15 @@ describe("estimateCost", () => {
   // -------------------------------------------------------------------------
 
   it("returns a cost breakdown with required top-level fields for AWS", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AWS_INSTANCE_TF }],
         provider: "aws",
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(typeof result.total_monthly).toBe("number");
     expect(typeof result.total_yearly).toBe("number");
@@ -153,15 +153,15 @@ describe("estimateCost", () => {
   });
 
   it("total_yearly is approximately 12 times total_monthly", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AWS_INSTANCE_TF }],
         provider: "aws",
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const monthly = result.total_monthly as number;
     const yearly = result.total_yearly as number;
@@ -170,15 +170,15 @@ describe("estimateCost", () => {
   });
 
   it("by_resource entries contain required fields", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AWS_INSTANCE_TF }],
         provider: "aws",
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const byResource = result.by_resource as Array<Record<string, unknown>>;
     expect(byResource.length).toBeGreaterThan(0);
@@ -207,19 +207,21 @@ resource "aws_instance" "x" {
 }
 `;
 
-    const smallResult = await estimateCost(
+    const smallResult = (await estimateCost(
       { files: [{ path: "main.tf", content: smallTf }], provider: "aws", region: "us-east-1" },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
-    const largeResult = await estimateCost(
+    const largeResult = (await estimateCost(
       { files: [{ path: "main.tf", content: largeTf }], provider: "aws", region: "us-east-1" },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
-    expect(largeResult.total_monthly as number).toBeGreaterThan(smallResult.total_monthly as number);
+    expect(largeResult.total_monthly as number).toBeGreaterThan(
+      smallResult.total_monthly as number,
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -227,15 +229,15 @@ resource "aws_instance" "x" {
   // -------------------------------------------------------------------------
 
   it("estimates costs for a GCP config when provider is gcp", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: GCP_INSTANCE_TF }],
         provider: "gcp",
         region: "us-central1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.provider).toBe("gcp");
     expect(result.total_monthly as number).toBeGreaterThanOrEqual(0);
@@ -244,15 +246,15 @@ resource "aws_instance" "x" {
   });
 
   it("estimates costs for an Azure config when provider is azure", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AZURE_INSTANCE_TF }],
         provider: "azure",
         region: "eastus",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.provider).toBe("azure");
     expect(result.total_monthly as number).toBeGreaterThanOrEqual(0);
@@ -261,15 +263,15 @@ resource "aws_instance" "x" {
   it("can estimate an AWS config against the azure provider (cross-provider)", async () => {
     // Supplying an AWS config but asking for azure pricing exercises the
     // region-mapping and resource-mapping paths.
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AWS_INSTANCE_TF }],
         provider: "azure",
         region: "eastus",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.provider).toBe("azure");
     expect(typeof result.total_monthly).toBe("number");
@@ -280,7 +282,7 @@ resource "aws_instance" "x" {
   // -------------------------------------------------------------------------
 
   it("converts costs to EUR when currency is EUR", async () => {
-    const usdResult = await estimateCost(
+    const usdResult = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AWS_INSTANCE_TF }],
         provider: "aws",
@@ -288,10 +290,10 @@ resource "aws_instance" "x" {
         currency: "USD",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
-    const eurResult = await estimateCost(
+    const eurResult = (await estimateCost(
       {
         files: [{ path: "main.tf", content: AWS_INSTANCE_TF }],
         provider: "aws",
@@ -299,8 +301,8 @@ resource "aws_instance" "x" {
         currency: "EUR",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     // The EUR and USD totals should differ (different exchange rate).
     expect(eurResult.currency).toBe("EUR");
@@ -314,15 +316,15 @@ resource "aws_instance" "x" {
   // -------------------------------------------------------------------------
 
   it("handles a single-resource config without throwing", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: SINGLE_RESOURCE_TF }],
         provider: "aws",
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(typeof result.total_monthly).toBe("number");
     const byResource = result.by_resource as Array<Record<string, unknown>>;
@@ -336,15 +338,15 @@ provider "aws" {
   region = "us-east-1"
 }
 `;
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: emptyTf }],
         provider: "aws",
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.total_monthly).toBe(0);
     const byResource = result.by_resource as Array<Record<string, unknown>>;
@@ -352,15 +354,15 @@ provider "aws" {
   });
 
   it("omits redundant per-resource provider/region/currency/yearly fields", async () => {
-    const result = await estimateCost(
+    const result = (await estimateCost(
       {
         files: [{ path: "main.tf", content: SINGLE_RESOURCE_TF }],
         provider: "aws",
         region: "us-east-1",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const byResource = result.by_resource as Array<Record<string, unknown>>;
     expect(byResource.length).toBeGreaterThan(0);

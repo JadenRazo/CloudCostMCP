@@ -113,9 +113,7 @@ describe("substituteVariables", () => {
   });
 
   it("replaces inline var references within a larger string", () => {
-    expect(substituteVariables("Region: ${var.region}", vars)).toBe(
-      "Region: us-west-2"
-    );
+    expect(substituteVariables("Region: ${var.region}", vars)).toBe("Region: us-west-2");
   });
 
   it("leaves unknown var references unchanged", () => {
@@ -125,7 +123,7 @@ describe("substituteVariables", () => {
   it("recurses into arrays and objects", () => {
     const result = substituteVariables(
       { type: "${var.region}", nested: ["${var.count}"] },
-      vars
+      vars,
     ) as Record<string, unknown>;
 
     expect(result["type"]).toBe("us-west-2");
@@ -160,9 +158,9 @@ describe("parseHclToJson", () => {
   });
 
   it("throws a descriptive error for invalid HCL", async () => {
-    await expect(
-      parseHclToJson("resource {{{ invalid hcl !!!", "bad.tf")
-    ).rejects.toThrow(/bad\.tf/);
+    await expect(parseHclToJson("resource {{{ invalid hcl !!!", "bad.tf")).rejects.toThrow(
+      /bad\.tf/,
+    );
   });
 });
 
@@ -173,9 +171,7 @@ describe("parseHclToJson", () => {
 describe("parseTerraform – simple-ec2 fixture", () => {
   it("extracts exactly 2 aws_instance resources", async () => {
     const inventory = await parseTerraform(simpleEc2Files());
-    const instances = inventory.resources.filter(
-      (r) => r.type === "aws_instance"
-    );
+    const instances = inventory.resources.filter((r) => r.type === "aws_instance");
     expect(instances).toHaveLength(2);
   });
 
@@ -250,25 +246,19 @@ describe("parseTerraform – full-stack fixture", () => {
 
   it("resolves instance_type from tfvars override (t3.xlarge)", async () => {
     const inventory = await parseTerraform(fullStackFiles(), fullStackTfvars());
-    const app = inventory.resources.find(
-      (r) => r.type === "aws_instance" && r.name === "app"
-    );
+    const app = inventory.resources.find((r) => r.type === "aws_instance" && r.name === "app");
     expect(app?.attributes.instance_type).toBe("t3.xlarge");
   });
 
   it("resolves volume_size from tfvars override (100)", async () => {
     const inventory = await parseTerraform(fullStackFiles(), fullStackTfvars());
-    const app = inventory.resources.find(
-      (r) => r.type === "aws_instance" && r.name === "app"
-    );
+    const app = inventory.resources.find((r) => r.type === "aws_instance" && r.name === "app");
     expect(app?.attributes.storage_size_gb).toBe(100);
   });
 
   it("uses variable default when tfvars does not override (ami_id)", async () => {
     const inventory = await parseTerraform(fullStackFiles(), fullStackTfvars());
-    const app = inventory.resources.find(
-      (r) => r.type === "aws_instance" && r.name === "app"
-    );
+    const app = inventory.resources.find((r) => r.type === "aws_instance" && r.name === "app");
     expect(app?.attributes.ami).toBe("ami-0c55b159cbfafe1f0");
   });
 
@@ -348,9 +338,7 @@ resource "aws_instance" "solo" {
   instance_type = "t3.nano"
 }
 `;
-    const inventory = await parseTerraform([
-      { path: "main.tf", content: hcl },
-    ]);
+    const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
     expect(inventory.region).toBe("us-east-1");
   });
 
@@ -382,25 +370,19 @@ data "aws_ami" "latest" {
 // ---------------------------------------------------------------------------
 
 function countForeachFiles() {
-  return [
-    { path: "main.tf", content: readFixture("count-foreach", "main.tf") },
-  ];
+  return [{ path: "main.tf", content: readFixture("count-foreach", "main.tf") }];
 }
 
 describe("parseTerraform – count attribute", () => {
   it("expands count=3 into 3 separate resources", async () => {
     const inventory = await parseTerraform(countForeachFiles());
-    const instances = inventory.resources.filter(
-      (r) => r.type === "aws_instance"
-    );
+    const instances = inventory.resources.filter((r) => r.type === "aws_instance");
     expect(instances).toHaveLength(3);
   });
 
   it("gives each expanded instance a unique indexed id", async () => {
     const inventory = await parseTerraform(countForeachFiles());
-    const instances = inventory.resources.filter(
-      (r) => r.type === "aws_instance"
-    );
+    const instances = inventory.resources.filter((r) => r.type === "aws_instance");
     const ids = instances.map((r) => r.id);
     expect(ids).toContain("aws_instance.web[0]");
     expect(ids).toContain("aws_instance.web[1]");
@@ -409,9 +391,7 @@ describe("parseTerraform – count attribute", () => {
 
   it("all expanded instances share the same instance_type", async () => {
     const inventory = await parseTerraform(countForeachFiles());
-    const instances = inventory.resources.filter(
-      (r) => r.type === "aws_instance"
-    );
+    const instances = inventory.resources.filter((r) => r.type === "aws_instance");
     for (const inst of instances) {
       expect(inst.attributes.instance_type).toBe("t3.micro");
     }
@@ -428,8 +408,8 @@ resource "aws_instance" "web" {
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
     // Defaults to 1 when unresolvable
     expect(inventory.resources.filter((r) => r.type === "aws_instance")).toHaveLength(1);
-    const countWarning = inventory.parse_warnings.find((w) =>
-      w.includes("count") && w.includes("aws_instance.web")
+    const countWarning = inventory.parse_warnings.find(
+      (w) => w.includes("count") && w.includes("aws_instance.web"),
     );
     expect(countWarning).toBeDefined();
   });
@@ -440,16 +420,14 @@ describe("parseTerraform – for_each attribute", () => {
     // toset([...]) is an HCL function that the static parser cannot evaluate,
     // so the for_each falls back to 1 instance with a warning
     const inventory = await parseTerraform(countForeachFiles());
-    const queues = inventory.resources.filter(
-      (r) => r.type === "aws_sqs_queue"
-    );
+    const queues = inventory.resources.filter((r) => r.type === "aws_sqs_queue");
     expect(queues).toHaveLength(1);
   });
 
   it("emits a for_each warning when the expression cannot be resolved", async () => {
     const inventory = await parseTerraform(countForeachFiles());
-    const warning = inventory.parse_warnings.find((w) =>
-      w.includes("for_each") && w.includes("aws_sqs_queue.queues")
+    const warning = inventory.parse_warnings.find(
+      (w) => w.includes("for_each") && w.includes("aws_sqs_queue.queues"),
     );
     expect(warning).toBeDefined();
   });
@@ -465,9 +443,7 @@ resource "aws_sqs_queue" "named" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const queues = inventory.resources.filter(
-      (r) => r.type === "aws_sqs_queue"
-    );
+    const queues = inventory.resources.filter((r) => r.type === "aws_sqs_queue");
     expect(queues).toHaveLength(2);
     const ids = queues.map((r) => r.id);
     expect(ids).toContain('aws_sqs_queue.named["orders"]');
@@ -482,8 +458,8 @@ resource "aws_sqs_queue" "named" {
 describe("parseTerraform – module blocks", () => {
   it("generates a warning for each registry module that has not been initialised", async () => {
     const inventory = await parseTerraform(countForeachFiles());
-    const moduleWarning = inventory.parse_warnings.find((w) =>
-      w.includes('"vpc"') && w.includes(".terraform/modules")
+    const moduleWarning = inventory.parse_warnings.find(
+      (w) => w.includes('"vpc"') && w.includes(".terraform/modules"),
     );
     expect(moduleWarning).toBeDefined();
   });
@@ -491,7 +467,7 @@ describe("parseTerraform – module blocks", () => {
   it("does not add module entries to the resource list", async () => {
     const inventory = await parseTerraform(countForeachFiles());
     const moduleResources = inventory.resources.filter(
-      (r) => r.type === "module" || r.name === "vpc"
+      (r) => r.type === "module" || r.name === "vpc",
     );
     expect(moduleResources).toHaveLength(0);
   });
@@ -510,9 +486,7 @@ module "eks" {
     // file path ("main.tf") which gives "." — .terraform/modules will not exist
     // there, so both registry modules should emit "not found" warnings.
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const moduleWarnings = inventory.parse_warnings.filter((w) =>
-      w.includes(".terraform/modules")
-    );
+    const moduleWarnings = inventory.parse_warnings.filter((w) => w.includes(".terraform/modules"));
     expect(moduleWarnings).toHaveLength(2);
   });
 });
@@ -524,9 +498,7 @@ module "eks" {
 describe("parseTerraform – aws_lambda_function extractor", () => {
   it("extracts memory_size, timeout, and runtime from the fixture", async () => {
     const inventory = await parseTerraform(countForeachFiles());
-    const lambda = inventory.resources.find(
-      (r) => r.type === "aws_lambda_function"
-    );
+    const lambda = inventory.resources.find((r) => r.type === "aws_lambda_function");
     expect(lambda).toBeDefined();
     expect(lambda?.attributes.memory_size).toBe(256);
     expect(lambda?.attributes.timeout).toBe(30);
@@ -545,9 +517,7 @@ resource "aws_dynamodb_table" "orders" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const table = inventory.resources.find(
-      (r) => r.type === "aws_dynamodb_table"
-    );
+    const table = inventory.resources.find((r) => r.type === "aws_dynamodb_table");
     expect(table?.attributes.billing_mode).toBe("PROVISIONED");
     expect(table?.attributes.read_capacity).toBe(5);
     expect(table?.attributes.write_capacity).toBe(5);
@@ -564,9 +534,7 @@ resource "aws_elasticache_replication_group" "redis" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const rg = inventory.resources.find(
-      (r) => r.type === "aws_elasticache_replication_group"
-    );
+    const rg = inventory.resources.find((r) => r.type === "aws_elasticache_replication_group");
     expect(rg?.attributes.instance_type).toBe("cache.r6g.large");
     expect(rg?.attributes.node_count).toBe(2);
   });
@@ -581,9 +549,7 @@ resource "aws_efs_file_system" "shared" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const efs = inventory.resources.find(
-      (r) => r.type === "aws_efs_file_system"
-    );
+    const efs = inventory.resources.find((r) => r.type === "aws_efs_file_system");
     expect(efs?.attributes.performance_mode).toBe("generalPurpose");
     expect(efs?.attributes.throughput_mode).toBe("bursting");
   });
@@ -598,9 +564,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const cdn = inventory.resources.find(
-      (r) => r.type === "aws_cloudfront_distribution"
-    );
+    const cdn = inventory.resources.find((r) => r.type === "aws_cloudfront_distribution");
     expect(cdn?.attributes.price_class).toBe("PriceClass_100");
   });
 });
@@ -629,9 +593,7 @@ resource "aws_rds_cluster" "aurora" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const cluster = inventory.resources.find(
-      (r) => r.type === "aws_rds_cluster"
-    );
+    const cluster = inventory.resources.find((r) => r.type === "aws_rds_cluster");
     expect(cluster?.attributes.engine).toBe("aurora-postgresql");
     expect(cluster?.attributes.engine_version).toBe("15.4");
     expect(cluster?.attributes.instance_type).toBe("db.r6g.large");
@@ -649,9 +611,7 @@ resource "azurerm_cosmosdb_account" "db" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const cosmos = inventory.resources.find(
-      (r) => r.type === "azurerm_cosmosdb_account"
-    );
+    const cosmos = inventory.resources.find((r) => r.type === "azurerm_cosmosdb_account");
     expect(cosmos?.attributes.offer_type).toBe("Standard");
     expect(cosmos?.attributes.kind).toBe("GlobalDocumentDB");
   });
@@ -668,9 +628,7 @@ resource "azurerm_storage_account" "store" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const sa = inventory.resources.find(
-      (r) => r.type === "azurerm_storage_account"
-    );
+    const sa = inventory.resources.find((r) => r.type === "azurerm_storage_account");
     expect(sa?.attributes.account_tier).toBe("Standard");
     expect(sa?.attributes.account_replication_type).toBe("LRS");
   });
@@ -688,9 +646,7 @@ resource "azurerm_redis_cache" "cache" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const cache = inventory.resources.find(
-      (r) => r.type === "azurerm_redis_cache"
-    );
+    const cache = inventory.resources.find((r) => r.type === "azurerm_redis_cache");
     expect(cache?.attributes.capacity).toBe(2);
     expect(cache?.attributes.family).toBe("C");
     expect(cache?.attributes.sku).toBe("Standard");
@@ -708,9 +664,7 @@ resource "google_cloudfunctions_function" "fn" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const fn = inventory.resources.find(
-      (r) => r.type === "google_cloudfunctions_function"
-    );
+    const fn = inventory.resources.find((r) => r.type === "google_cloudfunctions_function");
     expect(fn?.attributes.runtime).toBe("nodejs20");
     expect(fn?.attributes.memory_size).toBe(512);
   });
@@ -725,9 +679,7 @@ resource "google_bigquery_dataset" "dataset" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const ds = inventory.resources.find(
-      (r) => r.type === "google_bigquery_dataset"
-    );
+    const ds = inventory.resources.find((r) => r.type === "google_bigquery_dataset");
     expect(ds?.attributes.location).toBe("US");
   });
 });
@@ -742,9 +694,7 @@ resource "google_redis_instance" "cache" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const redis = inventory.resources.find(
-      (r) => r.type === "google_redis_instance"
-    );
+    const redis = inventory.resources.find((r) => r.type === "google_redis_instance");
     expect(redis?.attributes.tier).toBe("STANDARD_HA");
     expect(redis?.attributes.memory_size).toBe(4);
   });
@@ -760,9 +710,7 @@ resource "google_artifact_registry_repository" "repo" {
 }
 `;
     const inventory = await parseTerraform([{ path: "main.tf", content: hcl }]);
-    const repo = inventory.resources.find(
-      (r) => r.type === "google_artifact_registry_repository"
-    );
+    const repo = inventory.resources.find((r) => r.type === "google_artifact_registry_repository");
     expect(repo?.attributes.format).toBe("DOCKER");
   });
 });

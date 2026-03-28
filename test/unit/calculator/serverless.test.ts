@@ -148,7 +148,7 @@ describe("calculateSqsCost", () => {
     const estimate = calculateSqsCost(resource, "aws", "us-east-1");
 
     // Standard: 1M messages * $0.40/M = $0.40
-    expect(estimate.monthly_cost).toBeCloseTo(0.40, 2);
+    expect(estimate.monthly_cost).toBeCloseTo(0.4, 2);
     expect(estimate.breakdown[0]!.description).toContain("Standard");
   });
 

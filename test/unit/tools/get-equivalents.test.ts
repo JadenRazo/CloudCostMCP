@@ -15,10 +15,10 @@ describe("getEquivalents", () => {
   // -------------------------------------------------------------------------
 
   it("returns azure and gcp equivalents for aws_instance", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string | null>;
     // The data file maps aws_instance → azurerm_linux_virtual_machine and
@@ -30,10 +30,10 @@ describe("getEquivalents", () => {
   });
 
   it("returns aws and gcp equivalents for azurerm_linux_virtual_machine", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "azurerm_linux_virtual_machine",
       source_provider: "azure",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string | null>;
     expect(equivalents.aws).toBeDefined();
@@ -41,10 +41,10 @@ describe("getEquivalents", () => {
   });
 
   it("returns aws and azure equivalents for google_compute_instance", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "google_compute_instance",
       source_provider: "gcp",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string | null>;
     expect(equivalents.aws).toBeDefined();
@@ -52,10 +52,10 @@ describe("getEquivalents", () => {
   });
 
   it("known aws managed-database equivalents are returned", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_db_instance",
       source_provider: "aws",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string>;
     expect(typeof equivalents.azure).toBe("string");
@@ -63,10 +63,10 @@ describe("getEquivalents", () => {
   });
 
   it("known aws s3 object-storage equivalents are returned", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_s3_bucket",
       source_provider: "aws",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string>;
     expect(equivalents.azure).toBe("azurerm_storage_account");
@@ -78,11 +78,11 @@ describe("getEquivalents", () => {
   // -------------------------------------------------------------------------
 
   it("returns only the azure equivalent when target_provider is azure", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
       target_provider: "azure",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string | null>;
     expect(Object.keys(equivalents)).toContain("azure");
@@ -90,11 +90,11 @@ describe("getEquivalents", () => {
   });
 
   it("returns only the gcp equivalent when target_provider is gcp", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
       target_provider: "gcp",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string | null>;
     expect(Object.keys(equivalents)).toContain("gcp");
@@ -106,10 +106,10 @@ describe("getEquivalents", () => {
   // -------------------------------------------------------------------------
 
   it("returns an empty resource_equivalents object for an unknown resource type", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_totally_unknown_resource",
       source_provider: "aws",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, unknown>;
     expect(Object.keys(equivalents).length).toBe(0);
@@ -118,10 +118,10 @@ describe("getEquivalents", () => {
   it("does not include null values in resource_equivalents", async () => {
     // Null mappings are filtered out; the resulting object should only contain
     // string values.
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, unknown>;
     for (const value of Object.values(equivalents)) {
@@ -135,11 +135,11 @@ describe("getEquivalents", () => {
   // -------------------------------------------------------------------------
 
   it("includes instance_equivalents when instance_type is provided", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
       instance_type: "t3.medium",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     expect(result).toHaveProperty("instance_type");
     expect(result.instance_type).toBe("t3.medium");
@@ -147,11 +147,11 @@ describe("getEquivalents", () => {
   });
 
   it("instance_equivalents contains results for non-source providers", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
       instance_type: "t3.medium",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const instanceEquivs = result.instance_equivalents as Record<string, unknown>;
     // aws is the source — we expect azure and/or gcp mappings.
@@ -161,12 +161,12 @@ describe("getEquivalents", () => {
   });
 
   it("instance_equivalents is scoped to target_provider when both are provided", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
       target_provider: "gcp",
       instance_type: "t3.medium",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const instanceEquivs = result.instance_equivalents as Record<string, unknown>;
     // Only gcp should appear.
@@ -177,10 +177,10 @@ describe("getEquivalents", () => {
   });
 
   it("does not include instance_equivalents when instance_type is omitted", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "aws_instance",
       source_provider: "aws",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     expect(result).not.toHaveProperty("instance_equivalents");
     expect(result).not.toHaveProperty("instance_type");
@@ -191,10 +191,10 @@ describe("getEquivalents", () => {
   // -------------------------------------------------------------------------
 
   it("maps azurerm_kubernetes_cluster to aws and gcp equivalents", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "azurerm_kubernetes_cluster",
       source_provider: "azure",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string>;
     expect(typeof equivalents.aws).toBe("string");
@@ -202,10 +202,10 @@ describe("getEquivalents", () => {
   });
 
   it("maps google_storage_bucket back to aws and azure equivalents", async () => {
-    const result = await getEquivalents({
+    const result = (await getEquivalents({
       resource_type: "google_storage_bucket",
       source_provider: "gcp",
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     const equivalents = result.resource_equivalents as Record<string, string>;
     expect(equivalents.aws).toBe("aws_s3_bucket");

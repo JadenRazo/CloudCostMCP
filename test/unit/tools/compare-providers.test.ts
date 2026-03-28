@@ -81,15 +81,15 @@ describe("compareProviders", () => {
   // -------------------------------------------------------------------------
 
   it("returns report and format fields for the default markdown format", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: AWS_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.format).toBe("markdown");
     expect(typeof result.report).toBe("string");
@@ -98,15 +98,15 @@ describe("compareProviders", () => {
   });
 
   it("markdown report contains provider names", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: AWS_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const report = result.report as string;
     // The report should reference each requested provider.
@@ -116,15 +116,15 @@ describe("compareProviders", () => {
   });
 
   it("comparison summary has an entry for each requested provider", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: AWS_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const comparison = result.comparison as Record<string, unknown>;
     const providers = comparison.providers as Array<Record<string, unknown>>;
@@ -137,15 +137,15 @@ describe("compareProviders", () => {
   });
 
   it("savings_summary contains a row for each provider", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: AWS_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const comparison = result.comparison as Record<string, unknown>;
     const savings = comparison.savings_summary as Array<Record<string, unknown>>;
@@ -164,15 +164,15 @@ describe("compareProviders", () => {
   // -------------------------------------------------------------------------
 
   it("returns valid JSON string in report when format is json", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: AWS_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "json",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.format).toBe("json");
     expect(typeof result.report).toBe("string");
@@ -182,15 +182,15 @@ describe("compareProviders", () => {
   });
 
   it("json format response does not include the comparison object (avoids double payload)", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: AWS_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "json",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     // The handler intentionally omits `comparison` for json format to avoid
     // duplicating data already embedded in the report string.
@@ -198,15 +198,15 @@ describe("compareProviders", () => {
   });
 
   it("returns a CSV string when format is csv", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: SINGLE_INSTANCE_TF }],
         providers: ["aws", "azure"],
         format: "csv",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.format).toBe("csv");
     const report = result.report as string;
@@ -215,15 +215,15 @@ describe("compareProviders", () => {
   });
 
   it("returns a FOCUS-format string when format is focus", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: SINGLE_INSTANCE_TF }],
         providers: ["aws", "azure"],
         format: "focus",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(result.format).toBe("focus");
     expect(typeof result.report).toBe("string");
@@ -235,15 +235,15 @@ describe("compareProviders", () => {
   // -------------------------------------------------------------------------
 
   it("compares only the two requested providers when providers is [aws, azure]", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: SINGLE_INSTANCE_TF }],
         providers: ["aws", "azure"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const comparison = result.comparison as Record<string, unknown>;
     const providers = comparison.providers as Array<Record<string, unknown>>;
@@ -255,15 +255,15 @@ describe("compareProviders", () => {
   });
 
   it("compares aws and gcp correctly when gcp is included", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: SINGLE_INSTANCE_TF }],
         providers: ["aws", "gcp"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     const comparison = result.comparison as Record<string, unknown>;
     const providers = comparison.providers as Array<Record<string, unknown>>;
@@ -278,7 +278,7 @@ describe("compareProviders", () => {
   // -------------------------------------------------------------------------
 
   it("provider totals are denominated in EUR when currency is EUR", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: SINGLE_INSTANCE_TF }],
         providers: ["aws", "azure"],
@@ -286,8 +286,8 @@ describe("compareProviders", () => {
         currency: "EUR",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     // The savings_summary totals should reflect the EUR-converted amounts —
     // they should be positive numbers (exact values depend on exchange rate,
@@ -304,15 +304,15 @@ describe("compareProviders", () => {
   // -------------------------------------------------------------------------
 
   it("handles a single-resource config without throwing", async () => {
-    const result = await compareProviders(
+    const result = (await compareProviders(
       {
         files: [{ path: "main.tf", content: SINGLE_INSTANCE_TF }],
         providers: ["aws", "azure", "gcp"],
         format: "markdown",
       },
       pricingEngine,
-      DEFAULT_CONFIG
-    ) as Record<string, unknown>;
+      DEFAULT_CONFIG,
+    )) as Record<string, unknown>;
 
     expect(typeof result.report).toBe("string");
     const comparison = result.comparison as Record<string, unknown>;

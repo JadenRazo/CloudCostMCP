@@ -10,7 +10,7 @@ import { logger } from "../logger.js";
  */
 export function resolveVariables(
   hclJson: Record<string, unknown>,
-  tfvarsContent?: string
+  tfvarsContent?: string,
 ): Record<string, unknown> {
   const defaults = extractVariableDefaults(hclJson);
   const overrides = tfvarsContent ? parseTfvars(tfvarsContent) : {};
@@ -29,9 +29,7 @@ export function resolveVariables(
  * Walk the `variable` block in parsed HCL JSON and build a map of
  * variable name -> default value for any variable that declares one.
  */
-function extractVariableDefaults(
-  hclJson: Record<string, unknown>
-): Record<string, unknown> {
+function extractVariableDefaults(hclJson: Record<string, unknown>): Record<string, unknown> {
   const defaults: Record<string, unknown> = {};
 
   const variableBlock = hclJson["variable"];
@@ -40,9 +38,7 @@ function extractVariableDefaults(
   }
 
   // Structure: { "var_name": [{ default: value, type: "...", description: "..." }] }
-  for (const [varName, declarations] of Object.entries(
-    variableBlock as Record<string, unknown>
-  )) {
+  for (const [varName, declarations] of Object.entries(variableBlock as Record<string, unknown>)) {
     if (!Array.isArray(declarations) || declarations.length === 0) continue;
 
     const declaration = declarations[0] as Record<string, unknown>;
@@ -90,10 +86,7 @@ function parseTfvars(content: string): Record<string, unknown> {
  */
 function parseTfvarsValue(raw: string): unknown {
   // Quoted string
-  if (
-    (raw.startsWith('"') && raw.endsWith('"')) ||
-    (raw.startsWith("'") && raw.endsWith("'"))
-  ) {
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
     return raw.slice(1, -1);
   }
 
@@ -122,10 +115,7 @@ function parseTfvarsValue(raw: string): unknown {
  * string is a variable reference and the variable's default is a non-string
  * type (e.g. number), in which case we return the typed value directly.
  */
-export function substituteVariables(
-  value: unknown,
-  variables: Record<string, unknown>
-): unknown {
+export function substituteVariables(value: unknown, variables: Record<string, unknown>): unknown {
   if (typeof value === "string") {
     return substituteInString(value, variables);
   }
@@ -148,10 +138,7 @@ export function substituteVariables(
 const VAR_ONLY_RE = /^\$\{var\.([^}]+)\}$/;
 const VAR_INLINE_RE = /\$\{var\.([^}]+)\}/g;
 
-function substituteInString(
-  str: string,
-  variables: Record<string, unknown>
-): unknown {
+function substituteInString(str: string, variables: Record<string, unknown>): unknown {
   // Whole-string variable reference – preserve the original type
   const wholeMatch = VAR_ONLY_RE.exec(str);
   if (wholeMatch) {

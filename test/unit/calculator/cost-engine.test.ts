@@ -277,10 +277,7 @@ describe("CostEngine", () => {
     expect(breakdown.by_service["data_transfer"]).toBeGreaterThan(0);
 
     // Verify total = sum of by_resource costs (including data transfer).
-    const manualSum = breakdown.by_resource.reduce(
-      (sum, e) => sum + e.monthly_cost,
-      0
-    );
+    const manualSum = breakdown.by_resource.reduce((sum, e) => sum + e.monthly_cost, 0);
     expect(breakdown.total_monthly).toBeCloseTo(manualSum, 1);
   });
 

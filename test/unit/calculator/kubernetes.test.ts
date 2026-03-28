@@ -80,8 +80,18 @@ describe("calculateKubernetesCost", () => {
       },
     });
 
-    const clusterEst = await calculateKubernetesCost(clusterOnly, "aws", "us-east-1", pricingEngine);
-    const withNodesEst = await calculateKubernetesCost(withNodes, "aws", "us-east-1", pricingEngine);
+    const clusterEst = await calculateKubernetesCost(
+      clusterOnly,
+      "aws",
+      "us-east-1",
+      pricingEngine,
+    );
+    const withNodesEst = await calculateKubernetesCost(
+      withNodes,
+      "aws",
+      "us-east-1",
+      pricingEngine,
+    );
 
     expect(withNodesEst.monthly_cost).toBeGreaterThan(clusterEst.monthly_cost);
     expect(withNodesEst.breakdown.some((b) => b.description.includes("node"))).toBe(true);

@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { logger } from "../logger.js";
-import type { CacheEntry, CacheStats } from "./types.js";
+import type { CacheEntry, CacheStats, PricePoint, PriceChange } from "./types.js";
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS pricing_cache (
@@ -16,6 +16,23 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pricing_cache_provider   ON pricing_cache (provider);
   CREATE INDEX IF NOT EXISTS idx_pricing_cache_expires_at ON pricing_cache (expires_at);
+
+  CREATE TABLE IF NOT EXISTS price_history (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider       TEXT NOT NULL,
+    service        TEXT NOT NULL,
+    resource_type  TEXT NOT NULL,
+    region         TEXT NOT NULL,
+    price_per_unit REAL NOT NULL,
+    unit           TEXT NOT NULL,
+    currency       TEXT DEFAULT 'USD',
+    pricing_source TEXT,
+    recorded_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_price_history_lookup
+    ON price_history(provider, service, resource_type, region);
+  CREATE INDEX IF NOT EXISTS idx_price_history_time
+    ON price_history(recorded_at);
 `;
 
 export class PricingCache {
@@ -44,18 +61,14 @@ export class PricingCache {
   get<T>(key: string): T | null {
     try {
       const row = this.db
-        .prepare<[string], CacheEntry>(
-          "SELECT * FROM pricing_cache WHERE key = ?"
-        )
+        .prepare<[string], CacheEntry>("SELECT * FROM pricing_cache WHERE key = ?")
         .get(key);
 
       if (!row) return null;
 
       const now = new Date().toISOString();
       if (row.expires_at <= now) {
-        this.db
-          .prepare("DELETE FROM pricing_cache WHERE key = ?")
-          .run(key);
+        this.db.prepare("DELETE FROM pricing_cache WHERE key = ?").run(key);
         logger.debug("Cache miss (expired)", { key });
         return null;
       }
@@ -87,7 +100,7 @@ export class PricingCache {
     provider: string,
     service: string,
     region: string,
-    ttlSeconds: number
+    ttlSeconds: number,
   ): void {
     try {
       const now = new Date();
@@ -103,7 +116,7 @@ export class PricingCache {
            service    = excluded.service,
            region     = excluded.region,
            created_at = excluded.created_at,
-           expires_at = excluded.expires_at`
+           expires_at = excluded.expires_at`,
         )
         .run(
           key,
@@ -112,10 +125,13 @@ export class PricingCache {
           service,
           region,
           now.toISOString(),
-          expiresAt.toISOString()
+          expiresAt.toISOString(),
         );
 
       logger.debug("Cache set", { key, ttlSeconds });
+
+      // Auto-record price history when the cached data looks like a price object.
+      this.autoRecordPricePoint(key, data, provider, service, region);
     } catch (err) {
       logger.warn("Cache set failed, continuing without caching", {
         key,
@@ -124,12 +140,49 @@ export class PricingCache {
     }
   }
 
+  /**
+   * Attempt to extract price information from cached data and record it as a
+   * price history point. This is best-effort — failures are silently ignored
+   * to avoid slowing down the cache hot path.
+   */
+  private autoRecordPricePoint<T>(
+    key: string,
+    data: T,
+    provider: string,
+    service: string,
+    region: string,
+  ): void {
+    try {
+      const obj = data as Record<string, unknown>;
+      if (typeof obj !== "object" || obj === null) return;
+      if (typeof obj.price_per_unit !== "number") return;
+
+      // Extract the resource type from the cache key convention:
+      //   {provider}/{service}/{region}/{resource_type}
+      const parts = key.split("/");
+      const resourceType = parts.length >= 4 ? parts.slice(3).join("/") : key;
+
+      const unit = typeof obj.unit === "string" ? obj.unit : "unknown";
+      const pricingSource = typeof obj.pricing_source === "string" ? obj.pricing_source : undefined;
+
+      this.recordPricePoint(
+        provider,
+        service,
+        resourceType,
+        region,
+        obj.price_per_unit,
+        unit,
+        pricingSource,
+      );
+    } catch {
+      // Best-effort — never let history recording break caching.
+    }
+  }
+
   /** Remove a single cache entry. */
   invalidate(key: string): void {
     try {
-      const result = this.db
-        .prepare("DELETE FROM pricing_cache WHERE key = ?")
-        .run(key);
+      const result = this.db.prepare("DELETE FROM pricing_cache WHERE key = ?").run(key);
       logger.debug("Cache invalidated", { key, removed: result.changes });
     } catch (err) {
       logger.warn("Cache invalidate failed", {
@@ -142,9 +195,7 @@ export class PricingCache {
   /** Remove every cache entry belonging to a provider. */
   invalidateByProvider(provider: string): void {
     try {
-      const result = this.db
-        .prepare("DELETE FROM pricing_cache WHERE provider = ?")
-        .run(provider);
+      const result = this.db.prepare("DELETE FROM pricing_cache WHERE provider = ?").run(provider);
       logger.debug("Cache invalidated by provider", {
         provider,
         removed: result.changes,
@@ -164,9 +215,7 @@ export class PricingCache {
   cleanup(): number {
     try {
       const now = new Date().toISOString();
-      const result = this.db
-        .prepare("DELETE FROM pricing_cache WHERE expires_at <= ?")
-        .run(now);
+      const result = this.db.prepare("DELETE FROM pricing_cache WHERE expires_at <= ?").run(now);
       const removed = result.changes;
       logger.debug("Cache cleanup complete", { removed });
       return removed;
@@ -188,14 +237,15 @@ export class PricingCache {
           `SELECT
            COUNT(*)                        AS total_entries,
            COALESCE(SUM(LENGTH(data)), 0)  AS size_bytes
-         FROM pricing_cache`
+         FROM pricing_cache`,
         )
         .get()!;
 
       const expired = this.db
-        .prepare<[string], { expired_entries: number }>(
-          "SELECT COUNT(*) AS expired_entries FROM pricing_cache WHERE expires_at <= ?"
-        )
+        .prepare<
+          [string],
+          { expired_entries: number }
+        >("SELECT COUNT(*) AS expired_entries FROM pricing_cache WHERE expires_at <= ?")
         .get(now)!;
 
       return {
@@ -258,6 +308,149 @@ export class PricingCache {
       logger.warn("PricingCache rollbackBatch failed", {
         err: err instanceof Error ? err.message : String(err),
       });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Price history
+  // -------------------------------------------------------------------------
+
+  /**
+   * Record a price snapshot for trend tracking. Deduplicates by skipping the
+   * insert when the most recent recorded price for the same resource matches
+   * the new value.
+   */
+  recordPricePoint(
+    provider: string,
+    service: string,
+    resourceType: string,
+    region: string,
+    pricePerUnit: number,
+    unit: string,
+    pricingSource?: string,
+  ): void {
+    try {
+      // Deduplicate: only record if price actually changed from last entry.
+      const last = this.db
+        .prepare<[string, string, string, string], { price_per_unit: number }>(
+          `SELECT price_per_unit FROM price_history
+           WHERE provider = ? AND service = ? AND resource_type = ? AND region = ?
+           ORDER BY id DESC LIMIT 1`,
+        )
+        .get(provider, service, resourceType, region);
+
+      if (last && last.price_per_unit === pricePerUnit) {
+        return;
+      }
+
+      this.db
+        .prepare(
+          `INSERT INTO price_history (provider, service, resource_type, region, price_per_unit, unit, pricing_source)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(provider, service, resourceType, region, pricePerUnit, unit, pricingSource ?? null);
+
+      logger.debug("Price point recorded", {
+        provider,
+        service,
+        resourceType,
+        region,
+        pricePerUnit,
+      });
+    } catch (err) {
+      logger.warn("recordPricePoint failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Query price history for a resource. Returns price points in reverse
+   * chronological order (newest first).
+   */
+  getPriceHistory(
+    provider: string,
+    service: string,
+    resourceType: string,
+    region: string,
+    options?: { limit?: number; since?: string },
+  ): PricePoint[] {
+    try {
+      const limit = options?.limit ?? 30;
+      const since = options?.since;
+
+      if (since) {
+        return this.db
+          .prepare<[string, string, string, string, string, number], PricePoint>(
+            `SELECT price_per_unit, unit, currency, pricing_source, recorded_at
+             FROM price_history
+             WHERE provider = ? AND service = ? AND resource_type = ? AND region = ?
+               AND recorded_at >= ?
+             ORDER BY id DESC
+             LIMIT ?`,
+          )
+          .all(provider, service, resourceType, region, since, limit);
+      }
+
+      return this.db
+        .prepare<[string, string, string, string, number], PricePoint>(
+          `SELECT price_per_unit, unit, currency, pricing_source, recorded_at
+           FROM price_history
+           WHERE provider = ? AND service = ? AND resource_type = ? AND region = ?
+           ORDER BY id DESC
+           LIMIT ?`,
+        )
+        .all(provider, service, resourceType, region, limit);
+    } catch (err) {
+      logger.warn("getPriceHistory failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Get the latest price change (current vs previous) for a resource.
+   * Returns null when fewer than two data points exist.
+   */
+  getPriceChange(
+    provider: string,
+    service: string,
+    resourceType: string,
+    region: string,
+  ): PriceChange | null {
+    try {
+      const rows = this.db
+        .prepare<[string, string, string, string], { price_per_unit: number; recorded_at: string }>(
+          `SELECT price_per_unit, recorded_at
+           FROM price_history
+           WHERE provider = ? AND service = ? AND resource_type = ? AND region = ?
+           ORDER BY id DESC
+           LIMIT 2`,
+        )
+        .all(provider, service, resourceType, region);
+
+      if (rows.length < 2) return null;
+
+      const current = rows[0];
+      const previous = rows[1];
+      const changeAmount = current.price_per_unit - previous.price_per_unit;
+      const changePercent =
+        previous.price_per_unit !== 0 ? (changeAmount / previous.price_per_unit) * 100 : 0;
+
+      return {
+        current_price: current.price_per_unit,
+        previous_price: previous.price_per_unit,
+        change_amount: changeAmount,
+        change_percent: changePercent,
+        current_date: current.recorded_at,
+        previous_date: previous.recorded_at,
+      };
+    } catch (err) {
+      logger.warn("getPriceChange failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return null;
     }
   }
 

@@ -1,4 +1,5 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
+import type { AzureRetailPriceItem } from "./types.js";
 
 /**
  * Convert a single item from the Azure Retail Prices API response into a
@@ -6,7 +7,7 @@ import type { NormalizedPrice } from "../../types/pricing.js";
  * https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices
  */
 
-export function normalizeAzureCompute(item: any): NormalizedPrice {
+export function normalizeAzureCompute(item: AzureRetailPriceItem): NormalizedPrice {
   return {
     provider: "azure",
     service: "virtual-machines",
@@ -29,7 +30,7 @@ export function normalizeAzureCompute(item: any): NormalizedPrice {
   };
 }
 
-export function normalizeAzureDatabase(item: any): NormalizedPrice {
+export function normalizeAzureDatabase(item: AzureRetailPriceItem): NormalizedPrice {
   return {
     provider: "azure",
     service: "azure-database",
@@ -50,7 +51,7 @@ export function normalizeAzureDatabase(item: any): NormalizedPrice {
   };
 }
 
-export function normalizeAzureStorage(item: any): NormalizedPrice {
+export function normalizeAzureStorage(item: AzureRetailPriceItem): NormalizedPrice {
   return {
     provider: "azure",
     service: "managed-disks",

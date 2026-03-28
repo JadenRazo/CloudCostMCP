@@ -3,10 +3,7 @@ import { join, resolve } from "node:path";
 import type { ParsedResource, CloudProvider } from "../types/index.js";
 import { parseHclToJson } from "./hcl-parser.js";
 import { resolveVariables, substituteVariables } from "./variable-resolver.js";
-import {
-  extractResources,
-  detectRegionFromProviders,
-} from "./resource-extractor.js";
+import { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
@@ -74,7 +71,7 @@ function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown
       ) {
         merged[key] = mergeObjects(
           existing as Record<string, unknown>,
-          value as Record<string, unknown>
+          value as Record<string, unknown>,
         );
       } else if (Array.isArray(existing) && Array.isArray(value)) {
         merged[key] = [...existing, ...value];
@@ -89,7 +86,7 @@ function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown
 
 function mergeObjects(
   a: Record<string, unknown>,
-  b: Record<string, unknown>
+  b: Record<string, unknown>,
 ): Record<string, unknown> {
   const result = { ...a };
   for (const [key, bVal] of Object.entries(b)) {
@@ -102,10 +99,7 @@ function mergeObjects(
       typeof bVal === "object" &&
       !Array.isArray(bVal)
     ) {
-      result[key] = mergeObjects(
-        aVal as Record<string, unknown>,
-        bVal as Record<string, unknown>
-      );
+      result[key] = mergeObjects(aVal as Record<string, unknown>, bVal as Record<string, unknown>);
     } else if (Array.isArray(aVal) && Array.isArray(bVal)) {
       result[key] = [...aVal, ...bVal];
     } else {
@@ -144,8 +138,14 @@ function extractModuleInputs(moduleDeclaration: unknown): Record<string, unknown
   const inputs: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(block as Record<string, unknown>)) {
     // Skip meta-attributes that are not variable inputs
-    if (key === "source" || key === "version" || key === "providers" ||
-        key === "depends_on" || key === "count" || key === "for_each") {
+    if (
+      key === "source" ||
+      key === "version" ||
+      key === "providers" ||
+      key === "depends_on" ||
+      key === "count" ||
+      key === "for_each"
+    ) {
       continue;
     }
     inputs[key] = value;
@@ -157,10 +157,7 @@ function extractModuleInputs(moduleDeclaration: unknown): Record<string, unknown
  * Prefix every resource id in the list with `module.<moduleName>.` so that
  * module resources are distinguishable from root resources in the inventory.
  */
-function prefixResources(
-  resources: ParsedResource[],
-  moduleName: string
-): ParsedResource[] {
+function prefixResources(resources: ParsedResource[], moduleName: string): ParsedResource[] {
   return resources.map((r) => ({
     ...r,
     id: `module.${moduleName}.${r.id}`,
@@ -188,11 +185,11 @@ async function parseModuleDirectory(
   parentVars: Record<string, unknown>,
   moduleInputs: Record<string, unknown>,
   warnings: string[],
-  depth: number
+  depth: number,
 ): Promise<ParsedResource[]> {
   if (depth >= MAX_MODULE_DEPTH) {
     warnings.push(
-      `Module nesting depth limit (${MAX_MODULE_DEPTH}) reached at "${dirPath}". Skipping further expansion.`
+      `Module nesting depth limit (${MAX_MODULE_DEPTH}) reached at "${dirPath}". Skipping further expansion.`,
     );
     return [];
   }
@@ -249,13 +246,7 @@ async function parseModuleDirectory(
   }
 
   // Recursively expand any nested module blocks found in this module directory.
-  const nestedResources = await resolveModules(
-    combined,
-    dirPath,
-    variables,
-    warnings,
-    depth + 1
-  );
+  const nestedResources = await resolveModules(combined, dirPath, variables, warnings, depth + 1);
   allResources.push(...nestedResources);
 
   return allResources;
@@ -292,7 +283,7 @@ export async function resolveModules(
   basePath: string,
   variables: Record<string, unknown>,
   warnings: string[],
-  depth = 0
+  depth = 0,
 ): Promise<ParsedResource[]> {
   const moduleBlock = hclJson["module"];
   if (!moduleBlock || typeof moduleBlock !== "object" || Array.isArray(moduleBlock)) {
@@ -302,13 +293,11 @@ export async function resolveModules(
   const allResources: ParsedResource[] = [];
 
   for (const [moduleName, moduleDeclaration] of Object.entries(
-    moduleBlock as Record<string, unknown>
+    moduleBlock as Record<string, unknown>,
   )) {
     const source = getSourceAttr(moduleDeclaration);
     if (!source) {
-      warnings.push(
-        `Module "${moduleName}" has no source attribute and will be skipped.`
-      );
+      warnings.push(`Module "${moduleName}" has no source attribute and will be skipped.`);
       continue;
     }
 
@@ -325,7 +314,7 @@ export async function resolveModules(
 
     if (isGit) {
       warnings.push(
-        `Module "${moduleName}" uses a git source ("${source}") which is not supported. Skipping.`
+        `Module "${moduleName}" uses a git source ("${source}") which is not supported. Skipping.`,
       );
       logger.debug("Skipping git module", { moduleName, source });
       continue;
@@ -357,18 +346,18 @@ export async function resolveModules(
         const modulesJsonPath = join(terraformModulesDir, "modules.json");
         if (existsSync(modulesJsonPath)) {
           try {
-            const modulesJson = JSON.parse(
-              readFileSync(modulesJsonPath, "utf-8")
-            ) as { Modules?: Array<{ Key: string; Dir: string }> };
+            const modulesJson = JSON.parse(readFileSync(modulesJsonPath, "utf-8")) as {
+              Modules?: Array<{ Key: string; Dir: string }>;
+            };
             const entry = modulesJson.Modules?.find(
-              (m) => m.Key === moduleName || m.Key.startsWith(`${moduleName}.`)
+              (m) => m.Key === moduleName || m.Key.startsWith(`${moduleName}.`),
             );
             if (entry?.Dir) {
               moduleDir = resolve(basePath, entry.Dir);
             } else {
               warnings.push(
                 `Registry module "${moduleName}" (source: "${source}") not found in .terraform/modules/. ` +
-                `Run "terraform init" to download modules before estimating costs.`
+                  `Run "terraform init" to download modules before estimating costs.`,
               );
               logger.debug("Registry module not initialised", { moduleName, source });
               continue;
@@ -376,14 +365,14 @@ export async function resolveModules(
           } catch {
             warnings.push(
               `Registry module "${moduleName}" (source: "${source}") not found in .terraform/modules/. ` +
-              `Run "terraform init" to download modules before estimating costs.`
+                `Run "terraform init" to download modules before estimating costs.`,
             );
             continue;
           }
         } else {
           warnings.push(
             `Registry module "${moduleName}" (source: "${source}") not found in .terraform/modules/. ` +
-            `Run "terraform init" to download modules before estimating costs.`
+              `Run "terraform init" to download modules before estimating costs.`,
           );
           logger.debug("Registry module not initialised", { moduleName, source });
           continue;
@@ -398,7 +387,7 @@ export async function resolveModules(
       variables,
       moduleInputs,
       warnings,
-      depth
+      depth,
     );
 
     allResources.push(...prefixResources(childResources, moduleName));

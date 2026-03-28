@@ -58,16 +58,21 @@ describe("parseHclToJson – .tofu extension", () => {
     const tfJson = await parseHclToJson(tfContent, "main.tf");
     const tofuJson = await parseHclToJson(tofuContent, "main.tofu");
 
-    const tfResources = (tfJson["resource"] as Record<string, unknown>)["aws_instance"] as Record<string, unknown>;
-    const tofuResources = (tofuJson["resource"] as Record<string, unknown>)["aws_instance"] as Record<string, unknown>;
+    const tfResources = (tfJson["resource"] as Record<string, unknown>)["aws_instance"] as Record<
+      string,
+      unknown
+    >;
+    const tofuResources = (tofuJson["resource"] as Record<string, unknown>)[
+      "aws_instance"
+    ] as Record<string, unknown>;
 
     expect(Object.keys(tofuResources).sort()).toEqual(Object.keys(tfResources).sort());
   });
 
   it("includes the .tofu filename in parse error messages", async () => {
-    await expect(
-      parseHclToJson("resource {{{ not valid hcl !!!", "broken.tofu")
-    ).rejects.toThrow(/broken\.tofu/);
+    await expect(parseHclToJson("resource {{{ not valid hcl !!!", "broken.tofu")).rejects.toThrow(
+      /broken\.tofu/,
+    );
   });
 });
 
@@ -148,9 +153,7 @@ describe("parseTerraform – opentofu-mixed fixture (.tofu + .tf files)", () => 
 
   it("extracts instance from the .tofu file correctly", async () => {
     const inventory = await parseTerraform(opentofuMixedFiles());
-    const app = inventory.resources.find(
-      (r) => r.type === "aws_instance" && r.name === "app"
-    );
+    const app = inventory.resources.find((r) => r.type === "aws_instance" && r.name === "app");
     expect(app?.attributes.instance_type).toBe("t3.large");
   });
 
@@ -180,7 +183,14 @@ describe("parseTerraform – opentofu-mixed fixture (.tofu + .tf files)", () => 
 describe("CLI file discovery – .tofu extension support", () => {
   it("includes .tofu files when filtering directory entries by extension", () => {
     // Replicate the filter logic from src/cli.ts to confirm both extensions pass.
-    const entries = ["main.tf", "variables.tofu", "outputs.tf", "main.tofu", "README.md", "config.json"];
+    const entries = [
+      "main.tf",
+      "variables.tofu",
+      "outputs.tf",
+      "main.tofu",
+      "README.md",
+      "config.json",
+    ];
     const filtered = entries.filter((e) => extname(e) === ".tf" || extname(e) === ".tofu");
 
     expect(filtered).toContain("main.tf");

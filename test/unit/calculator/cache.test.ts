@@ -78,7 +78,7 @@ describe("calculateAzureRedisCacheCost", () => {
     const estimate = calculateAzureRedisCacheCost(resource, "azure", "eastus");
 
     // Standard C1 = $0.10/hr * 730 = $73
-    expect(estimate.monthly_cost).toBeCloseTo(0.10 * 730, 1);
+    expect(estimate.monthly_cost).toBeCloseTo(0.1 * 730, 1);
     expect(estimate.confidence).toBe("medium");
   });
 

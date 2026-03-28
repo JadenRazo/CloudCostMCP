@@ -9,7 +9,7 @@ import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 // AWS Secrets Manager
 // $0.40 per secret per month
 // $0.05 per 10,000 API calls
-const AWS_SECRETS_MANAGER_PER_SECRET = 0.40;
+const AWS_SECRETS_MANAGER_PER_SECRET = 0.4;
 const AWS_SECRETS_MANAGER_PER_10K_API_CALLS = 0.05;
 
 // Azure Key Vault
@@ -37,7 +37,7 @@ const DEFAULT_API_CALLS_PER_MONTH = 10_000;
 export function calculateSecretsCost(
   resource: ParsedResource,
   targetProvider: CloudProvider,
-  targetRegion: string
+  targetRegion: string,
 ): CostEstimate {
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
@@ -48,12 +48,11 @@ export function calculateSecretsCost(
     DEFAULT_SECRET_COUNT;
 
   const hasExplicitSecretCount =
-    resource.attributes.secret_count !== undefined ||
-    resource.attributes.versions !== undefined;
+    resource.attributes.secret_count !== undefined || resource.attributes.versions !== undefined;
 
   if (!hasExplicitSecretCount) {
     notes.push(
-      `No secret_count specified; assuming ${DEFAULT_SECRET_COUNT} secret for cost estimate`
+      `No secret_count specified; assuming ${DEFAULT_SECRET_COUNT} secret for cost estimate`,
     );
   }
 
@@ -78,7 +77,7 @@ export function calculateSecretsCost(
 
     if (!resource.attributes.api_calls_per_month) {
       notes.push(
-        `API call volume not specified; assuming ${DEFAULT_API_CALLS_PER_MONTH.toLocaleString()} calls/month`
+        `API call volume not specified; assuming ${DEFAULT_API_CALLS_PER_MONTH.toLocaleString()} calls/month`,
       );
     }
 
@@ -100,7 +99,7 @@ export function calculateSecretsCost(
 
     if (!resource.attributes.operations_per_month) {
       notes.push(
-        `Operation count not specified; assuming ${DEFAULT_API_CALLS_PER_MONTH.toLocaleString()} operations/month`
+        `Operation count not specified; assuming ${DEFAULT_API_CALLS_PER_MONTH.toLocaleString()} operations/month`,
       );
     }
 
@@ -116,7 +115,7 @@ export function calculateSecretsCost(
     totalMonthly += operationFee;
 
     notes.push(
-      "Azure Key Vault basic-tier key operations are free; only secret operation charges are included"
+      "Azure Key Vault basic-tier key operations are free; only secret operation charges are included",
     );
   } else {
     // gcp
@@ -138,7 +137,7 @@ export function calculateSecretsCost(
 
     if (!resource.attributes.access_operations_per_month) {
       notes.push(
-        `Access operation count not specified; assuming ${DEFAULT_API_CALLS_PER_MONTH.toLocaleString()} access ops/month`
+        `Access operation count not specified; assuming ${DEFAULT_API_CALLS_PER_MONTH.toLocaleString()} access ops/month`,
       );
     }
 
