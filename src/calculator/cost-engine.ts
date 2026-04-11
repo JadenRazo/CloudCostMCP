@@ -62,7 +62,7 @@ const DATABASE_TYPES = new Set([
   "aws_db_instance",
   "azurerm_postgresql_flexible_server",
   "azurerm_mysql_flexible_server",
-  "azurerm_mssql_server",
+  "azurerm_mssql_database",
   "google_sql_database_instance",
 ]);
 
@@ -183,7 +183,11 @@ const MESSAGING_TYPES = new Set([
   "google_pubsub_topic",
 ]);
 
-const ML_AI_TYPES = new Set(["aws_sagemaker_endpoint", "google_vertex_ai_endpoint"]);
+const ML_AI_TYPES = new Set([
+  "aws_sagemaker_endpoint",
+  "aws_sagemaker_notebook_instance",
+  "google_vertex_ai_endpoint",
+]);
 
 const MQ_BROKER_TYPES = new Set(["aws_mq_broker"]);
 

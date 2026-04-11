@@ -7,7 +7,7 @@ const ARM_TYPE_MAP: Record<string, string> = {
   "microsoft.compute/disks": "azurerm_managed_disk",
   "microsoft.dbforpostgresql/flexibleservers": "azurerm_postgresql_flexible_server",
   "microsoft.dbformysql/flexibleservers": "azurerm_mysql_flexible_server",
-  "microsoft.sql/servers": "azurerm_mssql_server",
+  "microsoft.sql/servers": "azurerm_mssql_database",
   "microsoft.storage/storageaccounts": "azurerm_storage_account",
   "microsoft.network/loadbalancers": "azurerm_lb",
   "microsoft.network/natgateways": "azurerm_nat_gateway",

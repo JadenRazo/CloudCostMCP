@@ -41,7 +41,12 @@ const GKE_AUTOPILOT_VCPU_HOURLY = 0.0445;
 
 function regionMultiplier(region: string): number {
   const multipliers = getRegionPriceMultipliers();
-  return multipliers.gcp[region.toLowerCase()] ?? 1.0;
+  const mult = multipliers.gcp[region.toLowerCase()];
+  if (mult === undefined) {
+    logger.warn("region-multiplier: unknown GCP region, defaulting to 1.0x", { region });
+    return 1.0;
+  }
+  return mult;
 }
 
 export class GcpBundledLoader {

@@ -1,72 +1,107 @@
 {
   "us-central1": {
-    "db-custom-1-3840": 0.0500,
-    "db-custom-2-7680": 0.1000,
-    "db-custom-4-15360": 0.2000,
+    "db-custom-1-3840": 0.0515,
+    "db-custom-2-7680": 0.1030,
+    "db-custom-4-15360": 0.2060,
     "storage_per_gb": 0.170,
     "ha_multiplier": 2.0
   },
   "us-east1": {
-    "db-custom-1-3840": 0.0500,
-    "db-custom-2-7680": 0.1000,
-    "db-custom-4-15360": 0.2000,
+    "db-custom-1-3840": 0.0515,
+    "db-custom-2-7680": 0.1030,
+    "db-custom-4-15360": 0.2060,
     "storage_per_gb": 0.170,
     "ha_multiplier": 2.0
   },
-  "europe-west1": {
-    "db-custom-1-3840": 0.0550,
-    "db-custom-2-7680": 0.1100,
-    "db-custom-4-15360": 0.2200,
-    "storage_per_gb": 0.187,
+  "us-east4": {
+    "db-custom-1-3840": 0.0580,
+    "db-custom-2-7680": 0.1161,
+    "db-custom-4-15360": 0.2322,
+    "storage_per_gb": 0.192,
     "ha_multiplier": 2.0
   },
   "us-west1": {
-    "db-custom-1-3840": 0.0500,
-    "db-custom-2-7680": 0.1000,
-    "db-custom-4-15360": 0.2000,
+    "db-custom-1-3840": 0.0515,
+    "db-custom-2-7680": 0.1030,
+    "db-custom-4-15360": 0.2060,
     "storage_per_gb": 0.170,
     "ha_multiplier": 2.0
   },
+  "us-west4": {
+    "db-custom-1-3840": 0.0541,
+    "db-custom-2-7680": 0.1082,
+    "db-custom-4-15360": 0.2163,
+    "storage_per_gb": 0.179,
+    "ha_multiplier": 2.0
+  },
+  "europe-west1": {
+    "db-custom-1-3840": 0.0567,
+    "db-custom-2-7680": 0.1133,
+    "db-custom-4-15360": 0.2266,
+    "storage_per_gb": 0.187,
+    "ha_multiplier": 2.0
+  },
+  "europe-west2": {
+    "db-custom-1-3840": 0.0567,
+    "db-custom-2-7680": 0.1133,
+    "db-custom-4-15360": 0.2266,
+    "storage_per_gb": 0.187,
+    "ha_multiplier": 2.0
+  },
+  "europe-west3": {
+    "db-custom-1-3840": 0.0577,
+    "db-custom-2-7680": 0.1154,
+    "db-custom-4-15360": 0.2307,
+    "storage_per_gb": 0.190,
+    "ha_multiplier": 2.0
+  },
+  "europe-west4": {
+    "db-custom-1-3840": 0.0567,
+    "db-custom-2-7680": 0.1133,
+    "db-custom-4-15360": 0.2266,
+    "storage_per_gb": 0.187,
+    "ha_multiplier": 2.0
+  },
+  "europe-north1": {
+    "db-custom-1-3840": 0.0556,
+    "db-custom-2-7680": 0.1112,
+    "db-custom-4-15360": 0.2225,
+    "storage_per_gb": 0.184,
+    "ha_multiplier": 2.0
+  },
   "asia-northeast1": {
-    "db-custom-1-3840": 0.0575,
-    "db-custom-2-7680": 0.1150,
-    "db-custom-4-15360": 0.2300,
+    "db-custom-1-3840": 0.0593,
+    "db-custom-2-7680": 0.1185,
+    "db-custom-4-15360": 0.2370,
     "storage_per_gb": 0.196,
     "ha_multiplier": 2.0
   },
   "asia-south1": {
-    "db-custom-1-3840": 0.0525,
-    "db-custom-2-7680": 0.1050,
-    "db-custom-4-15360": 0.2100,
+    "db-custom-1-3840": 0.0541,
+    "db-custom-2-7680": 0.1082,
+    "db-custom-4-15360": 0.2163,
     "storage_per_gb": 0.179,
     "ha_multiplier": 2.0
   },
   "australia-southeast1": {
-    "db-custom-1-3840": 0.0590,
-    "db-custom-2-7680": 0.1180,
-    "db-custom-4-15360": 0.2360,
+    "db-custom-1-3840": 0.0608,
+    "db-custom-2-7680": 0.1216,
+    "db-custom-4-15360": 0.2431,
     "storage_per_gb": 0.201,
     "ha_multiplier": 2.0
   },
-  "europe-west2": {
-    "db-custom-1-3840": 0.0550,
-    "db-custom-2-7680": 0.1100,
-    "db-custom-4-15360": 0.2200,
-    "storage_per_gb": 0.187,
-    "ha_multiplier": 2.0
-  },
-  "europe-west4": {
-    "db-custom-1-3840": 0.0550,
-    "db-custom-2-7680": 0.1100,
-    "db-custom-4-15360": 0.2200,
-    "storage_per_gb": 0.187,
-    "ha_multiplier": 2.0
-  },
   "northamerica-northeast1": {
-    "db-custom-1-3840": 0.0525,
-    "db-custom-2-7680": 0.1050,
-    "db-custom-4-15360": 0.2100,
+    "db-custom-1-3840": 0.0541,
+    "db-custom-2-7680": 0.1082,
+    "db-custom-4-15360": 0.2163,
     "storage_per_gb": 0.179,
+    "ha_multiplier": 2.0
+  },
+  "southamerica-east1": {
+    "db-custom-1-3840": 0.0659,
+    "db-custom-2-7680": 0.1318,
+    "db-custom-4-15360": 0.2637,
+    "storage_per_gb": 0.218,
     "ha_multiplier": 2.0
   }
 }

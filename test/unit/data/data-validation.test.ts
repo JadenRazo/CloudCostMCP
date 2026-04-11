@@ -407,7 +407,7 @@ describe("GCP cloud-sql.json", () => {
   it("us-central1 contains tier pricing and metadata keys", () => {
     const region = getGcpSqlPricing()["us-central1"];
     expect(region).toBeDefined();
-    expect(region["db-custom-1-3840"]).toBe(0.05);
+    expect(region["db-custom-1-3840"]).toBe(0.0515);
     expect(region["storage_per_gb"]).toBe(0.17);
     expect(region["ha_multiplier"]).toBe(2.0);
   });

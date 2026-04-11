@@ -1,7 +1,8 @@
 import { getRegionPriceMultipliers } from "../../data/loader.js";
+import { logger } from "../../logger.js";
 
 // ---------------------------------------------------------------------------
-// Fallback pricing data (approximate eastus on-demand prices, 2024)
+// Fallback pricing data (approximate eastus on-demand prices, April 2026)
 // ---------------------------------------------------------------------------
 
 export const VM_BASE_PRICES: Record<string, number> = {
@@ -45,6 +46,16 @@ export const VM_BASE_PRICES: Record<string, number> = {
   standard_e2ps_v5: 0.101,
   standard_e4ps_v5: 0.202,
   standard_e8ps_v5: 0.403,
+
+  // v6 series
+  standard_d2s_v6: 0.096,
+  standard_d4s_v6: 0.192,
+  standard_d8s_v6: 0.384,
+  standard_d16s_v6: 0.768,
+  standard_e2s_v6: 0.126,
+  standard_e4s_v6: 0.252,
+  standard_e8s_v6: 0.504,
+  standard_e16s_v6: 1.008,
 };
 
 // Disk prices are per GB/month
@@ -99,5 +110,10 @@ export const RETAIL_API_BASE = "https://prices.azure.com/api/retail/prices";
 
 export function regionMultiplier(region: string): number {
   const multipliers = getRegionPriceMultipliers();
-  return multipliers.azure[region.toLowerCase()] ?? 1.0;
+  const mult = multipliers.azure[region.toLowerCase()];
+  if (mult === undefined) {
+    logger.warn("region-multiplier: unknown Azure region, defaulting to 1.0x", { region });
+    return 1.0;
+  }
+  return mult;
 }

@@ -17,7 +17,7 @@ const DEFAULT_DYNAMO_WRITES_MONTHLY = 1_000_000;
 const DEFAULT_DYNAMO_STORAGE_GB = 1;
 
 // ---------------------------------------------------------------------------
-// AWS Lambda pricing (us-east-1 on-demand, 2024)
+// AWS Lambda pricing (us-east-1 on-demand, April 2026)
 // ---------------------------------------------------------------------------
 
 const LAMBDA_REQUEST_PRICE_PER_MILLION = 0.2;

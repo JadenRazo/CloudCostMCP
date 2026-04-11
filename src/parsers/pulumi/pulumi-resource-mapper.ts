@@ -23,7 +23,7 @@ const PULUMI_TYPE_MAP: Record<string, { type: string; provider: CloudProvider }>
     type: "azurerm_kubernetes_cluster",
     provider: "azure",
   },
-  "azure:sql:Database": { type: "azurerm_mssql_server", provider: "azure" },
+  "azure:sql:Database": { type: "azurerm_mssql_database", provider: "azure" },
   "azure:storage:Account": { type: "azurerm_storage_account", provider: "azure" },
   "azure:keyvault:KeyVault": { type: "azurerm_key_vault", provider: "azure" },
   "azure:dns:Zone": { type: "azurerm_dns_zone", provider: "azure" },

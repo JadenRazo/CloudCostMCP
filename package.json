@@ -1,6 +1,6 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "MCP server for multi-cloud cost analysis of Terraform, CloudFormation, Pulumi, and Bicep/ARM codebases",
   "type": "module",
   "license": "MIT",
@@ -60,6 +60,7 @@
     "format:check": "prettier --check src test",
     "test:coverage": "vitest run --coverage",
     "audit": "npm audit --audit-level=high",
+    "refresh-pricing": "tsx scripts/refresh-pricing.ts",
     "clean": "rm -rf dist",
     "prepare": "npm run build"
   },

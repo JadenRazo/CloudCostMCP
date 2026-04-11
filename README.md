@@ -455,7 +455,7 @@ Configuration priority: environment variables > config file > built-in defaults.
 
 | Category | AWS | Azure | GCP |
 |----------|-----|-------|-----|
-| **Compute** | `aws_instance`, `aws_launch_template` | `azurerm_virtual_machine`, `azurerm_linux_virtual_machine` | `google_compute_instance` |
+| **Compute** | `aws_instance` | `azurerm_virtual_machine`, `azurerm_linux_virtual_machine` | `google_compute_instance` |
 | **Database** | `aws_db_instance`, `aws_rds_cluster` | `azurerm_postgresql_flexible_server`, `azurerm_mysql_flexible_server` | `google_sql_database_instance` |
 | **Storage** | `aws_ebs_volume`, `aws_s3_bucket` | `azurerm_managed_disk`, `azurerm_storage_account` | `google_compute_disk`, `google_storage_bucket` |
 | **Network** | `aws_lb`, `aws_nat_gateway` | `azurerm_lb`, `azurerm_nat_gateway` | `google_compute_forwarding_rule` |
@@ -467,7 +467,7 @@ Configuration priority: environment variables > config file > built-in defaults.
 | **WAF** | `aws_wafv2_web_acl` | `azurerm_web_application_firewall_policy` | |
 | **OpenSearch** | `aws_opensearch_domain` | | |
 | **Messaging** | `aws_sns_topic`, `aws_mq_broker` | `azurerm_servicebus_namespace`, `azurerm_eventhub_namespace` | `google_pubsub_topic` |
-| **ML/AI** | `aws_sagemaker_notebook_instance` | | `google_vertex_ai_endpoint` |
+| **ML/AI** | `aws_sagemaker_endpoint`, `aws_sagemaker_notebook_instance` | | `google_vertex_ai_endpoint` |
 
 Instance type mapping covers 70+ AWS instance types (including Graviton/ARM families: m6g, m7g, c6g, c7g, r6g, r7g, t4g), 40+ Azure VM sizes, and 20+ GCP machine types with full bidirectional cross-provider mapping.
 

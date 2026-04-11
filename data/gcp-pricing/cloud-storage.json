@@ -1,13 +1,18 @@
 {
   "us-central1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
   "us-east1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "europe-west1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "asia-southeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "us-east4": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
   "us-west1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
+  "us-west4": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "europe-west1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
+  "europe-west2": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "europe-west3": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "europe-west4": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "europe-north1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
+  "asia-southeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
   "asia-northeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "asia-south1": { "STANDARD": 0.021, "NEARLINE": 0.011, "COLDLINE": 0.005, "ARCHIVE": 0.0013 },
-  "australia-southeast1": { "STANDARD": 0.024, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "europe-west2": { "STANDARD": 0.022, "NEARLINE": 0.011, "COLDLINE": 0.005, "ARCHIVE": 0.0013 },
-  "europe-west4": { "STANDARD": 0.022, "NEARLINE": 0.011, "COLDLINE": 0.005, "ARCHIVE": 0.0013 },
-  "northamerica-northeast1": { "STANDARD": 0.021, "NEARLINE": 0.011, "COLDLINE": 0.005, "ARCHIVE": 0.0013 }
+  "asia-south1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "australia-southeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
+  "northamerica-northeast1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
+  "southamerica-east1": { "STANDARD": 0.035, "NEARLINE": 0.020, "COLDLINE": 0.007, "ARCHIVE": 0.0025 }
 }

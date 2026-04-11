@@ -253,6 +253,13 @@ export const awsExtractors: Record<string, AttributeExtractor> = {
     return attrs;
   },
 
+  aws_sagemaker_notebook_instance(block) {
+    const attrs: ResourceAttributes = {};
+    if (str(block["instance_type"])) attrs.instance_type = str(block["instance_type"]);
+    if (str(block["name"])) attrs.endpoint_name = str(block["name"]);
+    return attrs;
+  },
+
   aws_mq_broker(block) {
     const attrs: ResourceAttributes = {};
     if (str(block["host_instance_type"])) attrs.instance_type = str(block["host_instance_type"]);

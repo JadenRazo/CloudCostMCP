@@ -63,15 +63,15 @@ describe("GcpBundledLoader", () => {
     expect(result!.service).toBe("cloud-sql");
     expect(result!.resource_type).toBe("db-custom-2-7680");
     expect(result!.unit).toBe("h");
-    // Bundled data: db-custom-2-7680 us-central1 = 0.1000
-    expect(result!.price_per_unit).toBeCloseTo(0.1, 4);
+    // Bundled data: db-custom-2-7680 us-central1 = 0.1030
+    expect(result!.price_per_unit).toBeCloseTo(0.103, 4);
   });
 
   it("returns price for db-custom-4-15360 in europe-west1", async () => {
     const result = await loader.getDatabasePrice("db-custom-4-15360", "europe-west1");
 
     expect(result).not.toBeNull();
-    expect(result!.price_per_unit).toBeCloseTo(0.22, 4);
+    expect(result!.price_per_unit).toBeCloseTo(0.2266, 4);
   });
 
   it("does not expose storage_per_gb as a database tier", async () => {

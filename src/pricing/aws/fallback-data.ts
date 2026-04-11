@@ -1,7 +1,8 @@
 import { getRegionPriceMultipliers } from "../../data/loader.js";
+import { logger } from "../../logger.js";
 
 // ---------------------------------------------------------------------------
-// Fallback pricing data (approximate us-east-1 on-demand prices, 2024)
+// Fallback pricing data (approximate us-east-1 on-demand prices, April 2026)
 // Used when the live AWS Bulk Pricing API is unreachable.
 // ---------------------------------------------------------------------------
 
@@ -90,6 +91,28 @@ export const EC2_BASE_PRICES: Record<string, number> = {
   "r7g.xlarge": 0.214,
   "r7g.2xlarge": 0.428,
   "r7g.4xlarge": 0.856,
+
+  // 8th-gen Graviton4 families
+  "m8g.large": 0.077,
+  "m8g.xlarge": 0.154,
+  "m8g.2xlarge": 0.308,
+  "m8g.4xlarge": 0.616,
+  "c8g.large": 0.068,
+  "c8g.xlarge": 0.136,
+  "c8g.2xlarge": 0.272,
+  "c8g.4xlarge": 0.544,
+  "r8g.large": 0.101,
+  "r8g.xlarge": 0.202,
+  "r8g.2xlarge": 0.404,
+  "r8g.4xlarge": 0.808,
+
+  // GPU instances
+  "g5.xlarge": 1.006,
+  "g5.2xlarge": 1.212,
+  "g5.4xlarge": 1.624,
+  "g5.8xlarge": 2.448,
+  "g5.12xlarge": 5.672,
+  "p4d.24xlarge": 32.7726,
 };
 
 export const RDS_BASE_PRICES: Record<string, number> = {
@@ -181,5 +204,10 @@ export const SIZE_ORDER: readonly string[] = [
 
 export function regionMultiplier(region: string): number {
   const multipliers = getRegionPriceMultipliers();
-  return multipliers.aws[region.toLowerCase()] ?? 1.0;
+  const mult = multipliers.aws[region.toLowerCase()];
+  if (mult === undefined) {
+    logger.warn("region-multiplier: unknown AWS region, defaulting to 1.0x", { region });
+    return 1.0;
+  }
+  return mult;
 }
