@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cloudcostmcp
+  description: Cloud cost analysis MCP server
+  annotations:
+    github.com/project-slug: JadenRazo/CloudCostMCP
+  tags:
+    - raizhost
+    - mcp
+    - tooling
+spec:
+  type: service
+  lifecycle: experimental
+  owner: jaden
+  system: raizhost-platform
