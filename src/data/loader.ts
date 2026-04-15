@@ -254,6 +254,35 @@ export function getRegionPriceMultipliers(): RegionPriceMultipliers {
 }
 
 // ---------------------------------------------------------------------------
+// Provider fallback metadata — written by scripts/refresh-pricing.ts.
+// Surfaces the freshness of bundled fallback tables to downstream callers.
+// Returns null for any provider whose metadata file is missing (e.g. before
+// the first refresh run for that provider).
+// ---------------------------------------------------------------------------
+
+export interface FallbackMetadata {
+  last_updated: string;
+  source?: string;
+  sku_count?: number;
+  refresh_script_version?: string;
+  currency?: string;
+  notes?: string;
+}
+
+const _fallbackMeta: Record<string, FallbackMetadata | null> = {};
+
+export function getFallbackMetadata(provider: "aws" | "azure" | "gcp"): FallbackMetadata | null {
+  if (_fallbackMeta[provider] !== undefined) return _fallbackMeta[provider];
+  const relPath = `${provider}-pricing/metadata.json`;
+  try {
+    _fallbackMeta[provider] = loadJsonFile<FallbackMetadata>(relPath);
+  } catch {
+    _fallbackMeta[provider] = null;
+  }
+  return _fallbackMeta[provider];
+}
+
+// ---------------------------------------------------------------------------
 // Cache reset – only useful in tests that need a clean slate between runs.
 // Not exported to consumers; imported via the test helper path if needed.
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { CostEngine } from "../../../src/calculator/cost-engine.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
+import { RDS_BASE_PRICES } from "../../../src/pricing/aws/fallback-data.js";
 import type { ParsedResource } from "../../../src/types/resources.js";
 
 // Disable live network fetches; fallback prices in the loaders are sufficient
@@ -145,9 +146,10 @@ describe("CostEngine", () => {
 
     const estimate = await engine.calculateCost(resource, "aws", "us-east-1");
 
-    // db.t3.medium = $0.068/hr * 730 + 100 GB * $0.08 = ~$57.64
+    // Drive the expected cost off the live fallback table so the weekly
+    // pricing refresh script's output does not break this assertion.
     expect(estimate.monthly_cost).toBeGreaterThan(0);
-    const instanceCost = 0.068 * 730;
+    const instanceCost = RDS_BASE_PRICES["db.t3.medium"]! * 730;
     const storageCost = 100 * 0.08;
     expect(estimate.monthly_cost).toBeCloseTo(instanceCost + storageCost, 0);
   });

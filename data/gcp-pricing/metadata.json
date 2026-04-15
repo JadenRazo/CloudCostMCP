@@ -1,6 +1,8 @@
 {
-  "last_updated": "2026-04-11",
+  "last_updated": "2026-04-15",
   "source": "Google Cloud Pricing Calculator",
   "currency": "USD",
-  "notes": "Bundled pricing data for offline/zero-auth usage"
+  "notes": "Bundled pricing data for offline/zero-auth usage",
+  "refresh_script_version": "2.0.0",
+  "sku_count": 1197
 }

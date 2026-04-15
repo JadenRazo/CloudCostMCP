@@ -1,0 +1,8 @@
+{
+  "last_updated": "2026-04-15",
+  "source": "https://prices.azure.com/api/retail/prices",
+  "sku_count": 70,
+  "refresh_script_version": "2.0.0",
+  "currency": "USD",
+  "notes": "Written by scripts/refresh-pricing.ts --write"
+}

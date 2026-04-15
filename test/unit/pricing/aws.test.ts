@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { AwsBulkLoader } from "../../../src/pricing/aws/bulk-loader.js";
+import { RDS_BASE_PRICES } from "../../../src/pricing/aws/fallback-data.js";
 
 // Always make fetch fail so the loader falls through to hardcoded fallback data.
 // This keeps tests hermetic and fast (no real HTTP calls).
@@ -109,7 +110,9 @@ describe("AwsBulkLoader", () => {
     expect(result!.provider).toBe("aws");
     expect(result!.service).toBe("rds");
     expect(result!.resource_type).toBe("db.t3.medium");
-    expect(result!.price_per_unit).toBeCloseTo(0.068, 4);
+    // Asserts against the current fallback table value so the weekly
+    // refresh script's output keeps tests green as AWS pricing drifts.
+    expect(result!.price_per_unit).toBeCloseTo(RDS_BASE_PRICES["db.t3.medium"]!, 4);
     expect(result!.unit).toBe("Hrs");
   });
 
@@ -127,7 +130,7 @@ describe("AwsBulkLoader", () => {
     expect(usResult).not.toBeNull();
     expect(euResult).not.toBeNull();
     expect(euResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
-    expect(euResult!.price_per_unit).toBeCloseTo(0.017 * 1.05, 4);
+    expect(euResult!.price_per_unit).toBeCloseTo(RDS_BASE_PRICES["db.t3.micro"]! * 1.05, 4);
   });
 
   it("returns null for unknown RDS instance class", async () => {
