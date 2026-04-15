@@ -3,6 +3,8 @@ import type { CloudProvider } from "../types/resources.js";
 import type { CloudCostConfig } from "../types/config.js";
 import { PricingCache } from "./cache.js";
 import { AwsBulkLoader } from "./aws/bulk-loader.js";
+import { AwsSpotClient } from "./aws/spot-client.js";
+import { AwsReservedClient, type RiRate } from "./aws/reserved-client.js";
 import { AzureRetailClient } from "./azure/retail-client.js";
 import { GcpBundledLoader } from "./gcp/bundled-loader.js";
 import { CloudBillingClient } from "./gcp/cloud-billing-client.js";
@@ -41,6 +43,29 @@ export interface PricingProvider {
   getNatGatewayPrice(region: string): Promise<NormalizedPrice | null>;
 
   getKubernetesPrice(region: string, mode?: string): Promise<NormalizedPrice | null>;
+
+  /**
+   * Optional: return the live spot discount factor (portion of on-demand
+   * price paid) for a given instance in a region. Returns null when the
+   * provider has no live spot data and callers should fall back to static
+   * family-based discount estimates.
+   */
+  getSpotFactor?(
+    instanceType: string,
+    region: string,
+    os?: string,
+  ): Promise<number | null>;
+
+  /**
+   * Optional: return live reserved-instance / committed-use discount rates
+   * for a given instance/region. Returns null when no live data is
+   * available; callers should fall back to static rates.
+   */
+  getReservedRates?(
+    instanceType: string,
+    region: string,
+    os?: string,
+  ): Promise<RiRate[] | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,9 +75,33 @@ export interface PricingProvider {
 
 class AwsProvider implements PricingProvider {
   private loader: AwsBulkLoader;
+  private spotClient: AwsSpotClient;
+  private reservedClient: AwsReservedClient;
 
   constructor(cache: PricingCache) {
     this.loader = new AwsBulkLoader(cache);
+    this.spotClient = new AwsSpotClient(cache);
+    this.reservedClient = new AwsReservedClient(cache);
+  }
+
+  getSpotFactor(
+    instanceType: string,
+    region: string,
+    os?: string,
+  ): Promise<number | null> {
+    return this.spotClient.getSpotFactor(
+      instanceType,
+      region,
+      os === "Windows" ? "Windows" : "Linux",
+    );
+  }
+
+  getReservedRates(
+    instanceType: string,
+    region: string,
+    os?: string,
+  ): Promise<RiRate[] | null> {
+    return this.reservedClient.getRiRates("AmazonEC2", instanceType, region, os ?? "Linux");
   }
 
   getComputePrice(
@@ -133,6 +182,34 @@ class AzureProvider implements PricingProvider {
 
   getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
     return this.client.getKubernetesPrice(region);
+  }
+
+  /**
+   * Azure-specific: fetch live Spot VM pricing from the Retail API. Exposed
+   * on the provider so the compute calculator can prefer live spot rows
+   * over static discount factors. Returns null when the live API has no
+   * matching spot row. Not part of the base `PricingProvider` interface
+   * because AWS/GCP use different spot channels.
+   */
+  getSpotPrice(
+    vmSize: string,
+    region: string,
+    os?: string,
+  ): Promise<NormalizedPrice | null> {
+    return this.client.getSpotPrice(vmSize, region, os);
+  }
+
+  /**
+   * Azure-specific: fetch the live Reservation VM hourly rate (1yr / 3yr)
+   * from the Retail API. Returns null when no reservation row matches,
+   * signalling callers to fall back to the static DISCOUNT_RATES table.
+   */
+  getReservationHourlyRate(
+    vmSize: string,
+    region: string,
+    term: "1yr" | "3yr",
+  ): Promise<number | null> {
+    return this.client.getReservationHourlyRate(vmSize, region, term);
   }
 }
 

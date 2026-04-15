@@ -17,8 +17,11 @@ export const getPricingSchema = z.object({
       "load_balancer",
       "nat_gateway",
       "kubernetes",
+      "gpu",
     ])
-    .describe("Service category (network defaults to nat_gateway for backward compatibility)"),
+    .describe(
+      "Service category (network defaults to nat_gateway for backward compatibility; gpu returns accelerator pricing where supported)",
+    ),
   resource_type: z
     .string()
     .describe(
@@ -54,6 +57,7 @@ export async function getPricing(
     load_balancer: "load-balancer",
     nat_gateway: "nat-gateway",
     kubernetes: "kubernetes",
+    gpu: "gpu",
   };
 
   const service = serviceMap[params.service] ?? params.service;

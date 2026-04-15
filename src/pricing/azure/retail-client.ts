@@ -9,6 +9,7 @@ import {
 } from "./azure-normalizer.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
 import { interpolateByVcpuRatio } from "../interpolation.js";
+import { toArmRegionName } from "./arm-regions.js";
 import {
   VM_BASE_PRICES,
   DISK_BASE_PRICES,
@@ -46,7 +47,7 @@ export class AzureRetailClient {
     try {
       // OData filter: serviceName eq 'Virtual Machines', armRegionName eq '{region}',
       // skuName contains vmSize, priceType eq 'Consumption'
-      const armRegion = region.toLowerCase().replace(/\s+/g, "");
+      const armRegion = toArmRegionName(region);
       const filter = this.buildODataFilter("Virtual Machines", armRegion, vmSize, true);
       const items = await this.queryPricing(filter);
 
@@ -78,7 +79,7 @@ export class AzureRetailClient {
     if (cached) return cached;
 
     try {
-      const armRegion = region.toLowerCase().replace(/\s+/g, "");
+      const armRegion = toArmRegionName(region);
       const serviceName = `Azure Database for ${engine}`;
       const result = await this.queryDatabasePrice(tier, armRegion, serviceName);
 
@@ -190,7 +191,7 @@ export class AzureRetailClient {
     if (cached) return cached;
 
     try {
-      const armRegion = region.toLowerCase().replace(/\s+/g, "");
+      const armRegion = toArmRegionName(region);
       const filter = this.buildODataFilter("Storage", armRegion, diskType);
       const items = await this.queryPricing(filter);
 
@@ -270,6 +271,143 @@ export class AzureRetailClient {
     };
   }
 
+  /**
+   * Fetch the live Spot VM price for a given VM size/region/OS from the Azure
+   * Retail Prices API. Spot VMs are exposed as distinct rows where the
+   * `meterName` contains "Spot" (e.g. "D2s v5 Spot"). Returns `null` when no
+   * spot row is found — callers should fall back to static discount factors.
+   *
+   * Cache key is namespaced under "vm-spot" so spot and on-demand entries
+   * don't collide.
+   */
+  async getSpotPrice(
+    vmSize: string,
+    region: string,
+    os: string = "linux",
+  ): Promise<NormalizedPrice | null> {
+    const cacheKey = this.buildCacheKey("vm-spot", region, vmSize, os);
+    const cached = this.cache.get<NormalizedPrice>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const armRegion = toArmRegionName(region);
+      // Retail API returns Spot rows under priceType=Consumption too; the
+      // discriminator is the meterName / skuName containing "Spot". Query by
+      // armSkuName for determinism then filter.
+      const filter = this.buildODataFilter("Virtual Machines", armRegion, vmSize, true);
+      const items = await this.queryPricing(filter);
+
+      const isWindows = os.toLowerCase().includes("windows");
+      const spotItems = items.filter((i) => {
+        const meter = (i.meterName ?? "").toLowerCase();
+        const sku = (i.skuName ?? "").toLowerCase();
+        const hasWindows = sku.includes("windows") || meter.includes("windows");
+        const isSpot = meter.includes("spot") || sku.includes("spot");
+        return isSpot && ((isWindows && hasWindows) || (!isWindows && !hasWindows));
+      });
+
+      if (spotItems.length > 0) {
+        spotItems.sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
+        const result = normalizeAzureCompute(spotItems[0]);
+        result.attributes.pricing_source = "live";
+        result.attributes.purchase_option = "spot";
+        this.cache.set(cacheKey, result, "azure", "vm-spot", region, CACHE_TTL);
+        return result;
+      }
+    } catch (err) {
+      logger.warn("Azure Retail API Spot fetch failed", {
+        region,
+        vmSize,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return null;
+  }
+
+  /**
+   * Fetch the live Reservation price for a VM size/region/term from the Azure
+   * Retail Prices API. The API exposes reservations via `priceType eq
+   * 'Reservation'`, with `reservationTerm` of "1 Year" or "3 Years". Returns
+   * `null` when no reservation row matches — callers should fall back to
+   * static discount factors.
+   *
+   * The returned NormalizedPrice uses the reservation's `unitOfMeasure`
+   * (typically "1 Hour" after Azure's per-hour amortisation but sometimes
+   * "1/Year" for upfront payment). The `retailPrice` is the total reservation
+   * price as returned — callers are expected to convert to an hourly rate
+   * themselves using the unit.
+   */
+  async getReservationPrice(
+    vmSize: string,
+    region: string,
+    term: "1yr" | "3yr",
+  ): Promise<NormalizedPrice | null> {
+    const cacheKey = this.buildCacheKey("vm-ri", region, vmSize, term);
+    const cached = this.cache.get<NormalizedPrice>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const armRegion = toArmRegionName(region);
+      const termLabel = term === "1yr" ? "1 Year" : "3 Years";
+      const filter =
+        `serviceName eq 'Virtual Machines' and armRegionName eq '${armRegion}'` +
+        ` and priceType eq 'Reservation' and armSkuName eq '${vmSize}'`;
+      const items = await this.queryPricing(filter);
+
+      const matches = items.filter((i) => (i.reservationTerm ?? "") === termLabel);
+      if (matches.length > 0) {
+        matches.sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
+        const result = normalizeAzureCompute(matches[0]);
+        result.attributes.pricing_source = "live";
+        result.attributes.purchase_option = "reservation";
+        result.attributes.reservation_term = termLabel;
+        this.cache.set(cacheKey, result, "azure", "vm-ri", region, CACHE_TTL);
+        return result;
+      }
+    } catch (err) {
+      logger.warn("Azure Retail API Reservation fetch failed", {
+        region,
+        vmSize,
+        term,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return null;
+  }
+
+  /**
+   * Convenience helper: given a VM size and region, return the effective
+   * *hourly* reservation rate (amortised). Returns `null` when the live API
+   * has no matching reservation. This wraps `getReservationPrice` and
+   * converts "1/Year" / "1/3 Years" billed units into an hourly equivalent
+   * using a 730h/month * 12 / 36 month assumption.
+   */
+  async getReservationHourlyRate(
+    vmSize: string,
+    region: string,
+    term: "1yr" | "3yr",
+  ): Promise<number | null> {
+    const price = await this.getReservationPrice(vmSize, region, term);
+    if (!price) return null;
+
+    const unit = (price.unit ?? "").toLowerCase();
+    const raw = price.price_per_unit;
+    if (!isFinite(raw) || raw <= 0) return null;
+
+    if (unit.includes("hour")) {
+      return raw;
+    }
+    // Upfront units: "1/Year", "1/3 Years" — convert to hourly using 8760h/yr.
+    if (unit.includes("year")) {
+      const years = term === "1yr" ? 1 : 3;
+      return raw / (8760 * years);
+    }
+    // Unknown unit — assume hourly as a safest guess.
+    return raw;
+  }
+
   // -------------------------------------------------------------------------
   // Internal helpers – live API
   // -------------------------------------------------------------------------
@@ -309,8 +447,9 @@ export class AzureRetailClient {
     armRegion: string,
     skuName?: string,
     exactArmSku?: boolean,
+    priceType: "Consumption" | "Reservation" | "DevTestConsumption" = "Consumption",
   ): string {
-    let filter = `serviceName eq '${service}' and armRegionName eq '${armRegion}' and priceType eq 'Consumption'`;
+    let filter = `serviceName eq '${service}' and armRegionName eq '${armRegion}' and priceType eq '${priceType}'`;
     if (skuName) {
       if (exactArmSku) {
         filter += ` and armSkuName eq '${skuName}'`;
