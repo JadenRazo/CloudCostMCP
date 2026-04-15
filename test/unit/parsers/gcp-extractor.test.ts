@@ -173,9 +173,7 @@ describe("gcpExtractors", () => {
 
     it("should handle data_cache_enabled as string boolean", () => {
       const block = {
-        settings: [
-          { data_cache_config: [{ data_cache_enabled: "false" }] },
-        ],
+        settings: [{ data_cache_config: [{ data_cache_enabled: "false" }] }],
       };
       const attrs = extract(block);
       expect(attrs.data_cache_enabled).toBe(false);

@@ -1,6 +1,6 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "MCP server for multi-cloud cost analysis of Terraform, CloudFormation, Pulumi, and Bicep/ARM codebases",
   "type": "module",
   "license": "MIT",
@@ -39,7 +39,10 @@
     "!dist/**/*.map",
     "data",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "STABILITY.md",
+    "MIGRATION.md",
+    "CHANGELOG.md"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -70,6 +73,12 @@
     "better-sqlite3": "^11.9.1",
     "yaml": "^2.8.3",
     "zod": "^3.24.4"
+  },
+  "overrides": {
+    "hono": "^4.12.12",
+    "@hono/node-server": "^1.19.13",
+    "path-to-regexp": "^8.4.0",
+    "vite": "^7.3.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
