@@ -1,0 +1,90 @@
+{
+  "$comment": "Golden-file snapshot of expected live-pricing ranges per provider/SKU/region. Ranges are intentionally wide (~+/-5% around the recorded price plus absolute headroom) so normal upstream drift does not fail CI. Regenerate via scripts/update-pricing-golden.ts after refresh-pricing.ts confirms an upstream change is legitimate. Prices are USD/hr for compute/db/gpu and USD/GB-month for storage.",
+  "recorded_at": "2026-04-15",
+  "aws": {
+    "t3.micro": {
+      "us-east-1": { "min": 0.008, "max": 0.015 },
+      "us-west-2": { "min": 0.008, "max": 0.015 }
+    },
+    "t3.medium": {
+      "us-east-1": { "min": 0.035, "max": 0.055 },
+      "us-west-2": { "min": 0.035, "max": 0.055 }
+    },
+    "m6i.large": {
+      "us-east-1": { "min": 0.080, "max": 0.120 },
+      "us-west-2": { "min": 0.080, "max": 0.120 }
+    },
+    "c7g.2xlarge": {
+      "us-east-1": { "min": 0.24, "max": 0.36 },
+      "us-west-2": { "min": 0.24, "max": 0.36 }
+    },
+    "r7g.xlarge": {
+      "us-east-1": { "min": 0.18, "max": 0.26 },
+      "us-west-2": { "min": 0.18, "max": 0.26 }
+    },
+    "db.m6g.large": {
+      "us-east-1": { "min": 0.15, "max": 0.24 },
+      "us-west-2": { "min": 0.15, "max": 0.24 }
+    },
+    "gp3": {
+      "us-east-1": { "min": 0.06, "max": 0.12 },
+      "us-west-2": { "min": 0.06, "max": 0.12 }
+    },
+    "p4d.24xlarge": {
+      "us-east-1": { "min": 28.0, "max": 38.0 },
+      "us-west-2": { "min": 28.0, "max": 38.0 }
+    }
+  },
+  "azure": {
+    "Standard_B2s": {
+      "eastus": { "min": 0.03, "max": 0.06 },
+      "westeurope": { "min": 0.03, "max": 0.07 }
+    },
+    "Standard_D2s_v5": {
+      "eastus": { "min": 0.08, "max": 0.13 },
+      "westeurope": { "min": 0.08, "max": 0.14 }
+    },
+    "Standard_E4s_v5": {
+      "eastus": { "min": 0.20, "max": 0.32 },
+      "westeurope": { "min": 0.20, "max": 0.34 }
+    },
+    "Standard_F2s_v2": {
+      "eastus": { "min": 0.07, "max": 0.12 },
+      "westeurope": { "min": 0.07, "max": 0.13 }
+    },
+    "Standard_L8s_v3": {
+      "eastus": { "min": 0.60, "max": 1.00 },
+      "westeurope": { "min": 0.60, "max": 1.05 }
+    },
+    "Standard_NC24ads_A100_v4": {
+      "eastus": { "min": 2.80, "max": 4.50 },
+      "westeurope": { "min": 2.80, "max": 4.80 }
+    }
+  },
+  "gcp": {
+    "e2-standard-2": {
+      "us-central1": { "min": 0.05, "max": 0.10 },
+      "europe-west1": { "min": 0.05, "max": 0.12 }
+    },
+    "n2-standard-4": {
+      "us-central1": { "min": 0.15, "max": 0.25 },
+      "europe-west1": { "min": 0.15, "max": 0.28 }
+    },
+    "c3-highmem-8": {
+      "us-central1": { "min": 0.40, "max": 0.70 },
+      "europe-west1": { "min": 0.40, "max": 0.75 }
+    },
+    "t2d-standard-4": {
+      "us-central1": { "min": 0.12, "max": 0.22 },
+      "europe-west1": { "min": 0.12, "max": 0.25 }
+    },
+    "pd-ssd": {
+      "us-central1": { "min": 0.10, "max": 0.24 },
+      "europe-west1": { "min": 0.10, "max": 0.26 }
+    },
+    "a2-highgpu-1g": {
+      "us-central1": { "min": 2.80, "max": 4.50 },
+      "europe-west1": { "min": 2.80, "max": 4.80 }
+    }
+  }
+}
