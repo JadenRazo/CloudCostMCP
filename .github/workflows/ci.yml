@@ -4,6 +4,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Weekly smoke test against live provider pricing APIs (Mondays 12:00 UTC)
+    - cron: '0 12 * * 1'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -56,3 +60,23 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  integration-smoke:
+    # Exercises the live AWS/Azure/GCP pricing APIs. Only runs on manual
+    # dispatch or the weekly schedule — skipped on regular PR/push traffic
+    # to avoid coupling CI to third-party API availability.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Run pricing smoke tests
+        env:
+          RUN_INTEGRATION: '1'
+        run: npx vitest run test/integration/*.smoke.test.ts

@@ -38,10 +38,7 @@ describe("extractor helpers", () => {
 
     it("should return only the first element when multiple exist", () => {
       const block = {
-        rules: [
-          { name: "first" },
-          { name: "second" },
-        ],
+        rules: [{ name: "first" }, { name: "second" }],
       };
       const result = firstBlock(block, "rules");
       expect(result).toEqual({ name: "first" });

@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-04-15
+
+First stable release. No breaking API changes from 0.5 — this version ratifies the existing surface as SemVer-locked. See [`MIGRATION.md`](./MIGRATION.md) for details.
+
+### Added
+- **`STABILITY.md`**: Formal stability contract defining the SemVer-locked public surface (11 MCP tools, CLI binaries, package entry points) and the change-classification policy.
+- **`MIGRATION.md`**: 0.x → 1.0 migration guide and forward-looking support policy.
+- **Smoke integration tests**: Live-API smoke coverage for AWS Bulk Pricing, Azure Retail Prices, and GCP Cloud Billing Catalog, gated behind `RUN_INTEGRATION=1`. New `integration-smoke` CI job runs on manual dispatch and weekly schedule (Mondays 12:00 UTC).
+- **Publish workflow gates**: `npm audit --audit-level=high` and `npm test` now run before `npm publish`, preventing broken or vulnerable releases.
+
+### Security
+- Resolved transitive advisories via npm `overrides`:
+  - `hono` → `^4.12.12` (GHSA-26pp-8wgv-hjvm, GHSA-r5rp-j6wh-rvv4, GHSA-xf4j-xp2r-rqqx, GHSA-wmmm-f939-6g9c, GHSA-xpcf-pg52-r92g)
+  - `@hono/node-server` → `^1.19.13` (GHSA-92pp-h63x-v22m)
+  - `path-to-regexp` → `^8.4.0` (GHSA-j3q9-mxjg-w52f, GHSA-27v5-c462-wpq7)
+  - `vite` → `^7.3.2` (GHSA-4w7w-66w2-5vf9, GHSA-v2wj-q39q-566r)
+- `npm audit --audit-level=high` now reports zero vulnerabilities.
+
+### Packaging
+- `STABILITY.md`, `MIGRATION.md`, and `CHANGELOG.md` are now included in the published npm tarball.
+
 ## [0.4.0] - 2026-03-28
 
 ### Added
