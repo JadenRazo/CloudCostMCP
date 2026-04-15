@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { AzureRetailClient } from "../../../src/pricing/azure/retail-client.js";
+import { VM_BASE_PRICES } from "../../../src/pricing/azure/fallback-data.js";
 
 // Always make fetch fail so the client falls through to hardcoded fallback data.
 // This keeps tests hermetic and fast (no real HTTP calls).
@@ -73,8 +74,10 @@ describe("AzureRetailClient", () => {
     const d4 = await client.getComputePrice("Standard_D4s_v5", "eastus");
     const f4 = await client.getComputePrice("Standard_F4s_v2", "eastus");
 
-    expect(d4!.price_per_unit).toBeCloseTo(0.192, 4);
-    expect(f4!.price_per_unit).toBeCloseTo(0.17, 4);
+    // Read expected values from the fallback table rather than pinning
+    // literals so weekly refresh-script drift keeps tests green.
+    expect(d4!.price_per_unit).toBeCloseTo(VM_BASE_PRICES["standard_d4s_v5"]!, 4);
+    expect(f4!.price_per_unit).toBeCloseTo(VM_BASE_PRICES["standard_f4s_v2"]!, 4);
   });
 
   it("returns null for an unknown VM size", async () => {

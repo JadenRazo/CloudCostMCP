@@ -1,0 +1,81 @@
+name: Refresh Pricing
+
+# Weekly refresh of bundled AWS/Azure/GCP fallback pricing tables.
+# Commits directly to main (no PR) so the cadence is hands-off.
+
+on:
+  schedule:
+    # Mondays 12:00 UTC — avoids weekend quiet hours and still hits before
+    # the US business day so any follow-up investigation is same-day.
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-pricing
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need full credentials to push back to main.
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (type-check)
+        run: npm run build
+
+      - name: Run pricing refresh (write mode)
+        id: refresh
+        run: npx tsx scripts/refresh-pricing.ts --write
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if git diff --quiet -- src/pricing data/aws-pricing data/azure-pricing data/gcp-pricing; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No pricing changes detected." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Pricing refresh detected changes"
+              echo ''
+              echo '```diff'
+              git diff --stat -- src/pricing data/aws-pricing data/azure-pricing data/gcp-pricing
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pricing data/aws-pricing data/azure-pricing data/gcp-pricing
+          git commit -m "chore(pricing): weekly fallback refresh"
+          git push origin HEAD:main
+
+      - name: Report failure
+        if: failure()
+        run: |
+          {
+            echo "## Refresh failed"
+            echo ''
+            echo "The pricing refresh workflow failed. Investigate logs above."
+          } >> "$GITHUB_STEP_SUMMARY"

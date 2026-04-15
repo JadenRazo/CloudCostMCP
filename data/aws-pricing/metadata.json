@@ -1,0 +1,8 @@
+{
+  "last_updated": "2026-04-15",
+  "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws",
+  "sku_count": 142,
+  "refresh_script_version": "2.0.0",
+  "currency": "USD",
+  "notes": "Written by scripts/refresh-pricing.ts --write"
+}

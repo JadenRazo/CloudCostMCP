@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { CloudProvider } from "../types/resources.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
+import { getFallbackMetadata } from "../data/loader.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -87,5 +88,18 @@ export async function getPricing(
     }
   }
 
-  return { price };
+  // Expose bundled fallback freshness so downstream callers can judge
+  // whether the returned price is stale. Present only when the provider's
+  // data/<provider>-pricing/metadata.json file exists.
+  const meta = getFallbackMetadata(provider);
+  const fallback_metadata = meta
+    ? {
+        last_updated: meta.last_updated,
+        source: meta.source,
+        sku_count: meta.sku_count,
+        refresh_script_version: meta.refresh_script_version,
+      }
+    : undefined;
+
+  return fallback_metadata ? { price, fallback_metadata } : { price };
 }
