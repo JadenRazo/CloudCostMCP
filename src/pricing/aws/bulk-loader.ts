@@ -280,7 +280,9 @@ export class AwsBulkLoader {
       let headerFound = false;
       let leftover = "";
       let cachedCount = 0;
-      const effectiveDate = new Date().toISOString();
+      // Parsed from the CSV metadata rows (e.g. "Publication Date","2026-04-01T00:00:00Z").
+      // Falls back to "now" if the metadata row is absent or unparseable.
+      let effectiveDate = new Date().toISOString();
 
       // Process the stream chunk-by-chunk, splitting on newlines
       while (true) {
@@ -298,6 +300,19 @@ export class AwsBulkLoader {
 
           if (!headerFound) {
             // Metadata rows look like: "FormatVersion","1.0"
+            // Capture the "Publication Date" value to propagate into NormalizedPrice.effective_date
+            if (line.startsWith('"Publication Date"') || line.startsWith("Publication Date")) {
+              const metaFields = parseCsvLine(line);
+              const rawDate = (metaFields[1] ?? "").trim();
+              if (rawDate) {
+                const parsed = new Date(rawDate);
+                if (!isNaN(parsed.getTime())) {
+                  effectiveDate = parsed.toISOString();
+                }
+              }
+              continue;
+            }
+
             // The real header starts with "SKU"
             if (line.startsWith('"SKU"') || line.startsWith("SKU")) {
               const headers = parseCsvLine(line);
@@ -420,7 +435,7 @@ export class AwsBulkLoader {
                   tenancy: "Shared",
                   pricing_source: "live",
                 },
-                effective_date: new Date().toISOString(),
+                effective_date: effectiveDate,
               } satisfies NormalizedPrice,
               "aws",
               "ec2",
