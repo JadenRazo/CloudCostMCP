@@ -64,10 +64,25 @@ function extractFromTerms(
   return { price: 0, unit: defaultUnit };
 }
 
+/**
+ * Normalize an upstream `effectiveDate` (typically the AWS bulk JSON's
+ * top-level `publicationDate`) into an ISO string. Falls back to "now" when
+ * the value is absent or unparseable so downstream consumers always see a
+ * valid ISO date.
+ */
+function resolveEffectiveDate(effectiveDate?: string): string {
+  if (effectiveDate) {
+    const t = new Date(effectiveDate);
+    if (!Number.isNaN(t.getTime())) return t.toISOString();
+  }
+  return new Date().toISOString();
+}
+
 export function normalizeAwsCompute(
   rawProduct: AwsProduct,
   rawPrice: AwsPriceWrapper,
   region: string,
+  effectiveDate?: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
@@ -92,7 +107,7 @@ export function normalizeAwsCompute(
       tenancy: attrs.tenancy ?? "Shared",
       pricing_source: "live",
     },
-    effective_date: new Date().toISOString(),
+    effective_date: resolveEffectiveDate(effectiveDate),
   };
 }
 
@@ -100,6 +115,7 @@ export function normalizeAwsDatabase(
   rawProduct: AwsProduct,
   rawPrice: AwsPriceWrapper,
   region: string,
+  effectiveDate?: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
@@ -124,7 +140,7 @@ export function normalizeAwsDatabase(
       memory: attrs.memory ?? "",
       pricing_source: "live",
     },
-    effective_date: new Date().toISOString(),
+    effective_date: resolveEffectiveDate(effectiveDate),
   };
 }
 
@@ -132,6 +148,7 @@ export function normalizeAwsStorage(
   rawProduct: AwsProduct,
   rawPrice: AwsPriceWrapper,
   region: string,
+  effectiveDate?: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
   const terms = rawPrice?.terms?.OnDemand ?? {};
@@ -154,6 +171,6 @@ export function normalizeAwsStorage(
       max_throughput: attrs.maxThroughputvolume ?? "",
       pricing_source: "live",
     },
-    effective_date: new Date().toISOString(),
+    effective_date: resolveEffectiveDate(effectiveDate),
   };
 }

@@ -119,11 +119,23 @@ export class AwsReservedClient {
   }
 
   async getRiRates(
-    service: "AmazonEC2" | "AmazonRDS",
+    service: "AmazonRDS" | "AmazonElastiCache" | "AmazonRedshift",
     instanceType: string,
     region: string,
     os: string = "Linux",
   ): Promise<RiRate[] | null> {
+    // EC2 bulk JSON exceeds 1 GB per region — `res.json()` will OOM the Node
+    // process. Refuse the service explicitly so callers route to the static
+    // fallback. Only smaller services (RDS, ElastiCache, Redshift) are safe to
+    // load whole.
+    if ((service as string) === "AmazonEC2") {
+      logger.debug("AwsReservedClient: refusing AmazonEC2 (bulk JSON too large for in-memory parse)", {
+        instanceType,
+        region,
+      });
+      return null;
+    }
+
     const cacheKey = `aws/ri/${service.toLowerCase()}/${region.toLowerCase()}/${instanceType.toLowerCase()}/${os.toLowerCase()}`;
 
     const cached = this.cache.get<RiRateCacheEntry>(cacheKey);

@@ -1,6 +1,7 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
 import type { PricingCache } from "../cache.js";
 import { logger } from "../../logger.js";
+import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
 
 // ---------------------------------------------------------------------------
 // GCP Cloud Billing Catalog API
@@ -410,10 +411,14 @@ export class CloudBillingClient {
 
       logger.debug("GCP Cloud Billing API request", { url: pageUrl, serviceId, region });
 
-      const res = await fetch(pageUrl, {
-        signal: AbortSignal.timeout(30_000),
-        headers: { Accept: "application/json" },
-      });
+      const res = await fetchWithRetryAndCircuitBreaker(
+        pageUrl,
+        {
+          signal: AbortSignal.timeout(30_000),
+          headers: { Accept: "application/json" },
+        },
+        { maxRetries: 2 },
+      );
 
       if (!res.ok) {
         throw new Error(`GCP Billing API HTTP ${res.status} for service ${serviceId}`);

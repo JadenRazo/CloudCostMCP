@@ -146,7 +146,7 @@ describe("GCP live normalizers propagate effectiveDate", () => {
 // entirely (or sets it to a non-string) is caught.
 // ---------------------------------------------------------------------------
 
-describe("AWS normalizers emit a valid effective_date", () => {
+describe("AWS normalizers propagate publicationDate as effective_date", () => {
   const rawProduct = {
     attributes: {
       instanceType: "m5.large",
@@ -177,22 +177,43 @@ describe("AWS normalizers emit a valid effective_date", () => {
     return !Number.isNaN(t);
   };
 
-  it("normalizeAwsCompute produces a parseable ISO effective_date", () => {
-    const result = normalizeAwsCompute(rawProduct, rawPrice, "us-east-1");
-    expect(isValidIso(result.effective_date)).toBe(true);
+  it("normalizeAwsCompute carries the publicationDate argument through", () => {
+    const result = normalizeAwsCompute(
+      rawProduct,
+      rawPrice,
+      "us-east-1",
+      "2025-08-01T00:00:00Z",
+    );
+    expect(result.effective_date).toBe("2025-08-01T00:00:00.000Z");
   });
 
-  it("normalizeAwsDatabase produces a parseable ISO effective_date", () => {
-    const result = normalizeAwsDatabase(rawProduct, rawPrice, "us-east-1");
-    expect(isValidIso(result.effective_date)).toBe(true);
+  it("normalizeAwsDatabase carries the publicationDate argument through", () => {
+    const result = normalizeAwsDatabase(
+      rawProduct,
+      rawPrice,
+      "us-east-1",
+      "2025-09-15T00:00:00Z",
+    );
+    expect(result.effective_date).toBe("2025-09-15T00:00:00.000Z");
   });
 
-  it("normalizeAwsStorage produces a parseable ISO effective_date", () => {
+  it("normalizeAwsStorage carries the publicationDate argument through", () => {
     const result = normalizeAwsStorage(
       { attributes: { volumeApiName: "gp3" } },
       rawPrice,
       "us-east-1",
+      "2026-02-10T00:00:00Z",
     );
+    expect(result.effective_date).toBe("2026-02-10T00:00:00.000Z");
+  });
+
+  it("falls back to a valid ISO date when publicationDate is omitted", () => {
+    const result = normalizeAwsCompute(rawProduct, rawPrice, "us-east-1");
+    expect(isValidIso(result.effective_date)).toBe(true);
+  });
+
+  it("falls back to a valid ISO date when publicationDate is unparseable", () => {
+    const result = normalizeAwsDatabase(rawProduct, rawPrice, "us-east-1", "not-a-date");
     expect(isValidIso(result.effective_date)).toBe(true);
   });
 });
