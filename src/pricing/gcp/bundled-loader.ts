@@ -28,8 +28,11 @@ const NAT_PER_GB = 0.045;
 
 // GKE control plane
 // Standard cluster: $0.10/hr
-// Autopilot: $0.0445/vCPU/hr estimate (actual billing is per-pod resources;
-// this approximation provides a per-cluster ballpark for cost comparisons)
+// Autopilot: $0.0445/vCPU/hr fallback estimate — only used when the live
+// Cloud Billing catalog lookup fails. Autopilot is actually billed per-pod
+// across vCPU, memory, and ephemeral storage; the live path in
+// `CloudBillingClient.fetchAutopilotPodRates` resolves those rates and is
+// preferred. This constant is the last-resort per-vCPU/hr fallback.
 const GKE_STANDARD_HOURLY = 0.1;
 const GKE_AUTOPILOT_VCPU_HOURLY = 0.0445;
 

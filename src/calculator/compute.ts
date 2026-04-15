@@ -171,14 +171,86 @@ export async function calculateComputeCost(
 
     // Apply spot/preemptible discount when requested.
     if (pricingConfig.pricing_model === "spot") {
-      const family = classifyInstanceFamily(effectiveInstance, targetProvider);
-      const providerFactors = SPOT_DISCOUNT_FACTORS[targetProvider] ?? SPOT_DISCOUNT_FACTORS.aws;
-      const factor = providerFactors[family] ?? providerFactors.general ?? 0.35;
-      const savingsPct = Math.round((1 - factor) * 100);
+      let liveSpotApplied = false;
 
-      hourlyPrice = hourlyPrice * factor;
-      pricingSource = "spot-estimate";
-      notes.push(`Spot pricing applied (${savingsPct}% discount from on-demand)`);
+      // Azure: prefer a live Spot VM price row from the Retail Prices API.
+      // The Retail API exposes Spot VMs as separate rows whose meterName
+      // contains "Spot"; when present, that beats any static discount guess.
+      if (targetProvider === "azure") {
+        try {
+          const azureProvider = pricingEngine.getProvider("azure") as unknown as {
+            getSpotPrice?: (
+              vmSize: string,
+              region: string,
+              os?: string,
+            ) => Promise<{ price_per_unit: number } | null>;
+          };
+          if (typeof azureProvider.getSpotPrice === "function") {
+            const liveSpot = await azureProvider.getSpotPrice(
+              effectiveInstance,
+              targetRegion,
+              resource.attributes.os as string | undefined,
+            );
+            if (liveSpot && liveSpot.price_per_unit > 0 && hourlyPrice > 0) {
+              const savingsPct = Math.max(
+                0,
+                Math.round((1 - liveSpot.price_per_unit / hourlyPrice) * 100),
+              );
+              hourlyPrice = liveSpot.price_per_unit;
+              pricingSource = "live";
+              liveSpotApplied = true;
+              notes.push(
+                `Spot pricing applied from live Azure Retail API (${savingsPct}% discount from on-demand)`,
+              );
+            }
+          }
+        } catch (err) {
+          logger.debug("Azure live spot lookup failed, using fallback discount factor", {
+            err: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      // AWS: prefer a live per-instance spot factor sourced from the Spot
+      // Advisor JSON endpoint. When unavailable, the call returns null and
+      // we fall through to the static family-based factor below.
+      if (!liveSpotApplied && targetProvider === "aws") {
+        try {
+          const awsProvider = pricingEngine.getProvider("aws");
+          if (typeof awsProvider.getSpotFactor === "function") {
+            const liveFactor = await awsProvider.getSpotFactor(
+              effectiveInstance,
+              targetRegion,
+              resource.attributes.os as string | undefined,
+            );
+            if (liveFactor !== null && liveFactor > 0 && liveFactor < 1) {
+              const savingsPct = Math.round((1 - liveFactor) * 100);
+              hourlyPrice = hourlyPrice * liveFactor;
+              pricingSource = "live";
+              liveSpotApplied = true;
+              notes.push(
+                `Spot pricing applied from live AWS Spot Advisor (${savingsPct}% discount from on-demand)`,
+              );
+            }
+          }
+        } catch (err) {
+          logger.debug("AWS live spot lookup failed, using fallback discount factor", {
+            err: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      if (!liveSpotApplied) {
+        const family = classifyInstanceFamily(effectiveInstance, targetProvider);
+        const providerFactors =
+          SPOT_DISCOUNT_FACTORS[targetProvider] ?? SPOT_DISCOUNT_FACTORS.aws;
+        const factor = providerFactors[family] ?? providerFactors.general ?? 0.35;
+        const savingsPct = Math.round((1 - factor) * 100);
+
+        hourlyPrice = hourlyPrice * factor;
+        pricingSource = "spot-estimate";
+        notes.push(`Spot pricing applied (${savingsPct}% discount from on-demand)`);
+      }
     }
 
     computeMonthlyCost = hourlyPrice * monthlyHours;
