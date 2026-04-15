@@ -169,20 +169,21 @@ export class AzureRetailClient {
   /**
    * Parse a VM name like "Standard_D2s_v3" into series info.
    * Returns { series: "Dsv3", vcpus: 2 } or null if unparseable.
+   *
+   * Real-world Azure SKUs have a lot of shape variation we have to handle:
+   *   Standard_D2s_v5            – 1-letter family, lower-case variant
+   *   Standard_M64ms_v2          – multi-digit vCPU count
+   *   Standard_DC4s_v3           – 2-letter family (confidential compute)
+   *   Standard_E96ias_v5         – longer (3-letter) variant
+   *   Standard_NC4as_T4_v3       – mid-name accelerator segment (T4)
+   *   Standard_Eb8as_v5          – single-letter "sub-family" prefix (b)
+   *
+   * The regex below accepts:
+   *   <FAMILY 1-2 letters><optional sub-family letter><vCPU digits>
+   *   <variant letters><optional _SEG segments like _T4>_v<version digits>
    */
   private parseVmSeries(vmName: string): { series: string; vcpus: number } | null {
-    // Match patterns like Standard_D2s_v3, Standard_E4ds_v5, Standard_D16ads_v5
-    const match = vmName.match(/Standard_([A-Z])(\d+)([a-z]*)_v(\d+)/i);
-    if (!match) return null;
-
-    const [, family, vcpuStr, variant, version] = match;
-    const vcpus = parseInt(vcpuStr, 10);
-    if (isNaN(vcpus) || vcpus === 0) return null;
-
-    // Build series name: D + variant-without-count + v + version
-    // e.g., D2s_v3 → Dsv3, E4ds_v5 → Edsv5
-    const series = `${family}${variant}v${version}`;
-    return { series, vcpus };
+    return parseAzureVmSeries(vmName);
   }
 
   async getStoragePrice(diskType: string, region: string): Promise<NormalizedPrice | null> {
@@ -635,4 +636,36 @@ export class AzureRetailClient {
     this.cache.set(cacheKey, result, "azure", "storage", region, CACHE_TTL);
     return result;
   }
+}
+
+/**
+ * Parse an Azure ARM VM SKU name (e.g. "Standard_D2s_v5") into its series tag
+ * and vCPU count. Exported so it can be unit-tested directly against the
+ * variety of real-world Azure SKU shapes documented at
+ * https://learn.microsoft.com/azure/virtual-machines/sizes.
+ *
+ * Handles all of:
+ *   Standard_D2s_v5       Standard_E4ds_v5     Standard_M64ms_v2
+ *   Standard_DC4s_v3      Standard_E96ias_v5   Standard_NC4as_T4_v3
+ *   Standard_Eb8as_v5
+ *
+ * The shape is:
+ *   Standard_<FAMILY 1-2 letters><optional sub-family letter><vCPU digits>
+ *   <variant letters><optional _SEG segments like _T4>_v<version digits>
+ */
+export function parseAzureVmSeries(
+  vmName: string,
+): { series: string; vcpus: number } | null {
+  const match = vmName.match(
+    /^Standard_([A-Z]{1,2})([a-z]?)(\d+)([a-z]*)((?:_[A-Za-z0-9]+)*)_v(\d+)$/i,
+  );
+  if (!match) return null;
+
+  const [, family, subFamily, vcpuStr, variant, extras, version] = match;
+  const vcpus = parseInt(vcpuStr, 10);
+  if (isNaN(vcpus) || vcpus === 0) return null;
+
+  const extrasJoined = (extras ?? "").replace(/_/g, "");
+  const series = `${family}${subFamily}${variant}${extrasJoined}v${version}`;
+  return { series, vcpus };
 }

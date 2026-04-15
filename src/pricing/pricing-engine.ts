@@ -97,11 +97,14 @@ class AwsProvider implements PricingProvider {
   }
 
   getReservedRates(
-    instanceType: string,
-    region: string,
-    os?: string,
+    _instanceType: string,
+    _region: string,
+    _os?: string,
   ): Promise<RiRate[] | null> {
-    return this.reservedClient.getRiRates("AmazonEC2", instanceType, region, os ?? "Linux");
+    // EC2 reserved rates are intentionally not fetched live: the AmazonEC2
+    // bulk JSON is multi-GB per region and would OOM the process. Callers
+    // (calculateAwsReservedPricingLive) treat null as "use static fallback".
+    return Promise.resolve(null);
   }
 
   getComputePrice(

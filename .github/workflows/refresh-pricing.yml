@@ -19,6 +19,8 @@ permissions:
 
 jobs:
   refresh:
+    # Guard so forks don't try to push back to main on schedule.
+    if: github.repository_owner == 'JadenRazo'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -38,12 +40,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build (type-check)
-        run: npm run build
-
       - name: Run pricing refresh (write mode)
         id: refresh
         run: npx tsx scripts/refresh-pricing.ts --write
+
+      - name: Build and test against refreshed data
+        run: npm run build && npm test
 
       - name: Detect changes
         id: diff

@@ -473,8 +473,8 @@ function rewriteAwsFallbackFile(
   rds: Record<string, number>,
   ebs: Record<string, number>,
 ): void {
-  const src = readFileSync(AWS_FALLBACK_PATH, "utf-8");
-  const nextSrc = src
+  const original = readFileSync(AWS_FALLBACK_PATH, "utf-8");
+  const nextSrc = original
     .replace(
       /export const EC2_BASE_PRICES: Record<string, number> = \{[\s\S]*?\n\};\n/,
       formatConstBlock("EC2_BASE_PRICES", ec2),
@@ -488,6 +488,16 @@ function rewriteAwsFallbackFile(
       formatConstBlock("EBS_BASE_PRICES", ebs),
     );
   writeFileSync(AWS_FALLBACK_PATH, nextSrc);
+
+  // Validate: re-import the rewritten module in a fresh subprocess to confirm
+  // it still parses and exports the expected named bindings. If the regex
+  // rewrite produced malformed TypeScript, restore the original and exit
+  // non-zero so a bad refresh never gets committed.
+  validateRewrittenModule(
+    AWS_FALLBACK_PATH,
+    original,
+    ["EC2_BASE_PRICES", "RDS_BASE_PRICES", "EBS_BASE_PRICES"],
+  );
 }
 
 function formatConstBlock(name: string, map: Record<string, number>): string {
@@ -612,8 +622,8 @@ function rewriteAzureFallbackFile(
   disk: Record<string, number>,
   db: Record<string, number>,
 ): void {
-  const src = readFileSync(AZURE_FALLBACK_PATH, "utf-8");
-  const nextSrc = src
+  const original = readFileSync(AZURE_FALLBACK_PATH, "utf-8");
+  const nextSrc = original
     .replace(
       /export const VM_BASE_PRICES: Record<string, number> = \{[\s\S]*?\n\};\n/,
       formatConstBlock("VM_BASE_PRICES", vm),
@@ -627,6 +637,60 @@ function rewriteAzureFallbackFile(
       formatConstBlock("DB_BASE_PRICES", db),
     );
   writeFileSync(AZURE_FALLBACK_PATH, nextSrc);
+
+  validateRewrittenModule(
+    AZURE_FALLBACK_PATH,
+    original,
+    ["VM_BASE_PRICES", "DISK_BASE_PRICES", "DB_BASE_PRICES"],
+  );
+}
+
+/**
+ * Validate that a freshly-rewritten fallback-data module still compiles and
+ * exports the expected named bindings by `import()`-ing it through a tsx
+ * subprocess. If the import fails (parse error, missing export, etc.) the
+ * original content is restored on disk and the script exits non-zero so the
+ * bad refresh is never committed.
+ */
+function validateRewrittenModule(
+  modulePath: string,
+  originalContent: string,
+  expectedExports: string[],
+): void {
+  // Use spawnSync so we get a clean child process whose module cache is
+  // independent of the parent (avoids stale-cache false positives).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { spawnSync } = require("child_process") as typeof import("child_process");
+
+  const probe = `
+    import(${JSON.stringify(modulePath)}).then((m) => {
+      const missing = ${JSON.stringify(expectedExports)}.filter((k) => m[k] === undefined);
+      if (missing.length > 0) {
+        console.error("MISSING_EXPORTS:" + missing.join(","));
+        process.exit(2);
+      }
+      process.exit(0);
+    }).catch((err) => {
+      console.error("IMPORT_FAILED:" + (err && err.stack ? err.stack : String(err)));
+      process.exit(3);
+    });
+  `;
+
+  const result = spawnSync("npx", ["--yes", "tsx", "--eval", probe], {
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  if (result.status !== 0) {
+    // Restore the pre-write content so the working tree is left clean.
+    writeFileSync(modulePath, originalContent);
+    console.error(
+      `\nERROR: rewritten ${modulePath} failed to import; restoring original.\n` +
+        `  stderr: ${result.stderr ?? ""}\n` +
+        `  stdout: ${result.stdout ?? ""}`,
+    );
+    process.exit(1);
+  }
 }
 
 // ---------------------------------------------------------------------------

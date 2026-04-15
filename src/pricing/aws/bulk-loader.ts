@@ -520,6 +520,7 @@ export class AwsBulkLoader {
   ): NormalizedPrice | null {
     const products = bulk?.products ?? {};
     const onDemand = bulk?.terms?.OnDemand ?? {};
+    const publicationDate = bulk?.publicationDate;
 
     // Sort by SKU for deterministic selection when multiple entries match
     const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
@@ -538,6 +539,7 @@ export class AwsBulkLoader {
             product,
             { terms: { OnDemand: { [sku]: priceTerms } } },
             region,
+            publicationDate,
           );
         }
       }
@@ -553,6 +555,7 @@ export class AwsBulkLoader {
   ): NormalizedPrice | null {
     const products = bulk?.products ?? {};
     const onDemand = bulk?.terms?.OnDemand ?? {};
+    const publicationDate = bulk?.publicationDate;
 
     // Sort by SKU for deterministic selection when multiple entries match
     const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
@@ -570,6 +573,7 @@ export class AwsBulkLoader {
             product,
             { terms: { OnDemand: { [sku]: priceTerms } } },
             region,
+            publicationDate,
           );
         }
       }
@@ -584,6 +588,7 @@ export class AwsBulkLoader {
   ): NormalizedPrice | null {
     const products = bulk?.products ?? {};
     const onDemand = bulk?.terms?.OnDemand ?? {};
+    const publicationDate = bulk?.publicationDate;
 
     // Sort by SKU for deterministic selection when multiple entries match
     const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
@@ -602,6 +607,7 @@ export class AwsBulkLoader {
             product,
             { terms: { OnDemand: { [sku]: priceTerms } } },
             region,
+            publicationDate,
           );
         }
       }

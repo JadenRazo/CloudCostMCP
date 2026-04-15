@@ -127,6 +127,11 @@ export function calculateReservedPricing(
  * best (highest savings) rate per term, since `ReservedRateOverrides` is
  * keyed by term only. Never throws — any failure degrades to the static
  * table with `source="fallback"`.
+ *
+ * Note on EC2: the AmazonEC2 bulk JSON is multi-GB per region and cannot be
+ * loaded into memory, so the AWS provider's `getReservedRates` returns null
+ * for EC2 by design. EC2 callers will always end up on the static fallback
+ * path here — this is intentional, not a bug.
  */
 export async function calculateAwsReservedPricingLive(
   onDemandMonthly: number,

@@ -225,7 +225,7 @@ describe("AwsReservedClient", () => {
       })),
     );
 
-    const rates = await client.getRiRates("AmazonEC2", "t3.large", "us-east-1", "Linux");
+    const rates = await client.getRiRates("AmazonRDS", "t3.large", "us-east-1", "Linux");
     expect(rates).not.toBeNull();
     expect(rates!.length).toBeGreaterThan(0);
   });
@@ -238,7 +238,7 @@ describe("AwsReservedClient", () => {
       }),
     );
 
-    const rates = await client.getRiRates("AmazonEC2", "t3.large", "us-east-1", "Linux");
+    const rates = await client.getRiRates("AmazonRDS", "t3.large", "us-east-1", "Linux");
     expect(rates).toBeNull();
   });
 
@@ -252,7 +252,7 @@ describe("AwsReservedClient", () => {
       })),
     );
 
-    const rates = await client.getRiRates("AmazonEC2", "nonexistent.huge", "us-east-1", "Linux");
+    const rates = await client.getRiRates("AmazonRDS", "nonexistent.huge", "us-east-1", "Linux");
     expect(rates).toBeNull();
   });
 
@@ -264,8 +264,28 @@ describe("AwsReservedClient", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await client.getRiRates("AmazonEC2", "t3.large", "us-east-1", "Linux");
-    await client.getRiRates("AmazonEC2", "t3.large", "us-east-1", "Linux");
+    await client.getRiRates("AmazonRDS", "t3.large", "us-east-1", "Linux");
+    await client.getRiRates("AmazonRDS", "t3.large", "us-east-1", "Linux");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses AmazonEC2 outright without performing a fetch", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => buildBulk(),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Cast through unknown so the test can exercise the runtime guard even
+    // though "AmazonEC2" is no longer part of the static type union.
+    const rates = await client.getRiRates(
+      "AmazonEC2" as unknown as "AmazonRDS",
+      "t3.large",
+      "us-east-1",
+      "Linux",
+    );
+    expect(rates).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
