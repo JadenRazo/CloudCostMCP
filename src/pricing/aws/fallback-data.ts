@@ -47,6 +47,12 @@ export const EC2_BASE_PRICES: Record<string, number> = {
   "m7i.large": 0.1008,
   "m7i.xlarge": 0.2016,
   "m7i.2xlarge": 0.4032,
+  // m7i-flex: Intel 4th-gen "flex" variant, ~5% cheaper than m7i, us-east-1 Linux.
+  "m7i-flex.large": 0.09576,
+  "m7i-flex.xlarge": 0.19152,
+  "m7i-flex.2xlarge": 0.38304,
+  "m7i-flex.4xlarge": 0.76608,
+  "m7i-flex.8xlarge": 1.53216,
   "m7g.large": 0.0816,
   "m7g.xlarge": 0.1632,
   "m7g.2xlarge": 0.3264,
