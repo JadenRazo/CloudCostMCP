@@ -453,9 +453,7 @@ describe("calculateGcpReservedPricingLive", () => {
 
     expect(result.source).toBe("fallback");
     // Static GCP 3yr all_upfront rate is 0.55 — ensure that's still what we got.
-    const threeYrAll = result.options.find(
-      (o) => o.term === "3yr" && o.payment === "all_upfront",
-    );
+    const threeYrAll = result.options.find((o) => o.term === "3yr" && o.payment === "all_upfront");
     expect(threeYrAll!.percentage_savings).toBeCloseTo(55, 0);
   });
 

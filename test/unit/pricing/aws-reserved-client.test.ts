@@ -45,12 +45,12 @@ function buildBulk(): AwsBulkPricingResponse {
     terms: {
       OnDemand: {
         [sku]: {
-          "OD1": {
+          OD1: {
             offerTermCode: "JRTCKXETXF",
             sku,
             effectiveDate: "2026-04-01T00:00:00Z",
             priceDimensions: {
-              "d1": {
+              d1: {
                 rateCode: `${sku}.JRTCKXETXF.6YS6EN2CT7`,
                 description: "$0.10 per On Demand Linux t3.large Instance Hour",
                 beginRange: "0",
@@ -66,12 +66,12 @@ function buildBulk(): AwsBulkPricingResponse {
       },
       Reserved: {
         [sku]: {
-          "RI1yrNU": {
+          RI1yrNU: {
             offerTermCode: "4NA7Y494AB",
             sku,
             effectiveDate: "2026-04-01T00:00:00Z",
             priceDimensions: {
-              "d1": {
+              d1: {
                 rateCode: "r1",
                 description: "1yr no-upfront hourly",
                 beginRange: "0",
@@ -87,12 +87,12 @@ function buildBulk(): AwsBulkPricingResponse {
               OfferingClass: "standard",
             },
           },
-          "RI1yrAU": {
+          RI1yrAU: {
             offerTermCode: "6QCMYABX3D",
             sku,
             effectiveDate: "2026-04-01T00:00:00Z",
             priceDimensions: {
-              "d1": {
+              d1: {
                 rateCode: "r2",
                 description: "1yr all-upfront fee",
                 beginRange: "0",
@@ -101,7 +101,7 @@ function buildBulk(): AwsBulkPricingResponse {
                 pricePerUnit: { USD: "512.4000000000" },
                 appliesTo: [],
               },
-              "d2": {
+              d2: {
                 rateCode: "r3",
                 description: "1yr all-upfront hourly",
                 beginRange: "0",
@@ -117,12 +117,12 @@ function buildBulk(): AwsBulkPricingResponse {
               OfferingClass: "standard",
             },
           },
-          "RI3yrNU": {
+          RI3yrNU: {
             offerTermCode: "BPH9UHTB63",
             sku,
             effectiveDate: "2026-04-01T00:00:00Z",
             priceDimensions: {
-              "d1": {
+              d1: {
                 rateCode: "r4",
                 description: "3yr no-upfront hourly",
                 beginRange: "0",

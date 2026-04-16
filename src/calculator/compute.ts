@@ -242,8 +242,7 @@ export async function calculateComputeCost(
 
       if (!liveSpotApplied) {
         const family = classifyInstanceFamily(effectiveInstance, targetProvider);
-        const providerFactors =
-          SPOT_DISCOUNT_FACTORS[targetProvider] ?? SPOT_DISCOUNT_FACTORS.aws;
+        const providerFactors = SPOT_DISCOUNT_FACTORS[targetProvider] ?? SPOT_DISCOUNT_FACTORS.aws;
         const factor = providerFactors[family] ?? providerFactors.general ?? 0.35;
         const savingsPct = Math.round((1 - factor) * 100);
 

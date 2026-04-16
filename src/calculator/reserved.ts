@@ -156,10 +156,7 @@ export async function calculateAwsReservedPricingLive(
         for (const term of ["1yr", "3yr"] as const) {
           const best = liveRates
             .filter((r) => r.term === term)
-            .reduce<number | null>(
-              (acc, r) => (acc === null || r.rate > acc ? r.rate : acc),
-              null,
-            );
+            .reduce<number | null>((acc, r) => (acc === null || r.rate > acc ? r.rate : acc), null);
           if (best !== null) {
             overrides[term] = best;
             source = "live";

@@ -178,22 +178,12 @@ describe("AWS normalizers propagate publicationDate as effective_date", () => {
   };
 
   it("normalizeAwsCompute carries the publicationDate argument through", () => {
-    const result = normalizeAwsCompute(
-      rawProduct,
-      rawPrice,
-      "us-east-1",
-      "2025-08-01T00:00:00Z",
-    );
+    const result = normalizeAwsCompute(rawProduct, rawPrice, "us-east-1", "2025-08-01T00:00:00Z");
     expect(result.effective_date).toBe("2025-08-01T00:00:00.000Z");
   });
 
   it("normalizeAwsDatabase carries the publicationDate argument through", () => {
-    const result = normalizeAwsDatabase(
-      rawProduct,
-      rawPrice,
-      "us-east-1",
-      "2025-09-15T00:00:00Z",
-    );
+    const result = normalizeAwsDatabase(rawProduct, rawPrice, "us-east-1", "2025-09-15T00:00:00Z");
     expect(result.effective_date).toBe("2025-09-15T00:00:00.000Z");
   });
 

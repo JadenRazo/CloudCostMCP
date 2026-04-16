@@ -129,10 +129,13 @@ export class AwsReservedClient {
     // fallback. Only smaller services (RDS, ElastiCache, Redshift) are safe to
     // load whole.
     if ((service as string) === "AmazonEC2") {
-      logger.debug("AwsReservedClient: refusing AmazonEC2 (bulk JSON too large for in-memory parse)", {
-        instanceType,
-        region,
-      });
+      logger.debug(
+        "AwsReservedClient: refusing AmazonEC2 (bulk JSON too large for in-memory parse)",
+        {
+          instanceType,
+          region,
+        },
+      );
       return null;
     }
 
@@ -181,9 +184,7 @@ export class AwsReservedClient {
 // internal helpers
 // ---------------------------------------------------------------------------
 
-function firstHourlyPrice(
-  terms: Record<string, AwsOfferTerm> | undefined,
-): number | null {
+function firstHourlyPrice(terms: Record<string, AwsOfferTerm> | undefined): number | null {
   if (!terms) return null;
   for (const term of Object.values(terms)) {
     for (const dim of Object.values(term.priceDimensions ?? {})) {

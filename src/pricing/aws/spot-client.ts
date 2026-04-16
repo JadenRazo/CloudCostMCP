@@ -149,14 +149,7 @@ export class AwsSpotClient {
       // Cache the full document so subsequent instance lookups are free. The
       // spot-advisor blob is ~2 MB uncompressed — small enough to keep in the
       // single-row cache table.
-      this.cache.set(
-        SPOT_ADVISOR_CACHE_KEY,
-        doc,
-        "aws",
-        "spot-advisor",
-        "global",
-        CACHE_TTL,
-      );
+      this.cache.set(SPOT_ADVISOR_CACHE_KEY, doc, "aws", "spot-advisor", "global", CACHE_TTL);
 
       return doc;
     } catch (err) {

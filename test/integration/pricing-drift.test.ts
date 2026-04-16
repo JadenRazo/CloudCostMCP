@@ -119,21 +119,17 @@ describe.skipIf(!RUN)("pricing drift — AWS", () => {
 
   for (const [sku, regions] of Object.entries(golden.aws)) {
     for (const [region, range] of Object.entries(regions)) {
-      it(
-        `aws ${sku} in ${region} stays inside golden range`,
-        async () => {
-          let result;
-          if (AWS_STORAGE_SKUS.has(sku)) {
-            result = await loader.getStoragePrice(sku, region);
-          } else if (AWS_DB_SKUS.has(sku)) {
-            result = await loader.getDatabasePrice(sku, region, "MySQL");
-          } else {
-            result = await loader.getComputePrice(sku, region, "Linux");
-          }
-          assertInRange("aws", sku, region, range, result?.price_per_unit);
-        },
-        120_000,
-      );
+      it(`aws ${sku} in ${region} stays inside golden range`, async () => {
+        let result;
+        if (AWS_STORAGE_SKUS.has(sku)) {
+          result = await loader.getStoragePrice(sku, region);
+        } else if (AWS_DB_SKUS.has(sku)) {
+          result = await loader.getDatabasePrice(sku, region, "MySQL");
+        } else {
+          result = await loader.getComputePrice(sku, region, "Linux");
+        }
+        assertInRange("aws", sku, region, range, result?.price_per_unit);
+      }, 120_000);
     }
   }
 });
@@ -144,14 +140,10 @@ describe.skipIf(!RUN)("pricing drift — Azure", () => {
 
   for (const [sku, regions] of Object.entries(golden.azure)) {
     for (const [region, range] of Object.entries(regions)) {
-      it(
-        `azure ${sku} in ${region} stays inside golden range`,
-        async () => {
-          const result = await client.getComputePrice(sku, region, "linux");
-          assertInRange("azure", sku, region, range, result?.price_per_unit);
-        },
-        120_000,
-      );
+      it(`azure ${sku} in ${region} stays inside golden range`, async () => {
+        const result = await client.getComputePrice(sku, region, "linux");
+        assertInRange("azure", sku, region, range, result?.price_per_unit);
+      }, 120_000);
     }
   }
 });
@@ -162,19 +154,15 @@ describe.skipIf(!RUN)("pricing drift — GCP", () => {
 
   for (const [sku, regions] of Object.entries(golden.gcp)) {
     for (const [region, range] of Object.entries(regions)) {
-      it(
-        `gcp ${sku} in ${region} stays inside golden range`,
-        async () => {
-          let result;
-          if (GCP_STORAGE_SKUS.has(sku)) {
-            result = await client.fetchStorageSkus(sku, region);
-          } else {
-            result = await client.fetchComputeSkus(sku, region);
-          }
-          assertInRange("gcp", sku, region, range, result?.price_per_unit);
-        },
-        120_000,
-      );
+      it(`gcp ${sku} in ${region} stays inside golden range`, async () => {
+        let result;
+        if (GCP_STORAGE_SKUS.has(sku)) {
+          result = await client.fetchStorageSkus(sku, region);
+        } else {
+          result = await client.fetchComputeSkus(sku, region);
+        }
+        assertInRange("gcp", sku, region, range, result?.price_per_unit);
+      }, 120_000);
     }
   }
 });
@@ -189,43 +177,36 @@ describe.skipIf(!RUN)("pricing drift — cross-provider sanity", () => {
   const azure = new AzureRetailClient(cache);
   const gcp = new CloudBillingClient(cache);
 
-  it(
-    "comparable on-demand compute prices stay within 3x across providers",
-    async () => {
-      const awsPrice = (await aws.getComputePrice("t3.medium", "us-east-1", "Linux"))
-        ?.price_per_unit;
-      const azurePrice = (await azure.getComputePrice("Standard_D2s_v5", "eastus", "linux"))
-        ?.price_per_unit;
-      const gcpPrice = (await gcp.fetchComputeSkus("e2-standard-2", "us-central1"))
-        ?.price_per_unit;
+  it("comparable on-demand compute prices stay within 3x across providers", async () => {
+    const awsPrice = (await aws.getComputePrice("t3.medium", "us-east-1", "Linux"))?.price_per_unit;
+    const azurePrice = (await azure.getComputePrice("Standard_D2s_v5", "eastus", "linux"))
+      ?.price_per_unit;
+    const gcpPrice = (await gcp.fetchComputeSkus("e2-standard-2", "us-central1"))?.price_per_unit;
 
-      const prices = [
-        { name: "aws/t3.medium", value: awsPrice },
-        { name: "azure/Standard_D2s_v5", value: azurePrice },
-        { name: "gcp/e2-standard-2", value: gcpPrice },
-      ].filter(
-        (p): p is { name: string; value: number } =>
-          typeof p.value === "number" && p.value > 0,
+    const prices = [
+      { name: "aws/t3.medium", value: awsPrice },
+      { name: "azure/Standard_D2s_v5", value: azurePrice },
+      { name: "gcp/e2-standard-2", value: gcpPrice },
+    ].filter(
+      (p): p is { name: string; value: number } => typeof p.value === "number" && p.value > 0,
+    );
+
+    expect(prices.length).toBeGreaterThanOrEqual(2);
+
+    for (const p of prices) {
+      expect(p.value).toBeGreaterThan(0);
+      expect(p.value).toBeLessThan(100);
+    }
+
+    const min = Math.min(...prices.map((p) => p.value));
+    const max = Math.max(...prices.map((p) => p.value));
+    const ratio = max / min;
+    if (ratio > 3) {
+      console.error(
+        `DRIFT: cross-provider compute ratio ${ratio.toFixed(2)}x exceeds 3x ` +
+          `— ${prices.map((p) => `${p.name}=${p.value.toFixed(4)}`).join(", ")}`,
       );
-
-      expect(prices.length).toBeGreaterThanOrEqual(2);
-
-      for (const p of prices) {
-        expect(p.value).toBeGreaterThan(0);
-        expect(p.value).toBeLessThan(100);
-      }
-
-      const min = Math.min(...prices.map((p) => p.value));
-      const max = Math.max(...prices.map((p) => p.value));
-      const ratio = max / min;
-      if (ratio > 3) {
-        console.error(
-          `DRIFT: cross-provider compute ratio ${ratio.toFixed(2)}x exceeds 3x ` +
-            `— ${prices.map((p) => `${p.name}=${p.value.toFixed(4)}`).join(", ")}`,
-        );
-      }
-      expect(ratio).toBeLessThanOrEqual(3);
-    },
-    180_000,
-  );
+    }
+    expect(ratio).toBeLessThanOrEqual(3);
+  }, 180_000);
 });
