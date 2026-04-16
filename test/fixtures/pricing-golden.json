@@ -11,8 +11,8 @@
       "us-west-2": { "min": 0.035, "max": 0.055 }
     },
     "m6i.large": {
-      "us-east-1": { "min": 0.080, "max": 0.120 },
-      "us-west-2": { "min": 0.080, "max": 0.120 }
+      "us-east-1": { "min": 0.08, "max": 0.12 },
+      "us-west-2": { "min": 0.08, "max": 0.12 }
     },
     "c7g.2xlarge": {
       "us-east-1": { "min": 0.24, "max": 0.36 },
@@ -45,25 +45,25 @@
       "westeurope": { "min": 0.08, "max": 0.14 }
     },
     "Standard_E4s_v5": {
-      "eastus": { "min": 0.20, "max": 0.32 },
-      "westeurope": { "min": 0.20, "max": 0.34 }
+      "eastus": { "min": 0.2, "max": 0.32 },
+      "westeurope": { "min": 0.2, "max": 0.34 }
     },
     "Standard_F2s_v2": {
       "eastus": { "min": 0.07, "max": 0.12 },
       "westeurope": { "min": 0.07, "max": 0.13 }
     },
     "Standard_L8s_v3": {
-      "eastus": { "min": 0.60, "max": 1.00 },
-      "westeurope": { "min": 0.60, "max": 1.05 }
+      "eastus": { "min": 0.6, "max": 1.0 },
+      "westeurope": { "min": 0.6, "max": 1.05 }
     },
     "Standard_NC24ads_A100_v4": {
-      "eastus": { "min": 2.80, "max": 4.50 },
-      "westeurope": { "min": 2.80, "max": 4.80 }
+      "eastus": { "min": 2.8, "max": 4.5 },
+      "westeurope": { "min": 2.8, "max": 4.8 }
     }
   },
   "gcp": {
     "e2-standard-2": {
-      "us-central1": { "min": 0.05, "max": 0.10 },
+      "us-central1": { "min": 0.05, "max": 0.1 },
       "europe-west1": { "min": 0.05, "max": 0.12 }
     },
     "n2-standard-4": {
@@ -71,20 +71,20 @@
       "europe-west1": { "min": 0.15, "max": 0.28 }
     },
     "c3-highmem-8": {
-      "us-central1": { "min": 0.40, "max": 0.70 },
-      "europe-west1": { "min": 0.40, "max": 0.75 }
+      "us-central1": { "min": 0.4, "max": 0.7 },
+      "europe-west1": { "min": 0.4, "max": 0.75 }
     },
     "t2d-standard-4": {
       "us-central1": { "min": 0.12, "max": 0.22 },
       "europe-west1": { "min": 0.12, "max": 0.25 }
     },
     "pd-ssd": {
-      "us-central1": { "min": 0.10, "max": 0.24 },
-      "europe-west1": { "min": 0.10, "max": 0.26 }
+      "us-central1": { "min": 0.1, "max": 0.24 },
+      "europe-west1": { "min": 0.1, "max": 0.26 }
     },
     "a2-highgpu-1g": {
-      "us-central1": { "min": 2.80, "max": 4.50 },
-      "europe-west1": { "min": 2.80, "max": 4.80 }
+      "us-central1": { "min": 2.8, "max": 4.5 },
+      "europe-west1": { "min": 2.8, "max": 4.8 }
     }
   }
 }

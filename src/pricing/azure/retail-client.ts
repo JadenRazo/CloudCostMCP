@@ -653,9 +653,7 @@ export class AzureRetailClient {
  *   Standard_<FAMILY 1-2 letters><optional sub-family letter><vCPU digits>
  *   <variant letters><optional _SEG segments like _T4>_v<version digits>
  */
-export function parseAzureVmSeries(
-  vmName: string,
-): { series: string; vcpus: number } | null {
+export function parseAzureVmSeries(vmName: string): { series: string; vcpus: number } | null {
   const match = vmName.match(
     /^Standard_([A-Z]{1,2})([a-z]?)(\d+)([a-z]*)((?:_[A-Za-z0-9]+)*)_v(\d+)$/i,
   );

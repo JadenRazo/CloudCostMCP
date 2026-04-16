@@ -50,22 +50,14 @@ export interface PricingProvider {
    * provider has no live spot data and callers should fall back to static
    * family-based discount estimates.
    */
-  getSpotFactor?(
-    instanceType: string,
-    region: string,
-    os?: string,
-  ): Promise<number | null>;
+  getSpotFactor?(instanceType: string, region: string, os?: string): Promise<number | null>;
 
   /**
    * Optional: return live reserved-instance / committed-use discount rates
    * for a given instance/region. Returns null when no live data is
    * available; callers should fall back to static rates.
    */
-  getReservedRates?(
-    instanceType: string,
-    region: string,
-    os?: string,
-  ): Promise<RiRate[] | null>;
+  getReservedRates?(instanceType: string, region: string, os?: string): Promise<RiRate[] | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,11 +76,7 @@ class AwsProvider implements PricingProvider {
     this.reservedClient = new AwsReservedClient(cache);
   }
 
-  getSpotFactor(
-    instanceType: string,
-    region: string,
-    os?: string,
-  ): Promise<number | null> {
+  getSpotFactor(instanceType: string, region: string, os?: string): Promise<number | null> {
     return this.spotClient.getSpotFactor(
       instanceType,
       region,
@@ -96,11 +84,7 @@ class AwsProvider implements PricingProvider {
     );
   }
 
-  getReservedRates(
-    _instanceType: string,
-    _region: string,
-    _os?: string,
-  ): Promise<RiRate[] | null> {
+  getReservedRates(_instanceType: string, _region: string, _os?: string): Promise<RiRate[] | null> {
     // EC2 reserved rates are intentionally not fetched live: the AmazonEC2
     // bulk JSON is multi-GB per region and would OOM the process. Callers
     // (calculateAwsReservedPricingLive) treat null as "use static fallback".
@@ -194,11 +178,7 @@ class AzureProvider implements PricingProvider {
    * matching spot row. Not part of the base `PricingProvider` interface
    * because AWS/GCP use different spot channels.
    */
-  getSpotPrice(
-    vmSize: string,
-    region: string,
-    os?: string,
-  ): Promise<NormalizedPrice | null> {
+  getSpotPrice(vmSize: string, region: string, os?: string): Promise<NormalizedPrice | null> {
     return this.client.getSpotPrice(vmSize, region, os);
   }
 

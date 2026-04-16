@@ -178,9 +178,7 @@ describe("AzureRetailClient.getSpotPrice", () => {
   });
 
   it("returns null when no Spot row exists", async () => {
-    stubFetchOnce([
-      makeItem({ skuName: "D2s v5", meterName: "D2s v5", retailPrice: 0.096 }),
-    ]);
+    stubFetchOnce([makeItem({ skuName: "D2s v5", meterName: "D2s v5", retailPrice: 0.096 })]);
     const result = await client.getSpotPrice("Standard_D2s_v5", "eastus");
     expect(result).toBeNull();
   });
@@ -223,11 +221,7 @@ describe("AzureRetailClient.getReservationHourlyRate", () => {
       }),
     ]);
 
-    const rate = await client.getReservationHourlyRate(
-      "Standard_D2s_v5",
-      "eastus",
-      "1yr",
-    );
+    const rate = await client.getReservationHourlyRate("Standard_D2s_v5", "eastus", "1yr");
     expect(rate).toBeCloseTo(0.065, 4);
   });
 
@@ -242,11 +236,7 @@ describe("AzureRetailClient.getReservationHourlyRate", () => {
       }),
     ]);
 
-    const rate = await client.getReservationHourlyRate(
-      "Standard_D2s_v5",
-      "eastus",
-      "1yr",
-    );
+    const rate = await client.getReservationHourlyRate("Standard_D2s_v5", "eastus", "1yr");
     expect(rate).not.toBeNull();
     expect(rate!).toBeCloseTo(569.4 / 8760, 4);
   });
@@ -260,11 +250,7 @@ describe("AzureRetailClient.getReservationHourlyRate", () => {
       }),
     ]);
 
-    const rate = await client.getReservationHourlyRate(
-      "Standard_D2s_v5",
-      "eastus",
-      "3yr",
-    );
+    const rate = await client.getReservationHourlyRate("Standard_D2s_v5", "eastus", "3yr");
     expect(rate).toBeNull();
   });
 });
@@ -272,11 +258,7 @@ describe("AzureRetailClient.getReservationHourlyRate", () => {
 describe("calculateAzureReservedPricingLive", () => {
   it("applies live 1yr + 3yr rates when the stub client returns both", async () => {
     const stubClient = {
-      async getReservationHourlyRate(
-        _vm: string,
-        _region: string,
-        term: "1yr" | "3yr",
-      ) {
+      async getReservationHourlyRate(_vm: string, _region: string, term: "1yr" | "3yr") {
         // 50% savings for 1yr, 70% savings for 3yr against $0.10/hr on-demand.
         return term === "1yr" ? 0.05 : 0.03;
       },
@@ -293,9 +275,7 @@ describe("calculateAzureReservedPricingLive", () => {
 
     expect(result.source).toBe("live");
     const oneYr = result.options.find((o) => o.term === "1yr" && o.payment === "all_upfront");
-    const threeYr = result.options.find(
-      (o) => o.term === "3yr" && o.payment === "all_upfront",
-    );
+    const threeYr = result.options.find((o) => o.term === "3yr" && o.payment === "all_upfront");
     expect(oneYr!.percentage_savings).toBeCloseTo(50, 1);
     expect(threeYr!.percentage_savings).toBeCloseTo(70, 1);
   });
@@ -325,11 +305,7 @@ describe("calculateAzureReservedPricingLive", () => {
 
   it("ignores rates that would imply a negative discount (rev-API returned >= on-demand)", async () => {
     const stubClient = {
-      async getReservationHourlyRate(
-        _vm: string,
-        _region: string,
-        _term: "1yr" | "3yr",
-      ) {
+      async getReservationHourlyRate(_vm: string, _region: string, _term: "1yr" | "3yr") {
         return 0.15; // higher than on-demand
       },
     };
