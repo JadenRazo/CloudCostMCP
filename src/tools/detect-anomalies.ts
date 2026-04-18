@@ -8,19 +8,22 @@ import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { SUPPORTED_CURRENCIES } from "../currency.js";
+import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const detectAnomaliesSchema = z.object({
-  files: z.array(
-    z.object({
-      path: z.string().describe("File path"),
-      content: z.string().describe("File content"),
-    }),
-  ),
-  tfvars: z.string().optional().describe("Variable overrides"),
+  files: z
+    .array(
+      z.object({
+        path: filePathSchema.describe("File path"),
+        content: fileContentSchema.describe("File content"),
+      }),
+    )
+    .max(2000, "files array exceeds 2000 entries"),
+  tfvars: tfvarsSchema.optional().describe("Variable overrides"),
   provider: z.enum(["aws", "azure", "gcp"]).describe("Target cloud provider"),
   region: z.string().optional().describe("Target region"),
   currency: z

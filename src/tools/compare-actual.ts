@@ -7,23 +7,30 @@ import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { SUPPORTED_CURRENCIES, convertBreakdownCurrency } from "../currency.js";
+import {
+  filePathSchema,
+  fileContentSchema,
+  tfvarsSchema,
+  stateJsonSchema,
+} from "../schemas/bounded.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const compareActualSchema = z.object({
-  state_json: z.string().describe("Contents of terraform.tfstate file (JSON)"),
+  state_json: stateJsonSchema.describe("Contents of terraform.tfstate file (JSON)"),
   files: z
     .array(
       z.object({
-        path: z.string().describe("File path"),
-        content: z.string().describe("File content (HCL)"),
+        path: filePathSchema.describe("File path"),
+        content: fileContentSchema.describe("File content (HCL)"),
       }),
     )
+    .max(2000, "files array exceeds 2000 entries")
     .optional()
     .describe("Optional Terraform files to compare planned costs against actual"),
-  tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
+  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
   provider: z
     .enum(["aws", "azure", "gcp"])
     .optional()

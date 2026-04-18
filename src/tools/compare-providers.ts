@@ -11,19 +11,22 @@ import { generateJsonReport } from "../reporting/json-report.js";
 import { generateCsvReport } from "../reporting/csv-report.js";
 import { SUPPORTED_CURRENCIES, convertBreakdownCurrency, convertCurrency } from "../currency.js";
 import { generateFocusReport } from "../reporting/focus-report.js";
+import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const compareProvidersSchema = z.object({
-  files: z.array(
-    z.object({
-      path: z.string().describe("File path"),
-      content: z.string().describe("File content (HCL)"),
-    }),
-  ),
-  tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
+  files: z
+    .array(
+      z.object({
+        path: filePathSchema.describe("File path"),
+        content: fileContentSchema.describe("File content (HCL)"),
+      }),
+    )
+    .max(2000, "files array exceeds 2000 entries"),
+  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
   format: z
     .enum(["markdown", "json", "csv", "focus"])
     .default("markdown")

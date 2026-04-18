@@ -7,15 +7,16 @@ import { CostEngine } from "../calculator/cost-engine.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { SUPPORTED_CURRENCIES, convertCurrency } from "../currency.js";
 import { logger } from "../logger.js";
+import { planJsonSchema } from "../schemas/bounded.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const analyzePlanSchema = z.object({
-  plan_json: z
-    .string()
-    .describe("Output of 'terraform show -json <planfile>' or 'terraform plan -json'"),
+  plan_json: planJsonSchema.describe(
+    "Output of 'terraform show -json <planfile>' or 'terraform plan -json'",
+  ),
   provider: z
     .enum(["aws", "azure", "gcp"])
     .optional()

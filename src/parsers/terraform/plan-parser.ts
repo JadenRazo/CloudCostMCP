@@ -6,6 +6,8 @@ import type {
 } from "../../types/resources.js";
 import type { TerraformPlan, ResourceChange } from "./plan-types.js";
 import { logger } from "../../logger.js";
+import { safeJsonParse } from "../safe-json.js";
+import { sanitizeForMessage } from "../../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -251,10 +253,10 @@ function buildInventory(resources: ParsedResource[], warnings: string[]): Resour
 export function parseTerraformPlan(planJson: string): PlanAnalysis {
   let plan: TerraformPlan;
   try {
-    plan = JSON.parse(planJson) as TerraformPlan;
+    plan = safeJsonParse<TerraformPlan>(planJson);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Invalid plan JSON: ${msg}`);
+    throw new Error(`Invalid plan JSON: ${sanitizeForMessage(msg, 512)}`);
   }
 
   if (!Array.isArray(plan.resource_changes)) {

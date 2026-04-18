@@ -1,5 +1,6 @@
 import { parse } from "@cdktf/hcl2json";
 import { logger } from "../logger.js";
+import { sanitizeForMessage } from "../util/sanitize.js";
 
 /**
  * Convert raw HCL content into a plain JavaScript object using the
@@ -33,9 +34,11 @@ export async function parseHclToJson(
     return result as Record<string, unknown>;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const safeFilename = sanitizeForMessage(filename, 256);
+    const safeMessage = sanitizeForMessage(message, 512);
 
-    logger.error("Failed to parse HCL", { filename, error: message });
+    logger.error("Failed to parse HCL", { filename: safeFilename, error: safeMessage });
 
-    throw new Error(`HCL parse error in "${filename}": ${message}`);
+    throw new Error(`HCL parse error in "${safeFilename}": ${safeMessage}`);
   }
 }

@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-04-18
+
+### Security
+
+Hardened the MCP tool surface against the attack classes catalogued in the OWASP MCP Top 10 (2025) and recent SDK advisories. No breaking API changes.
+
+- **Path traversal in module resolution (HIGH)**: A `module { source = "../../../etc" }` declaration in user-supplied HCL previously resolved without any containment check, turning any file-accepting tool into an arbitrary `*.tf` read primitive. All resolved paths are now confined to `process.cwd()` by default (configurable), symlinks are rejected, and `modules.json` entries are re-validated against the boundary. Added `src/parsers/path-safety.ts`.
+- **MCP SDK floor (MED)**: Bumped `@modelcontextprotocol/sdk` minimum from `^1.12.1` to `^1.25.2` so fresh installs cannot resolve a version affected by CVE-2025-66414 (DNS rebinding, `< 1.24.0`) or CVE-2026-0621 (UriTemplate ReDoS, `< 1.25.2`).
+- **Prototype pollution in `plan_json` / `state_json` (MED)**: Raw `JSON.parse` on user input followed by deep-merge was vulnerable to `__proto__` / `constructor` / `prototype` payloads. Added `safeJsonParse` with a reviver that strips these keys, applied to the Terraform plan and state parsers and to the HCL-JSON merge in `module-resolver`.
+- **Output-channel prompt injection ("Poison Everywhere", MED)**: User-supplied filenames, module names, and error strings were echoed verbatim into error responses and warnings. Added `sanitizeForMessage` which strips ASCII control characters, zero-width / bidi-override characters, and caps length; applied at every point where tool results flow back to the MCP client.
+- **Input-size DoS (LOW-MED)**: Tool inputs had no size limits. Added Zod `.max()` on every accepting schema — 5 MiB per file, 20 MiB per plan/state payload, 1 KiB per path, max 2000 files per request.
+
+### Tests
+
+- Added `test/unit/security/mcp-hardening.test.ts` with 19 regression tests covering sanitisation, prototype-pollution guards, path-boundary enforcement, symlink rejection, and every new Zod size limit.
+
 ## [1.0.0] - 2026-04-15
 
 First stable release. No breaking API changes from 0.5 — this version ratifies the existing surface as SemVer-locked. See [`MIGRATION.md`](./MIGRATION.md) for details.
