@@ -6,6 +6,7 @@ import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { logger } from "../logger.js";
+import { filePathSchema, fileContentSchema, shortStringSchema } from "../schemas/bounded.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -15,21 +16,27 @@ export const whatIfSchema = z.object({
   files: z
     .array(
       z.object({
-        path: z.string().describe("File path"),
-        content: z.string().describe("File content (HCL)"),
+        path: filePathSchema.describe("File path"),
+        content: fileContentSchema.describe("File content (HCL)"),
       }),
     )
+    .max(2000, "files array exceeds 2000 entries")
     .describe("Terraform HCL files to analyse"),
   changes: z
     .array(
       z.object({
-        resource_id: z.string().describe("The resource ID to modify (e.g. aws_instance.web)"),
-        attribute: z
-          .string()
-          .describe("The attribute name to change (e.g. instance_type, storage_size_gb)"),
-        new_value: z.union([z.string(), z.number()]).describe("The new value for the attribute"),
+        resource_id: shortStringSchema.describe(
+          "The resource ID to modify (e.g. aws_instance.web)",
+        ),
+        attribute: shortStringSchema.describe(
+          "The attribute name to change (e.g. instance_type, storage_size_gb)",
+        ),
+        new_value: z
+          .union([shortStringSchema, z.number()])
+          .describe("The new value for the attribute"),
       }),
     )
+    .max(200, "changes array exceeds 200 entries")
     .describe("List of attribute changes to simulate"),
   provider: z
     .enum(["aws", "azure", "gcp"])

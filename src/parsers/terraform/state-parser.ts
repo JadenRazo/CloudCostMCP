@@ -7,6 +7,8 @@ import type {
 import type { TerraformState } from "./state-types.js";
 import { str, num, bool } from "../extractors/helpers.js";
 import { logger } from "../../logger.js";
+import { safeJsonParse } from "../safe-json.js";
+import { sanitizeForMessage } from "../../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
 // Provider detection from the Terraform provider string
@@ -175,17 +177,18 @@ export function parseTerraformState(stateJson: string): ResourceInventory {
 
   let state: TerraformState;
   try {
-    state = JSON.parse(stateJson) as TerraformState;
+    state = safeJsonParse<TerraformState>(stateJson);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error("Failed to parse Terraform state JSON", { error: msg });
+    const safeMsg = sanitizeForMessage(msg, 512);
+    logger.error("Failed to parse Terraform state JSON", { error: safeMsg });
     return {
       provider: "aws",
       region: PROVIDER_DEFAULTS.aws,
       resources: [],
       total_count: 0,
       by_type: {},
-      parse_warnings: [`Invalid state JSON: ${msg}`],
+      parse_warnings: [`Invalid state JSON: ${safeMsg}`],
     };
   }
 

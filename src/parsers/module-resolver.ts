@@ -5,12 +5,19 @@ import { parseHclToJson } from "./hcl-parser.js";
 import { resolveVariables, substituteVariables } from "./variable-resolver.js";
 import { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
 import { logger } from "../logger.js";
+import { resolveWithinBoundary } from "./path-safety.js";
+import { safeJsonParse } from "./safe-json.js";
+import { sanitizeForMessage } from "../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const MAX_MODULE_DEPTH = 10;
+
+// Keys that must never be copied during HCL JSON merge — they enable
+// prototype-pollution when a malicious HCL source feeds the deep-merge.
+const FORBIDDEN_MERGE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -55,6 +62,7 @@ function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown
 
   for (const json of jsons) {
     for (const [key, value] of Object.entries(json)) {
+      if (FORBIDDEN_MERGE_KEYS.has(key)) continue;
       if (!(key in merged)) {
         merged[key] = JSON.parse(JSON.stringify(value));
         continue;
@@ -88,8 +96,13 @@ function mergeObjects(
   a: Record<string, unknown>,
   b: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result = { ...a };
+  const result: Record<string, unknown> = {};
+  for (const [key, aVal] of Object.entries(a)) {
+    if (FORBIDDEN_MERGE_KEYS.has(key)) continue;
+    result[key] = aVal;
+  }
   for (const [key, bVal] of Object.entries(b)) {
+    if (FORBIDDEN_MERGE_KEYS.has(key)) continue;
     const aVal = result[key];
     if (
       aVal !== null &&
@@ -186,10 +199,11 @@ async function parseModuleDirectory(
   moduleInputs: Record<string, unknown>,
   warnings: string[],
   depth: number,
+  rootBoundary: string,
 ): Promise<ParsedResource[]> {
   if (depth >= MAX_MODULE_DEPTH) {
     warnings.push(
-      `Module nesting depth limit (${MAX_MODULE_DEPTH}) reached at "${dirPath}". Skipping further expansion.`,
+      `Module nesting depth limit (${MAX_MODULE_DEPTH}) reached at "${sanitizeForMessage(dirPath)}". Skipping further expansion.`,
     );
     return [];
   }
@@ -207,10 +221,12 @@ async function parseModuleDirectory(
       parsedJsons.push({ path: file.path, json });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      warnings.push(`Parse error in module file ${file.path}: ${msg}`);
+      const safePath = sanitizeForMessage(file.path);
+      const safeMsg = sanitizeForMessage(msg, 512);
+      warnings.push(`Parse error in module file ${safePath}: ${safeMsg}`);
       logger.warn("Skipping module file due to parse error", {
-        path: file.path,
-        error: msg,
+        path: safePath,
+        error: safeMsg,
       });
     }
   }
@@ -240,13 +256,22 @@ async function parseModuleDirectory(
       allResources.push(...resources);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      warnings.push(`Extraction error in module file ${path}: ${msg}`);
-      logger.warn("Resource extraction failed in module", { path, error: msg });
+      const safePath = sanitizeForMessage(path);
+      const safeMsg = sanitizeForMessage(msg, 512);
+      warnings.push(`Extraction error in module file ${safePath}: ${safeMsg}`);
+      logger.warn("Resource extraction failed in module", { path: safePath, error: safeMsg });
     }
   }
 
   // Recursively expand any nested module blocks found in this module directory.
-  const nestedResources = await resolveModules(combined, dirPath, variables, warnings, depth + 1);
+  const nestedResources = await resolveModules(
+    combined,
+    dirPath,
+    variables,
+    warnings,
+    depth + 1,
+    rootBoundary,
+  );
   allResources.push(...nestedResources);
 
   return allResources;
@@ -284,22 +309,34 @@ export async function resolveModules(
   variables: Record<string, unknown>,
   warnings: string[],
   depth = 0,
+  rootBoundary?: string,
 ): Promise<ParsedResource[]> {
   const moduleBlock = hclJson["module"];
   if (!moduleBlock || typeof moduleBlock !== "object" || Array.isArray(moduleBlock)) {
     return [];
   }
 
+  // The root boundary constrains every resolved module path. At the top level
+  // it defaults to the process working directory — the project root where the
+  // MCP server was launched — which lets sibling-directory modules
+  // (`source = "../shared"`) work within the project while rejecting any
+  // source that escapes to the wider host filesystem. Child recursion reuses
+  // the top-level boundary so deeply nested modules cannot escape via
+  // cumulative "../" segments.
+  const boundary = resolve(rootBoundary ?? process.cwd());
+
   const allResources: ParsedResource[] = [];
 
   for (const [moduleName, moduleDeclaration] of Object.entries(
     moduleBlock as Record<string, unknown>,
   )) {
+    const safeModuleName = sanitizeForMessage(moduleName, 128);
     const source = getSourceAttr(moduleDeclaration);
     if (!source) {
-      warnings.push(`Module "${moduleName}" has no source attribute and will be skipped.`);
+      warnings.push(`Module "${safeModuleName}" has no source attribute and will be skipped.`);
       continue;
     }
+    const safeSource = sanitizeForMessage(source, 256);
 
     // ------------------------------------------------------------------
     // Classify the source
@@ -314,9 +351,9 @@ export async function resolveModules(
 
     if (isGit) {
       warnings.push(
-        `Module "${moduleName}" uses a git source ("${source}") which is not supported. Skipping.`,
+        `Module "${safeModuleName}" uses a git source ("${safeSource}") which is not supported. Skipping.`,
       );
-      logger.debug("Skipping git module", { moduleName, source });
+      logger.debug("Skipping git module", { moduleName: safeModuleName, source: safeSource });
       continue;
     }
 
@@ -326,61 +363,80 @@ export async function resolveModules(
     const rawInputs = extractModuleInputs(moduleDeclaration);
     const moduleInputs = substituteVariables(rawInputs, variables) as Record<string, unknown>;
 
-    let moduleDir: string;
+    let moduleDir: string | null;
 
     if (isLocal) {
-      // Local path: resolve relative to the current basePath
-      moduleDir = resolve(basePath, source);
+      // Local path: resolve relative to basePath but confine to the root
+      // boundary. A malicious HCL source like "../../../etc" is rejected.
+      moduleDir = resolveWithinBoundary(source, basePath, boundary);
+      if (!moduleDir) {
+        warnings.push(
+          `Module "${safeModuleName}" source "${safeSource}" resolves outside the allowed root and was rejected.`,
+        );
+        logger.warn("Rejected local module path escaping boundary", {
+          moduleName: safeModuleName,
+          source: safeSource,
+        });
+        continue;
+      }
     } else {
       // Registry module: look for the pre-downloaded copy under .terraform/modules/
-      // Terraform populates this after `terraform init`.
-      const terraformModulesDir = join(basePath, ".terraform", "modules");
-      // Try direct name match first, then fall back to scanning for a directory
-      // that contains the module (Terraform uses <name> or <name>.<hash>).
-      const candidateDirect = join(terraformModulesDir, moduleName);
-      if (existsSync(candidateDirect)) {
+      // Terraform populates this after `terraform init`. Every candidate path
+      // must stay within the Terraform modules directory for this project.
+      const terraformModulesDir = resolve(basePath, ".terraform", "modules");
+      const candidateDirect = resolveWithinBoundary(
+        moduleName,
+        terraformModulesDir,
+        terraformModulesDir,
+      );
+      if (candidateDirect && existsSync(candidateDirect)) {
         moduleDir = candidateDirect;
       } else {
         // Terraform sometimes nests registry modules further. Check modules.json
         // for the exact path mapping if it exists.
         const modulesJsonPath = join(terraformModulesDir, "modules.json");
+        let resolvedFromJson: string | null = null;
         if (existsSync(modulesJsonPath)) {
           try {
-            const modulesJson = JSON.parse(readFileSync(modulesJsonPath, "utf-8")) as {
+            const rawJson = readFileSync(modulesJsonPath, "utf-8");
+            const modulesJson = safeJsonParse<{
               Modules?: Array<{ Key: string; Dir: string }>;
-            };
+            }>(rawJson);
             const entry = modulesJson.Modules?.find(
               (m) => m.Key === moduleName || m.Key.startsWith(`${moduleName}.`),
             );
-            if (entry?.Dir) {
-              moduleDir = resolve(basePath, entry.Dir);
-            } else {
-              warnings.push(
-                `Registry module "${moduleName}" (source: "${source}") not found in .terraform/modules/. ` +
-                  `Run "terraform init" to download modules before estimating costs.`,
-              );
-              logger.debug("Registry module not initialised", { moduleName, source });
-              continue;
+            if (entry?.Dir && typeof entry.Dir === "string") {
+              // Terraform writes Dir as a path relative to basePath. Confine
+              // to basePath so a tampered modules.json cannot point outside.
+              resolvedFromJson = resolveWithinBoundary(entry.Dir, basePath, boundary);
             }
           } catch {
-            warnings.push(
-              `Registry module "${moduleName}" (source: "${source}") not found in .terraform/modules/. ` +
-                `Run "terraform init" to download modules before estimating costs.`,
-            );
-            continue;
+            resolvedFromJson = null;
           }
+        }
+
+        if (resolvedFromJson) {
+          moduleDir = resolvedFromJson;
         } else {
           warnings.push(
-            `Registry module "${moduleName}" (source: "${source}") not found in .terraform/modules/. ` +
+            `Registry module "${safeModuleName}" (source: "${safeSource}") not found in .terraform/modules/. ` +
               `Run "terraform init" to download modules before estimating costs.`,
           );
-          logger.debug("Registry module not initialised", { moduleName, source });
+          logger.debug("Registry module not initialised", {
+            moduleName: safeModuleName,
+            source: safeSource,
+          });
           continue;
         }
       }
     }
 
-    logger.debug("Resolving module", { moduleName, source, moduleDir, depth });
+    logger.debug("Resolving module", {
+      moduleName: safeModuleName,
+      source: safeSource,
+      moduleDir,
+      depth,
+    });
 
     const childResources = await parseModuleDirectory(
       moduleDir,
@@ -388,6 +444,7 @@ export async function resolveModules(
       moduleInputs,
       warnings,
       depth,
+      boundary,
     );
 
     allResources.push(...prefixResources(childResources, moduleName));

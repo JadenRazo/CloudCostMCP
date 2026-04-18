@@ -1,6 +1,6 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for multi-cloud cost analysis of Terraform, CloudFormation, Pulumi, and Bicep/ARM codebases",
   "type": "module",
   "license": "MIT",
@@ -69,7 +69,7 @@
   },
   "dependencies": {
     "@cdktf/hcl2json": "^0.21.0",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "better-sqlite3": "^11.9.1",
     "yaml": "^2.8.3",
     "zod": "^3.24.4"

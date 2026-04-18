@@ -8,19 +8,22 @@ import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { generateOptimizations } from "../calculator/optimizer.js";
 import { calculateReservedPricing } from "../calculator/reserved.js";
+import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const optimizeCostSchema = z.object({
-  files: z.array(
-    z.object({
-      path: z.string().describe("File path"),
-      content: z.string().describe("File content (HCL)"),
-    }),
-  ),
-  tfvars: z.string().optional().describe("Contents of terraform.tfvars file"),
+  files: z
+    .array(
+      z.object({
+        path: filePathSchema.describe("File path"),
+        content: fileContentSchema.describe("File content (HCL)"),
+      }),
+    )
+    .max(2000, "files array exceeds 2000 entries"),
+  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
   providers: z
     .array(z.enum(["aws", "azure", "gcp"]))
     .default(["aws", "azure", "gcp"])
