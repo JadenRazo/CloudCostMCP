@@ -28,15 +28,14 @@ describe.skipIf(!RUN)("GCP pricing smoke", () => {
     rmSync(dbDir, { recursive: true, force: true });
   });
 
-  it("fetches a live Compute Engine price for e2-standard-2 in us-central1", async () => {
+  it("fetches a live Compute Engine price for e2-standard-2 in us-central1", async (ctx) => {
     const result = await client.fetchComputeSkus("e2-standard-2", "us-central1");
 
     // GCP catalog occasionally returns no match for a machine family on
-    // a region — treat a null result as a soft-skip rather than fail,
-    // since the smoke test is about adapter + upstream contract, not
-    // GCP's SKU catalog completeness.
+    // a region — skip so CI dashboards show this as a skip, not a false pass.
     if (result === null) {
       console.warn("GCP compute SKU not found — upstream catalog miss, not an adapter failure");
+      ctx.skip();
       return;
     }
 

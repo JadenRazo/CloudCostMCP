@@ -2,17 +2,9 @@ import type { ProviderComparison } from "../types/pricing.js";
 import type { ParsedResource } from "../types/resources.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { ReportOptions } from "../types/reports.js";
+import { csvEscape } from "./csv-escape.js";
 
 const PROVIDERS: CloudProvider[] = ["aws", "azure", "gcp"];
-
-function csvEscape(value: string | number): string {
-  const str = String(value);
-  // Wrap in double quotes if the value contains a comma, newline, or quote.
-  if (str.includes(",") || str.includes("\n") || str.includes('"')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 /**
  * Generates a CSV report comparing monthly costs across all providers for

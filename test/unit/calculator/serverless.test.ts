@@ -4,21 +4,7 @@ import {
   calculateDynamoDbCost,
   calculateSqsCost,
 } from "../../../src/calculator/serverless.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "aws_lambda_function",
-    name: "test-fn",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource } from "../../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
 // Lambda
@@ -60,9 +46,11 @@ describe("calculateLambdaCost", () => {
 
   it("applies arm64 discount vs x86_64", () => {
     const x86 = makeResource({
+      type: "aws_lambda_function",
       attributes: { architecture: "x86_64", memory_size: 128 },
     });
     const arm = makeResource({
+      type: "aws_lambda_function",
       attributes: { architecture: "arm64", memory_size: 128 },
     });
 
@@ -74,14 +62,14 @@ describe("calculateLambdaCost", () => {
   });
 
   it("notes default assumption when no invocations specified", () => {
-    const resource = makeResource({});
+    const resource = makeResource({ type: "aws_lambda_function" });
     const estimate = calculateLambdaCost(resource, "aws", "us-east-1");
 
     expect(estimate.notes.some((n) => n.includes("Default invocation assumption"))).toBe(true);
   });
 
   it("yearly cost is 12x monthly", () => {
-    const resource = makeResource({});
+    const resource = makeResource({ type: "aws_lambda_function" });
     const estimate = calculateLambdaCost(resource, "aws", "us-east-1");
 
     expect(estimate.yearly_cost).toBeCloseTo(estimate.monthly_cost * 12, 5);

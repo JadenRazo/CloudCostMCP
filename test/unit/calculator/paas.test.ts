@@ -7,21 +7,7 @@ import {
   calculateBigQueryCost,
   calculateGcpFunctionCost,
 } from "../../../src/calculator/paas.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "azurerm_app_service_plan",
-    name: "test-plan",
-    provider: "azure",
-    region: "eastus",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource } from "../../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
 // Azure App Service Plan
@@ -30,6 +16,8 @@ function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
 describe("calculateAppServicePlanCost", () => {
   it("returns $0 for free tier", () => {
     const resource = makeResource({
+      type: "azurerm_app_service_plan",
+      provider: "azure",
       attributes: { sku: "F1" },
     });
     const estimate = calculateAppServicePlanCost(resource, "azure", "eastus");
@@ -40,6 +28,8 @@ describe("calculateAppServicePlanCost", () => {
 
   it("calculates B1 Basic pricing", () => {
     const resource = makeResource({
+      type: "azurerm_app_service_plan",
+      provider: "azure",
       attributes: { sku: "B1" },
     });
     const estimate = calculateAppServicePlanCost(resource, "azure", "eastus");
@@ -51,6 +41,8 @@ describe("calculateAppServicePlanCost", () => {
 
   it("calculates P1v3 Premium pricing", () => {
     const resource = makeResource({
+      type: "azurerm_app_service_plan",
+      provider: "azure",
       attributes: { sku: "P1v3" },
     });
     const estimate = calculateAppServicePlanCost(resource, "azure", "eastus");
@@ -61,6 +53,8 @@ describe("calculateAppServicePlanCost", () => {
 
   it("falls back to sku_tier+sku_size when sku is absent", () => {
     const resource = makeResource({
+      type: "azurerm_app_service_plan",
+      provider: "azure",
       attributes: { sku_tier: "Basic", sku_size: "B1" },
     });
     const estimate = calculateAppServicePlanCost(resource, "azure", "eastus");

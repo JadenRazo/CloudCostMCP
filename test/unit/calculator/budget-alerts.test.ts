@@ -1,24 +1,12 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { CostEngine } from "../../../src/calculator/cost-engine.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
 import type { CloudCostConfig } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-// Disable live network fetches — fallback/bundled prices are sufficient for
-// deterministic unit tests.
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-budget-test-${suffix}`, "cache.db");
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 function makeConfig(overrides: Partial<CloudCostConfig> = {}): CloudCostConfig {
   return { ...DEFAULT_CONFIG, ...overrides };
@@ -32,20 +20,6 @@ function makeEngine(
   const pricingEngine = new PricingEngine(cache, config);
   const engine = new CostEngine(pricingEngine, config);
   return { cache, engine };
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "aws_instance",
-    name: "test-resource",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
 }
 
 // A t3.large costs ~$60.74/month using bundled fallback prices ($0.0832/hr * 730).
@@ -73,7 +47,7 @@ describe("Budget alerts in calculateBreakdown", () => {
 
   it("produces no budget_warnings when no budget is configured", async () => {
     const config = makeConfig({ budget: undefined });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -93,7 +67,7 @@ describe("Budget alerts in calculateBreakdown", () => {
   it("produces no budget_warnings when totals are well below the limit", async () => {
     // t3.micro ~ $7.59/month; set a generous limit of $500
     const config = makeConfig({ budget: { monthly_limit: 500, warn_percentage: 80 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -118,7 +92,7 @@ describe("Budget alerts in calculateBreakdown", () => {
     // t3.large ~ $60.74/month; set limit to $70 with 80% threshold (~$56).
     // $60.74 > $56 but < $70, so we expect a warning (not exceeded).
     const config = makeConfig({ budget: { monthly_limit: 70, warn_percentage: 80 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -145,7 +119,7 @@ describe("Budget alerts in calculateBreakdown", () => {
   it("emits a BUDGET EXCEEDED message when monthly cost is over the limit", async () => {
     // t3.large ~ $60.74/month; set limit to $50 so it is clearly exceeded.
     const config = makeConfig({ budget: { monthly_limit: 50, warn_percentage: 80 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -168,7 +142,7 @@ describe("Budget alerts in calculateBreakdown", () => {
   it("does not emit a warning message when monthly cost exactly equals the limit", async () => {
     // Set an absurdly high limit that can never be breached in tests.
     const config = makeConfig({ budget: { monthly_limit: 100_000, warn_percentage: 80 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const breakdown = await engine.calculateBreakdown([], "aws", "us-east-1");
@@ -185,7 +159,7 @@ describe("Budget alerts in calculateBreakdown", () => {
     // t3.large ~ $60.74/month, t3.micro ~ $7.59/month.
     // Set per_resource_limit to $30 — only the large instance should trigger.
     const config = makeConfig({ budget: { per_resource_limit: 30 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -215,7 +189,7 @@ describe("Budget alerts in calculateBreakdown", () => {
   it("emits one RESOURCE OVER BUDGET entry per offending resource", async () => {
     // Both t3.large (~$60.74) and t3.small (~$15.18) exceed a $10 limit.
     const config = makeConfig({ budget: { per_resource_limit: 10 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -251,7 +225,7 @@ describe("Budget alerts in calculateBreakdown", () => {
     // t3.large ~ $60.74/month; limit = $100, warn at 50% = $50.
     // $60.74 > $50, so a warning should fire (but it should not be "EXCEEDED").
     const config = makeConfig({ budget: { monthly_limit: 100, warn_percentage: 50 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -273,7 +247,7 @@ describe("Budget alerts in calculateBreakdown", () => {
     // t3.micro ~ $7.59/month; limit = $100, warn at 100% means only fire when exceeded.
     // $7.59 < $100, so no warning expected.
     const config = makeConfig({ budget: { monthly_limit: 100, warn_percentage: 100 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -300,7 +274,7 @@ describe("Budget alerts in calculateBreakdown", () => {
     const config = makeConfig({
       budget: { monthly_limit: 50, per_resource_limit: 30, warn_percentage: 80 },
     });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const resources = [
@@ -329,7 +303,7 @@ describe("Budget alerts in calculateBreakdown", () => {
 
   it("handles an empty resource list with budget configured — no warnings", async () => {
     const config = makeConfig({ budget: { monthly_limit: 100, per_resource_limit: 10 } });
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-budget-test");
     ({ cache, engine } = makeEngine(config, dbPath));
 
     const breakdown = await engine.calculateBreakdown([], "aws", "us-east-1");

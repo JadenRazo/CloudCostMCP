@@ -1,20 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateSecretsCost } from "../../../src/calculator/secrets.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test.secret",
-    type: "aws_secretsmanager_secret",
-    name: "test-secret",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource } from "../../helpers/factories.js";
 
 describe("calculateSecretsCost", () => {
   // -------------------------------------------------------------------------

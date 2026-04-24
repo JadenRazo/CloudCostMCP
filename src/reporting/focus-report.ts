@@ -1,5 +1,6 @@
 import type { ProviderComparison } from "../types/pricing.js";
 import type { ParsedResource } from "../types/resources.js";
+import { csvEscape } from "./csv-escape.js";
 
 // FOCUS column headers per the FinOps Open Cost and Usage Specification.
 const FOCUS_HEADERS = [
@@ -264,14 +265,6 @@ function billingPeriodEnd(): string {
 // ---------------------------------------------------------------------------
 // CSV helpers
 // ---------------------------------------------------------------------------
-
-function csvEscape(value: string | number): string {
-  const str = String(value);
-  if (str.includes(",") || str.includes("\n") || str.includes('"')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 function buildRow(values: (string | number)[]): string {
   return values.map(csvEscape).join(",");

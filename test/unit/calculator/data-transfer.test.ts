@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { CostEngine } from "../../../src/calculator/cost-engine.js";
@@ -11,32 +10,8 @@ import {
   calculateGcpDataTransferCost,
 } from "../../../src/calculator/data-transfer.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
 import type { CloudCostConfig } from "../../../src/types/config.js";
-
-// Disable live network fetches; fallback prices are sufficient for unit tests.
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-dt-test-${suffix}`, "cache.db");
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "aws_instance",
-    name: "test-resource",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 function makeCostEngine(
   cache: PricingCache,
@@ -240,7 +215,7 @@ describe("CostEngine data transfer integration", () => {
   let cache: PricingCache;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-dt-test");
     cache = new PricingCache(dbPath);
   });
 

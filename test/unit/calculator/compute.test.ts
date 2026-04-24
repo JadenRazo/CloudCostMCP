@@ -1,36 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { calculateComputeCost } from "../../../src/calculator/compute.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
 import type { PricingConfig } from "../../../src/types/config.js";
-
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-compute-test-${suffix}`, "cache.db");
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-compute",
-    type: "aws_instance",
-    name: "test-vm",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 describe("calculateComputeCost", () => {
   let dbPath: string;
@@ -38,7 +14,7 @@ describe("calculateComputeCost", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-compute-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });

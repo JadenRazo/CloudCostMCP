@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { CloudBillingClient } from "../../../src/pricing/gcp/cloud-billing-client.js";
 import {
@@ -9,16 +8,11 @@ import {
   clearLiveGcpCudRates,
   getLiveGcpCudRates,
 } from "../../../src/calculator/reserved.js";
+import { tempDbPath } from "../../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
-// Helpers (mirrors test/unit/pricing/gcp-live.test.ts so the two test files
-// can evolve independently)
+// Helpers — GPU SKUs, CUD rates, and Autopilot pod pricing
 // ---------------------------------------------------------------------------
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-gcp-live-ext-test-${suffix}`, "cache.db");
-}
 
 function makeSku(
   skuId: string,
@@ -77,7 +71,7 @@ describe("CloudBillingClient.fetchGpuSkus", () => {
   let client: CloudBillingClient;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-gcp-live-ext-test");
     cache = new PricingCache(dbPath);
     client = new CloudBillingClient(cache);
   });
@@ -215,7 +209,7 @@ describe("CloudBillingClient.fetchCudRates", () => {
   let client: CloudBillingClient;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-gcp-live-ext-test");
     cache = new PricingCache(dbPath);
     client = new CloudBillingClient(cache);
   });
@@ -312,7 +306,7 @@ describe("CloudBillingClient.fetchAutopilotPodRates", () => {
   let client: CloudBillingClient;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-gcp-live-ext-test");
     cache = new PricingCache(dbPath);
     client = new CloudBillingClient(cache);
   });

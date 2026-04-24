@@ -1,25 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
 import { optimizeCost } from "../../../src/tools/optimize-cost.js";
-
-// Disable live network fetches; bundled/fallback prices are deterministic.
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-optimize-test-${suffix}`, "cache.db");
-}
+import { tempDbPath } from "../../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -90,7 +76,7 @@ describe("optimizeCost", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-optimize-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });

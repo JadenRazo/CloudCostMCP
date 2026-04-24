@@ -1,25 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
 import { getPricing } from "../../../src/tools/get-pricing.js";
-
-// Disable live network fetches; bundled/fallback prices are deterministic.
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-getpricing-test-${suffix}`, "cache.db");
-}
+import { tempDbPath } from "../../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -31,7 +17,7 @@ describe("getPricing", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-getpricing-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });
@@ -65,7 +51,7 @@ describe("getPricing", () => {
     expect(result.price).not.toBeNull();
   });
 
-  it("returned price object has unit_price and currency fields", async () => {
+  it("returned price object has price_per_unit and currency fields", async () => {
     const result = (await getPricing(
       {
         provider: "aws",
@@ -160,7 +146,7 @@ describe("getPricing", () => {
     // or a bundled price — in both cases the shape must be correct.
     if (result.price !== null) {
       const price = result.price as Record<string, unknown>;
-      expect(typeof price.unit_price).toBe("number");
+      expect(typeof price.price_per_unit).toBe("number");
     }
   });
 

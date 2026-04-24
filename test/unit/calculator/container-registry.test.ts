@@ -1,20 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateContainerRegistryCost } from "../../../src/calculator/container-registry.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test.registry",
-    type: "aws_ecr_repository",
-    name: "test-registry",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource } from "../../helpers/factories.js";
 
 describe("calculateContainerRegistryCost", () => {
   // -------------------------------------------------------------------------

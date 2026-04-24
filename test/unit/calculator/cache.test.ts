@@ -5,21 +5,7 @@ import {
   calculateGcpRedisCost,
   calculateCloudFrontCost,
 } from "../../../src/calculator/cache.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "aws_elasticache_cluster",
-    name: "test-cache",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource } from "../../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
 // ElastiCache

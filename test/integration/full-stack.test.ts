@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { rmSync, existsSync } from "node:fs";
 
 import { PricingCache } from "../../src/pricing/cache.js";
@@ -15,15 +14,11 @@ import { compareProviders } from "../../src/tools/compare-providers.js";
 import { getEquivalents } from "../../src/tools/get-equivalents.js";
 import { getPricing } from "../../src/tools/get-pricing.js";
 import { optimizeCost } from "../../src/tools/optimize-cost.js";
+import { tempDbPath } from "../helpers/factories.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-e2e-${suffix}`, "cache.db");
-}
 
 function fixtureFile(fixture: string, filename: string): { path: string; content: string } {
   const filePath = join("test", "fixtures", fixture, filename);
@@ -37,31 +32,35 @@ function fixtureFile(fixture: string, filename: string): { path: string; content
 // Suite setup
 // ---------------------------------------------------------------------------
 
-// Stub fetch globally so no live network calls are made during tests.
-// The pricing loaders fall back to bundled/static data when fetch fails.
-beforeAll(() => {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("no network in tests")));
-});
-
 let dbPath: string;
-let cache: PricingCache;
+let cache: PricingCache | undefined;
 let pricingEngine: PricingEngine;
 let config: CloudCostConfig;
 
 beforeAll(() => {
-  dbPath = tempDbPath();
+  dbPath = tempDbPath("cloudcost-e2e");
   config = {
     ...DEFAULT_CONFIG,
     cache: { ...DEFAULT_CONFIG.cache, db_path: dbPath },
   };
-  cache = new PricingCache(dbPath);
-  pricingEngine = new PricingEngine(cache, config);
+  try {
+    cache = new PricingCache(dbPath);
+    pricingEngine = new PricingEngine(cache, config);
+  } catch (err) {
+    // Ensure partial state doesn't leak to afterAll; rethrow to fail setup.
+    cache?.close();
+    cache = undefined;
+    throw err;
+  }
 });
 
 afterAll(() => {
   cache?.close();
-  if (existsSync(dbPath)) {
-    rmSync(dbPath, { force: true });
+  if (dbPath) {
+    const dir = join(dbPath, "..");
+    if (existsSync(dir)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
 });
 

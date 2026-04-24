@@ -1,35 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { calculateDatabaseCost } from "../../../src/calculator/database.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-db-test-${suffix}`, "cache.db");
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-db",
-    type: "aws_db_instance",
-    name: "test-db",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 describe("calculateDatabaseCost", () => {
   let dbPath: string;
@@ -37,7 +13,7 @@ describe("calculateDatabaseCost", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-db-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });
@@ -50,6 +26,7 @@ describe("calculateDatabaseCost", () => {
 
   it("calculates cost for an AWS RDS db.t3.medium instance", async () => {
     const resource = makeResource({
+      type: "aws_db_instance",
       attributes: {
         instance_class: "db.t3.medium",
         engine: "mysql",
@@ -67,6 +44,7 @@ describe("calculateDatabaseCost", () => {
   it("doubles instance cost for multi-AZ deployments", async () => {
     const single = makeResource({
       id: "db-single",
+      type: "aws_db_instance",
       attributes: {
         instance_class: "db.t3.medium",
         engine: "mysql",
@@ -76,6 +54,7 @@ describe("calculateDatabaseCost", () => {
 
     const multi = makeResource({
       id: "db-multi",
+      type: "aws_db_instance",
       attributes: {
         instance_class: "db.t3.medium",
         engine: "mysql",
@@ -95,6 +74,7 @@ describe("calculateDatabaseCost", () => {
   it("includes allocated storage cost", async () => {
     const noStorage = makeResource({
       id: "db-no-storage",
+      type: "aws_db_instance",
       attributes: {
         instance_class: "db.t3.medium",
         engine: "mysql",
@@ -104,6 +84,7 @@ describe("calculateDatabaseCost", () => {
 
     const withStorage = makeResource({
       id: "db-with-storage",
+      type: "aws_db_instance",
       attributes: {
         instance_class: "db.t3.medium",
         engine: "mysql",
@@ -124,6 +105,7 @@ describe("calculateDatabaseCost", () => {
 
   it("returns low confidence when no mapping is found", async () => {
     const resource = makeResource({
+      type: "aws_db_instance",
       attributes: { instance_class: "" },
     });
 

@@ -1,20 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateDnsCost } from "../../../src/calculator/dns.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test.zone",
-    type: "aws_route53_zone",
-    name: "test-zone",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource } from "../../helpers/factories.js";
 
 describe("calculateDnsCost", () => {
   // -------------------------------------------------------------------------
