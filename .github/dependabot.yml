@@ -13,6 +13,12 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # typescript-eslint@8.x peer-caps TypeScript at <6.1.0; hold TS 6.x
+      # until typescript-eslint ships support. Re-evaluate when
+      # typescript-eslint releases a version with `typescript: '>=6.x'`.
+      - dependency-name: "typescript"
+        versions: ["6.x"]
     labels:
       - dependencies
     commit-message:
