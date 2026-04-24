@@ -1,21 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { AwsBulkLoader } from "../../../src/pricing/aws/bulk-loader.js";
 import { RDS_BASE_PRICES } from "../../../src/pricing/aws/fallback-data.js";
-
-// Always make fetch fail so the loader falls through to hardcoded fallback data.
-// This keeps tests hermetic and fast (no real HTTP calls).
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-aws-test-${suffix}`, "cache.db");
-}
+import { tempDbPath } from "../../helpers/factories.js";
 
 describe("AwsBulkLoader", () => {
   let dbPath: string;
@@ -23,7 +12,7 @@ describe("AwsBulkLoader", () => {
   let loader: AwsBulkLoader;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-aws-test");
     cache = new PricingCache(dbPath);
     loader = new AwsBulkLoader(cache);
   });

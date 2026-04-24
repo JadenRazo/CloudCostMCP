@@ -174,6 +174,44 @@ export const CACHE_TTL = 86400; // 24 hours in seconds
 // Service codes used: AmazonEC2, AmazonRDS, AmazonEBS
 export const BULK_PRICING_BASE = "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws";
 
+// Host component of BULK_PRICING_BASE. Used to pin the outbound request host
+// so URL-injection via user-influenced path segments cannot redirect traffic.
+export const AWS_PRICING_HOST = "pricing.us-east-1.amazonaws.com";
+
+// Covers commercial (us-east-1), GovCloud (us-gov-east-1), China (cn-north-1),
+// and IC Secret/Top-Secret regions (us-iso-east-1, us-isob-east-1).
+// The anchored pattern rejects any input containing "/", "?", "#", "..", or
+// other characters that could break out of the intended URL path segment.
+const AWS_REGION_RE = /^[a-z]{2}(?:-(?:gov|iso|isob))?-[a-z]+-\d+$/;
+
+// Allowlist of AWS service codes accepted in bulk-pricing URL paths. Extend
+// this set when adding new service integrations — defense against an attacker
+// smuggling a segment like "../AmazonOther" through a parameter.
+export const AWS_PRICING_SERVICES: ReadonlySet<string> = new Set([
+  "AmazonEC2",
+  "AmazonRDS",
+  "AmazonElastiCache",
+  "AmazonRedshift",
+]);
+
+/**
+ * Throws if `region` is not a syntactically valid AWS region code.
+ */
+export function assertValidAwsRegion(region: string): void {
+  if (typeof region !== "string" || !AWS_REGION_RE.test(region)) {
+    throw new Error(`invalid AWS region: ${JSON.stringify(region).slice(0, 64)}`);
+  }
+}
+
+/**
+ * Throws if `service` is not in the AWS bulk-pricing service allowlist.
+ */
+export function assertValidAwsPricingService(service: string): void {
+  if (typeof service !== "string" || !AWS_PRICING_SERVICES.has(service)) {
+    throw new Error(`invalid AWS pricing service: ${JSON.stringify(service).slice(0, 64)}`);
+  }
+}
+
 /**
  * AWS instance sizes follow a predictable doubling pattern:
  * nano -> micro -> small -> medium -> large -> xlarge -> 2xlarge -> 4xlarge -> ...

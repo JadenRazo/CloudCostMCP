@@ -1,24 +1,118 @@
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
-// fetchWithRetry — exponential backoff retry wrapper
+// fetchWithRetry — exponential backoff retry wrapper with hardening
 // ---------------------------------------------------------------------------
 
 export interface RetryOptions {
   maxRetries?: number;
   baseDelay?: number;
   maxDelay?: number;
+  /**
+   * When set, restrict the URL host to this allowlist. Requests to any other
+   * host are rejected synchronously before any network call is made. Used as
+   * defense-in-depth against URL-injection / SSRF when any path segment of
+   * the URL is user-influenced.
+   */
+  allowedHosts?: readonly string[];
+  /**
+   * Maximum response body size in bytes. The body is wrapped in a
+   * TransformStream that errors once the cap is exceeded, so `res.json()`,
+   * `res.text()`, and `res.body.pipeThrough(...)` all enforce the ceiling.
+   * Protects against OOM from compromised / misbehaving upstreams.
+   * Default: 100 MiB. Pass a larger value (or `Infinity`) for known-large
+   * streaming responses such as AWS bulk pricing CSVs.
+   */
+  maxResponseBytes?: number;
+  /**
+   * When true (default) the URL must use the `https:` scheme. Reject
+   * everything else to prevent plaintext exfiltration and local-loopback
+   * SSRF via `http://127.0.0.1`.
+   */
+  requireHttps?: boolean;
+  /**
+   * Default per-request timeout applied when the caller did not pass an
+   * AbortSignal in `init`. Prevents hangs when a caller forgets to set a
+   * timeout. Default: 60 000 ms.
+   */
+  defaultTimeoutMs?: number;
+}
+
+const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024 * 1024; // 100 MiB
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+/**
+ * Validate the URL scheme and host before any network call.
+ * Throws a synchronous error (no retry) on rejection.
+ */
+function assertUrlAllowed(url: string, options: RetryOptions): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`fetchWithRetry: invalid URL`);
+  }
+
+  const requireHttps = options.requireHttps ?? true;
+  if (requireHttps && parsed.protocol !== "https:") {
+    throw new Error(`fetchWithRetry: rejected non-https URL (scheme=${parsed.protocol})`);
+  }
+
+  if (options.allowedHosts && options.allowedHosts.length > 0) {
+    if (!options.allowedHosts.includes(parsed.host)) {
+      throw new Error(`fetchWithRetry: host ${parsed.host} not in allowlist`);
+    }
+  }
+
+  return parsed;
 }
 
 /**
- * Wraps fetch() with exponential backoff retry logic.
+ * Wrap a Response so that reading its body aborts once `maxBytes` is
+ * exceeded. Preserves status, statusText, and headers.
+ */
+function capResponseBody(res: Response, maxBytes: number): Response {
+  if (!res.body) return res;
+  if (!Number.isFinite(maxBytes)) return res;
+
+  let seen = 0;
+  const limiter = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      seen += chunk.byteLength;
+      if (seen > maxBytes) {
+        controller.error(new Error(`fetchWithRetry: response body exceeded ${maxBytes} bytes`));
+        return;
+      }
+      controller.enqueue(chunk);
+    },
+  });
+
+  const limited = res.body.pipeThrough(limiter);
+  return new Response(limited, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: res.headers,
+  });
+}
+
+/**
+ * Inject a default AbortSignal timeout when the caller did not provide one.
+ * If the caller already passed a signal, leave it untouched — callers that
+ * want shorter timeouts stay in control.
+ */
+function withDefaultSignal(init: RequestInit | undefined, timeoutMs: number): RequestInit {
+  if (init?.signal) return init;
+  return { ...(init ?? {}), signal: AbortSignal.timeout(timeoutMs) };
+}
+
+/**
+ * Wraps fetch() with exponential backoff retry logic plus safety hardening:
+ *   - URL scheme/host validation (rejects http, optional host allowlist)
+ *   - Response body size cap (prevents OOM on adversarial upstreams)
+ *   - Default request timeout (prevents hangs when caller forgets a signal)
  *
  * Retries on network errors and HTTP 429/5xx responses.
  * Each retry waits baseDelay * 2^attempt ms, capped at maxDelay.
- *
- * @param url       URL to fetch
- * @param init      RequestInit options (headers, signal, etc.)
- * @param options   Retry configuration
  */
 export async function fetchWithRetry(
   url: string,
@@ -28,12 +122,17 @@ export async function fetchWithRetry(
   const maxRetries = options.maxRetries ?? 3;
   const baseDelay = options.baseDelay ?? 1000;
   const maxDelay = options.maxDelay ?? 10_000;
+  const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+  const defaultTimeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  assertUrlAllowed(url, options);
+  const safeInit = withDefaultSignal(init, defaultTimeoutMs);
 
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const res = await fetch(url, init);
+      const res = await fetch(url, safeInit);
 
       // Retry on rate-limit or server errors
       if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
@@ -50,7 +149,7 @@ export async function fetchWithRetry(
         }
       }
 
-      return res;
+      return capResponseBody(res, maxResponseBytes);
     } catch (err) {
       lastError = err;
 

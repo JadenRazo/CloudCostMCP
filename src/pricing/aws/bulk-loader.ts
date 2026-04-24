@@ -21,8 +21,11 @@ import {
   EKS_HOURLY,
   CACHE_TTL,
   BULK_PRICING_BASE,
+  AWS_PRICING_HOST,
   SIZE_ORDER,
   regionMultiplier,
+  assertValidAwsRegion,
+  assertValidAwsPricingService,
 } from "./fallback-data.js";
 
 export class AwsBulkLoader {
@@ -230,7 +233,8 @@ export class AwsBulkLoader {
   }
 
   private async _doFetchAndCacheEc2CsvPrices(region: string): Promise<boolean> {
-    const url = `${BULK_PRICING_BASE}/AmazonEC2/current/${region}/index.csv`;
+    assertValidAwsRegion(region);
+    const url = `${BULK_PRICING_BASE}/AmazonEC2/current/${encodeURIComponent(region)}/index.csv`;
     logger.debug("Streaming AWS EC2 CSV pricing", { url, region });
 
     const controller = new AbortController();
@@ -244,6 +248,10 @@ export class AwsBulkLoader {
           maxRetries: 1,
           baseDelay: 500,
           maxDelay: 2_000,
+          allowedHosts: [AWS_PRICING_HOST],
+          // AWS EC2 CSVs run ~267 MiB today; allow headroom for growth while
+          // still hard-bounding at 512 MiB to prevent adversarial OOM.
+          maxResponseBytes: 512 * 1024 * 1024,
         },
       );
       if (!res.ok) {
@@ -483,7 +491,9 @@ export class AwsBulkLoader {
     service: string,
     region: string,
   ): Promise<AwsBulkPricingResponse | null> {
-    const url = `${BULK_PRICING_BASE}/${service}/current/${region}/index.json`;
+    assertValidAwsPricingService(service);
+    assertValidAwsRegion(region);
+    const url = `${BULK_PRICING_BASE}/${encodeURIComponent(service)}/current/${encodeURIComponent(region)}/index.json`;
     logger.debug("Fetching AWS bulk pricing", { url });
 
     // Use circuit breaker but no retry here — the caller already has a
@@ -494,7 +504,10 @@ export class AwsBulkLoader {
       {
         signal: AbortSignal.timeout(30_000),
       },
-      { maxRetries: 0 },
+      {
+        maxRetries: 0,
+        allowedHosts: [AWS_PRICING_HOST],
+      },
     );
 
     if (!res.ok) {

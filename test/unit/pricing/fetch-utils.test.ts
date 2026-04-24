@@ -116,6 +116,131 @@ describe("fetchWithRetry", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Hardening: URL validation, response size cap, default timeout
+// ---------------------------------------------------------------------------
+
+describe("fetchWithRetry hardening", () => {
+  beforeEach(() => {
+    resetAllCircuits();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetAllCircuits();
+  });
+
+  it("rejects http:// URLs by default without calling fetch", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(fetchWithRetry("http://example.com/")).rejects.toThrow(/non-https/);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("allows http:// when requireHttps=false (test-only escape hatch)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeOkResponse());
+    vi.stubGlobal("fetch", mockFetch);
+
+    const res = await fetchWithRetry("http://localhost:3000/mock", undefined, {
+      requireHttps: false,
+    });
+    expect(res.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects hosts not in allowedHosts without calling fetch", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(
+      fetchWithRetry("https://evil.example.com/x", undefined, {
+        allowedHosts: ["pricing.us-east-1.amazonaws.com"],
+      }),
+    ).rejects.toThrow(/not in allowlist/);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("accepts hosts in allowedHosts", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeOkResponse());
+    vi.stubGlobal("fetch", mockFetch);
+
+    const res = await fetchWithRetry("https://pricing.us-east-1.amazonaws.com/a", undefined, {
+      allowedHosts: ["pricing.us-east-1.amazonaws.com"],
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects malformed URLs before calling fetch", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(fetchWithRetry("not a url")).rejects.toThrow(/invalid URL/);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("caps response body size — res.text() throws when body exceeds limit", async () => {
+    // Produce a 2 MiB body; cap at 1 MiB.
+    const big = "x".repeat(2 * 1024 * 1024);
+    const mockFetch = vi.fn().mockResolvedValue(new Response(big, { status: 200 }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const res = await fetchWithRetry(TEST_URL, undefined, {
+      maxResponseBytes: 1024 * 1024,
+    });
+    await expect(res.text()).rejects.toThrow(/exceeded 1048576 bytes/);
+  });
+
+  it("caps response body size — bodies under the limit read cleanly", async () => {
+    const small = '{"hello":"world"}';
+    const mockFetch = vi.fn().mockResolvedValue(new Response(small, { status: 200 }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const res = await fetchWithRetry(TEST_URL, undefined, {
+      maxResponseBytes: 1024 * 1024,
+    });
+    await expect(res.json()).resolves.toEqual({ hello: "world" });
+  });
+
+  it("injects a default AbortSignal when caller does not provide one", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeOkResponse());
+    vi.stubGlobal("fetch", mockFetch);
+
+    await fetchWithRetry(TEST_URL);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("preserves caller-supplied AbortSignal when provided", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeOkResponse());
+    vi.stubGlobal("fetch", mockFetch);
+
+    const controller = new AbortController();
+    await fetchWithRetry(TEST_URL, { signal: controller.signal });
+
+    const init = mockFetch.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBe(controller.signal);
+  });
+
+  it("preserves response status and headers after body-cap wrapping", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response("ok", {
+        status: 201,
+        statusText: "Created",
+        headers: { "x-custom": "42" },
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const res = await fetchWithRetry(TEST_URL);
+    expect(res.status).toBe(201);
+    expect(res.statusText).toBe("Created");
+    expect(res.headers.get("x-custom")).toBe("42");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Circuit Breaker
 // ---------------------------------------------------------------------------
 

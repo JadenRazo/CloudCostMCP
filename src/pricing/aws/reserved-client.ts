@@ -2,7 +2,13 @@ import type { AwsBulkPricingResponse, AwsOfferTerm } from "./types.js";
 import type { PricingCache } from "../cache.js";
 import { logger } from "../../logger.js";
 import { fetchWithRetryAndCircuitBreaker } from "../fetch-utils.js";
-import { BULK_PRICING_BASE, CACHE_TTL } from "./fallback-data.js";
+import {
+  BULK_PRICING_BASE,
+  AWS_PRICING_HOST,
+  CACHE_TTL,
+  assertValidAwsRegion,
+  assertValidAwsPricingService,
+} from "./fallback-data.js";
 
 // ---------------------------------------------------------------------------
 // AWS Reserved / Savings-Plans client
@@ -144,14 +150,19 @@ export class AwsReservedClient {
     const cached = this.cache.get<RiRateCacheEntry>(cacheKey);
     if (cached && Array.isArray(cached.rates)) return cached.rates;
 
-    const url = `${BULK_PRICING_BASE}/${service}/current/${region}/index.json`;
+    assertValidAwsPricingService(service);
+    assertValidAwsRegion(region);
+    const url = `${BULK_PRICING_BASE}/${encodeURIComponent(service)}/current/${encodeURIComponent(region)}/index.json`;
     logger.debug("Fetching AWS bulk pricing for RI rates", { url });
 
     try {
       const res = await fetchWithRetryAndCircuitBreaker(
         url,
         { signal: AbortSignal.timeout(60_000) },
-        { maxRetries: 0 },
+        {
+          maxRetries: 0,
+          allowedHosts: [AWS_PRICING_HOST],
+        },
       );
       if (!res.ok) {
         logger.debug("AWS RI bulk fetch non-OK", { status: res.status });
