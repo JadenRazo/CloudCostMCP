@@ -1,20 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-history-test-${suffix}`, "cache.db");
-}
+import { tempDbPath } from "../../helpers/factories.js";
 
 describe("PricingCache – price history", () => {
   let dbPath: string;
   let cache: PricingCache;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-history-test");
     cache = new PricingCache(dbPath);
   });
 

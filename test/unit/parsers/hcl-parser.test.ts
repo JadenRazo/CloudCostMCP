@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseTerraform } from "../../../src/parsers/index.js";
-import { detectProvider } from "../../../src/parsers/provider-detector.js";
-import { resolveVariables, substituteVariables } from "../../../src/parsers/variable-resolver.js";
 import { parseHclToJson } from "../../../src/parsers/hcl-parser.js";
 
 // ---------------------------------------------------------------------------
@@ -34,108 +32,8 @@ function fullStackTfvars() {
   return readFixture("full-stack", "terraform.tfvars");
 }
 
-// ---------------------------------------------------------------------------
-// Provider detector
-// ---------------------------------------------------------------------------
-
-describe("detectProvider", () => {
-  it("returns aws for aws_ prefixed resource types", () => {
-    expect(detectProvider("aws_instance")).toBe("aws");
-    expect(detectProvider("aws_db_instance")).toBe("aws");
-    expect(detectProvider("aws_s3_bucket")).toBe("aws");
-  });
-
-  it("returns azure for azurerm_ prefixed resource types", () => {
-    expect(detectProvider("azurerm_linux_virtual_machine")).toBe("azure");
-    expect(detectProvider("azurerm_managed_disk")).toBe("azure");
-  });
-
-  it("returns gcp for google_ prefixed resource types", () => {
-    expect(detectProvider("google_compute_instance")).toBe("gcp");
-    expect(detectProvider("google_sql_database_instance")).toBe("gcp");
-  });
-
-  it("throws for unknown resource type prefixes", () => {
-    expect(() => detectProvider("unknown_resource")).toThrow();
-    expect(() => detectProvider("digitalocean_droplet")).toThrow();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Variable resolver
-// ---------------------------------------------------------------------------
-
-describe("resolveVariables", () => {
-  it("extracts defaults from HCL JSON variable blocks", async () => {
-    const hcl = readFixture("simple-ec2", "variables.tf");
-    const json = await parseHclToJson(hcl, "variables.tf");
-    const vars = resolveVariables(json);
-
-    expect(vars["region"]).toBe("us-west-2");
-    expect(vars["instance_type"]).toBe("t3.micro");
-  });
-
-  it("overrides defaults with tfvars values", async () => {
-    const hcl = readFixture("full-stack", "variables.tf");
-    const json = await parseHclToJson(hcl, "variables.tf");
-    const vars = resolveVariables(json, fullStackTfvars());
-
-    // tfvars overrides the variable default of "t3.large"
-    expect(vars["instance_type"]).toBe("t3.xlarge");
-    // tfvars overrides "us-east-1"
-    expect(vars["region"]).toBe("us-west-2");
-    // numeric override
-    expect(vars["volume_size"]).toBe(100);
-  });
-
-  it("preserves defaults for variables not present in tfvars", async () => {
-    const hcl = readFixture("full-stack", "variables.tf");
-    const json = await parseHclToJson(hcl, "variables.tf");
-    const vars = resolveVariables(json, fullStackTfvars());
-
-    // ami_id has a default and is NOT in the tfvars file
-    expect(vars["ami_id"]).toBe("ami-0c55b159cbfafe1f0");
-  });
-
-  it("returns empty object when no variable blocks exist", () => {
-    const vars = resolveVariables({});
-    expect(vars).toEqual({});
-  });
-});
-
-describe("substituteVariables", () => {
-  const vars = { region: "us-west-2", count: 3, enabled: true };
-
-  it("replaces a whole-string var reference and preserves the original type", () => {
-    expect(substituteVariables("${var.count}", vars)).toBe(3);
-    expect(substituteVariables("${var.enabled}", vars)).toBe(true);
-    expect(substituteVariables("${var.region}", vars)).toBe("us-west-2");
-  });
-
-  it("replaces inline var references within a larger string", () => {
-    expect(substituteVariables("Region: ${var.region}", vars)).toBe("Region: us-west-2");
-  });
-
-  it("leaves unknown var references unchanged", () => {
-    expect(substituteVariables("${var.unknown}", vars)).toBe("${var.unknown}");
-  });
-
-  it("recurses into arrays and objects", () => {
-    const result = substituteVariables(
-      { type: "${var.region}", nested: ["${var.count}"] },
-      vars,
-    ) as Record<string, unknown>;
-
-    expect(result["type"]).toBe("us-west-2");
-    expect((result["nested"] as unknown[])[0]).toBe(3);
-  });
-
-  it("passes through non-string scalars unchanged", () => {
-    expect(substituteVariables(42, vars)).toBe(42);
-    expect(substituteVariables(false, vars)).toBe(false);
-    expect(substituteVariables(null, vars)).toBeNull();
-  });
-});
+// NOTE: detectProvider and resolveVariables/substituteVariables are tested
+// in their dedicated files: provider-detector.test.ts and variable-resolver.test.ts
 
 // ---------------------------------------------------------------------------
 // HCL parser (raw)

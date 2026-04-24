@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import {
@@ -9,30 +8,7 @@ import {
   calculateLoadBalancerCost,
 } from "../../../src/calculator/network.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-network-test-${suffix}`, "cache.db");
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-network",
-    type: "aws_nat_gateway",
-    name: "test-nat",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 describe("calculateNatGatewayCost", () => {
   let dbPath: string;
@@ -40,7 +16,7 @@ describe("calculateNatGatewayCost", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-network-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });
@@ -71,9 +47,11 @@ describe("calculateNatGatewayCost", () => {
 
   it("uses explicit data_processed_gb when provided", async () => {
     const smallData = makeResource({
+      type: "aws_nat_gateway",
       attributes: { data_processed_gb: 10 },
     });
     const largeData = makeResource({
+      type: "aws_nat_gateway",
       attributes: { data_processed_gb: 500 },
     });
 
@@ -104,7 +82,7 @@ describe("calculateLoadBalancerCost", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-network-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });

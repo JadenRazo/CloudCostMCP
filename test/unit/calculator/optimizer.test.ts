@@ -1,43 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { generateOptimizations } from "../../../src/calculator/optimizer.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-import type { CostEstimate } from "../../../src/types/pricing.js";
-
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test",
-    type: "aws_instance",
-    name: "test",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
-
-function makeEstimate(overrides: Partial<CostEstimate>): CostEstimate {
-  return {
-    resource_id: "test",
-    resource_type: "aws_instance",
-    resource_name: "test",
-    provider: "aws",
-    region: "us-east-1",
-    monthly_cost: 100,
-    yearly_cost: 1200,
-    currency: "USD",
-    breakdown: [],
-    confidence: "high",
-    notes: [],
-    pricing_source: "fallback",
-    ...overrides,
-  };
-}
+import { makeResource, makeEstimate } from "../../helpers/factories.js";
 
 describe("generateOptimizations", () => {
   it("returns empty array when no estimates are provided", () => {

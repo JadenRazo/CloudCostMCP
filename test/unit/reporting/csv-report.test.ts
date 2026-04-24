@@ -1,88 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { generateCsvReport } from "../../../src/reporting/csv-report.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-import type {
-  ProviderComparison,
-  CostBreakdown,
-  CostEstimate,
-} from "../../../src/types/pricing.js";
-
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
-
-function makeResource(overrides: Partial<ParsedResource> = {}): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "aws_instance",
-    name: "test-instance",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: { instance_type: "t3.large" },
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
-
-function makeEstimate(overrides: Partial<CostEstimate> = {}): CostEstimate {
-  return {
-    resource_id: "test-resource",
-    resource_type: "aws_instance",
-    resource_name: "test-instance",
-    provider: "aws",
-    region: "us-east-1",
-    monthly_cost: 60.74,
-    yearly_cost: 728.88,
-    currency: "USD",
-    breakdown: [
-      {
-        description: "Compute",
-        unit: "Hrs",
-        quantity: 730,
-        unit_price: 0.0832,
-        monthly_cost: 60.74,
-      },
-    ],
-    confidence: "high",
-    notes: [],
-    pricing_source: "fallback",
-    ...overrides,
-  };
-}
-
-function makeBreakdown(overrides: Partial<CostBreakdown> = {}): CostBreakdown {
-  return {
-    provider: "aws",
-    region: "us-east-1",
-    total_monthly: 60.74,
-    total_yearly: 728.88,
-    currency: "USD",
-    by_service: { compute: 60.74 },
-    by_resource: [makeEstimate()],
-    generated_at: new Date().toISOString(),
-    warnings: [],
-    ...overrides,
-  };
-}
-
-function makeComparison(overrides: Partial<ProviderComparison> = {}): ProviderComparison {
-  const breakdown = makeBreakdown();
-  return {
-    source_provider: "aws",
-    comparisons: [breakdown],
-    savings_summary: [
-      {
-        provider: "aws",
-        total_monthly: 60.74,
-        difference_from_source: 0,
-        percentage_difference: 0,
-      },
-    ],
-    generated_at: new Date().toISOString(),
-    ...overrides,
-  };
-}
+import type { ProviderComparison } from "../../../src/types/pricing.js";
+import {
+  makeResource,
+  makeEstimate,
+  makeBreakdown,
+  makeComparison,
+} from "../../helpers/factories.js";
 
 // Parse CSV into array of objects, skipping comment lines starting with #.
 function parseCsv(csv: string): Record<string, string>[] {

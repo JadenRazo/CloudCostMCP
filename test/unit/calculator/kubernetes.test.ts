@@ -1,35 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { calculateKubernetesCost } from "../../../src/calculator/kubernetes.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
-
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-k8s-test-${suffix}`, "cache.db");
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-k8s",
-    type: "aws_eks_cluster",
-    name: "test-cluster",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
-  };
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 describe("calculateKubernetesCost", () => {
   let dbPath: string;
@@ -37,7 +13,7 @@ describe("calculateKubernetesCost", () => {
   let pricingEngine: PricingEngine;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-k8s-test");
     cache = new PricingCache(dbPath);
     pricingEngine = new PricingEngine(cache, DEFAULT_CONFIG);
   });
@@ -99,6 +75,7 @@ describe("calculateKubernetesCost", () => {
 
   it("adds note when node_count is set but instance_type is missing", async () => {
     const resource = makeResource({
+      type: "aws_eks_cluster",
       attributes: { node_count: 3 },
     });
 

@@ -1,23 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { PricingEngine } from "../../../src/pricing/pricing-engine.js";
 import { CostEngine } from "../../../src/calculator/cost-engine.js";
 import { DEFAULT_CONFIG } from "../../../src/types/config.js";
-import type { ParsedResource } from "../../../src/types/resources.js";
 import type { CloudCostConfig } from "../../../src/types/config.js";
-
-// Disable live network fetches for deterministic unit tests.
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
-
-function tempDbPath(): string {
-  const suffix = Math.random().toString(36).slice(2, 10);
-  return join(tmpdir(), `cloudcost-spot-test-${suffix}`, "cache.db");
-}
+import { makeResource, tempDbPath } from "../../helpers/factories.js";
 
 function makeConfig(overrides: Partial<CloudCostConfig["pricing"]> = {}): CloudCostConfig {
   return {
@@ -26,20 +15,6 @@ function makeConfig(overrides: Partial<CloudCostConfig["pricing"]> = {}): CloudC
       ...DEFAULT_CONFIG.pricing,
       ...overrides,
     },
-  };
-}
-
-function makeResource(overrides: Partial<ParsedResource>): ParsedResource {
-  return {
-    id: "test-resource",
-    type: "aws_instance",
-    name: "test-resource",
-    provider: "aws",
-    region: "us-east-1",
-    attributes: {},
-    tags: {},
-    source_file: "main.tf",
-    ...overrides,
   };
 }
 
@@ -60,7 +35,7 @@ describe("Spot pricing — CostEngine integration", () => {
   let cache: PricingCache;
 
   beforeEach(() => {
-    dbPath = tempDbPath();
+    dbPath = tempDbPath("cloudcost-spot-test");
     cache = new PricingCache(dbPath);
   });
 
