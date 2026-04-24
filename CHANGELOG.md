@@ -19,13 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Changed
 
 - Coverage thresholds in `vitest.config.ts` raised to 75 / 75 / 80 / 75 (statements / branches / functions / lines) to reflect the current `main` level.
-- README: corrected the Limitations bullet that implied AWS Savings Plans were supported via `optimize_cost`. Savings Plans are not yet supported and are tracked in the new `ROADMAP.md`.
+- README: corrected the Limitations bullet that implied AWS Savings Plans were supported via `optimize_cost`. Savings Plans are not yet supported and are tracked in [docs/roadmap.md](./docs/roadmap.md).
 
 ### Tests
 
 - `src/reporting/csv-escape.ts` extracted out of `csv-report` and `focus-report`; dedicated `csv-escape.test.ts` covers the formula-injection defense surface.
 - `test/helpers/factories.ts` + `setup.ts` centralise test fixture construction; `test/integration/full-stack.test.ts` replaces the older end-to-end test with wider tool coverage.
-- New unit tests: `api-gateway`, `messaging`, `ml-ai`, `search`, `waf`, `csv-parser`, `resource-extractor`, `markdown-report`, `check-cost-budget`. Total passing tests: 1504 (+12).
+- New unit tests: `api-gateway`, `messaging`, `ml-ai`, `search`, `waf`, `csv-parser`, `resource-extractor`, `markdown-report`, `check-cost-budget`. Total passing tests: 1507 (+15).
 
 ## [1.0.1] - 2026-04-18
 
@@ -45,11 +45,10 @@ Hardened the MCP tool surface against the attack classes catalogued in the OWASP
 
 ## [1.0.0] - 2026-04-15
 
-First stable release. No breaking API changes from 0.5 — this version ratifies the existing surface as SemVer-locked. See [`MIGRATION.md`](./MIGRATION.md) for details.
+First stable release. No breaking API changes from 0.5 — this version ratifies the existing surface as SemVer-locked. See [`VERSIONING.md`](./VERSIONING.md#migration-notes) for details.
 
 ### Added
-- **`STABILITY.md`**: Formal stability contract defining the SemVer-locked public surface (11 MCP tools, CLI binaries, package entry points) and the change-classification policy.
-- **`MIGRATION.md`**: 0.x → 1.0 migration guide and forward-looking support policy.
+- **`VERSIONING.md`**: Formal stability contract defining the SemVer-locked public surface (12 MCP tools, CLI binaries, package entry points), the change-classification policy, and the 0.x → 1.0 migration notes. (At release this lived in two files, `STABILITY.md` and `MIGRATION.md`; they were later consolidated.)
 - **Smoke integration tests**: Live-API smoke coverage for AWS Bulk Pricing, Azure Retail Prices, and GCP Cloud Billing Catalog, gated behind `RUN_INTEGRATION=1`. New `integration-smoke` CI job runs on manual dispatch and weekly schedule (Mondays 12:00 UTC).
 - **Publish workflow gates**: `npm audit --audit-level=high` and `npm test` now run before `npm publish`, preventing broken or vulnerable releases.
 
@@ -62,7 +61,7 @@ First stable release. No breaking API changes from 0.5 — this version ratifies
 - `npm audit --audit-level=high` now reports zero vulnerabilities.
 
 ### Packaging
-- `STABILITY.md`, `MIGRATION.md`, and `CHANGELOG.md` are now included in the published npm tarball.
+- `VERSIONING.md` and `CHANGELOG.md` are now included in the published npm tarball. (Originally shipped as `STABILITY.md` + `MIGRATION.md`, now merged.)
 
 ## [0.4.0] - 2026-03-28
 
@@ -83,7 +82,7 @@ First stable release. No breaking API changes from 0.5 — this version ratifies
 - **Performance benchmarks**: Parsing, pricing cache, and calculator benchmarks via `vitest bench`
 - **CI hardening**: Security audit job, Prettier format check, concurrency groups, job timeouts
 - **SECURITY.md**: Vulnerability reporting policy and security design documentation
-- **ARCHITECTURE.md**: Layered architecture documentation with extension guides
+- **`docs/architecture.md`**: Layered architecture documentation with extension guides (originally at repo root, moved to `docs/` in a later cleanup).
 
 ### Changed
 - Refactored `bulk-loader.ts` (929 -> 708 lines) into focused modules: csv-parser, fallback-data

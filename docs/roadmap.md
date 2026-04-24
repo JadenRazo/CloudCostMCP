@@ -6,21 +6,23 @@ Each in-flight item links back to the tracking issue when one exists. This file 
 
 ---
 
-## In flight — v1.1.0
+## Shipped in v1.1
 
-### Wave 5.0 — Stabilize WIP *(done)*
+### Wave 5.0 — Stabilize WIP
 
-Wrap up the input-bounds test migration, fix the Savings Plans credibility gap in `README.md`, document fallback-data signaling, publish this roadmap.
+Input-bounds test migration, Savings Plans credibility fix in `README.md`, fallback-data signaling, initial roadmap publication. See [CHANGELOG.md](../CHANGELOG.md) for commit-level detail.
 
 ### Wave 5.1 — Agent-side cost guardrails
 
-New MCP tool `check_cost_budget` that returns `{ verdict: "allow" | "warn" | "block", blocking_resources, total_monthly }` in under 500 ms. Designed to be called by an AI agent between generating IaC and writing it to disk, so a model can't silently commit a $15K/month configuration.
+Shipped as the 12th MCP tool: `check_cost_budget`. Returns `{ verdict: "allow" | "warn" | "block", blocking_resources, total_monthly }`. On a warm pricing cache, response is dominated by parse time, not network. Designed to be called by an AI agent between generating IaC and writing it to disk, so a model can't silently commit a $15K/month configuration.
 
-- Promotes the existing `budget_monthly` / `budget_per_resource` primitives in `src/tools/detect-anomalies.ts` into a first-class guardrail tool.
-- Env-backed defaults: `CLOUDCOST_GUARDRAIL_MAX_MONTHLY`, `CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE`.
-- Docs with Claude Code / Cursor integration snippets.
+- Promoted the existing `budget_monthly` / `budget_per_resource` primitives from `src/tools/detect-anomalies.ts` into a first-class guardrail tool.
+- Env-backed defaults: `CLOUDCOST_GUARDRAIL_MAX_MONTHLY`, `CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE`, `CLOUDCOST_GUARDRAIL_WARN_RATIO`.
+- Integration docs for Claude Code / Cursor in [guardrails.md](./guardrails.md).
 
-**Non-goals:** policy-as-code DSL, persistent policy storage, CI integration (use Infracost for that).
+**Non-goals (intentional):** policy-as-code DSL, persistent policy storage, CI integration (use Infracost for that).
+
+## In flight — v1.1.0
 
 ### Wave 5.2 — Real billing-data reconciliation (FOCUS input)
 
@@ -44,7 +46,7 @@ Extend `compare_actual` to accept a FOCUS-formatted billing export (CSV or JSON)
 
 ### Parallel — Awareness
 
-Runs alongside 5.0 / 5.1. README repositioning ("the first agent-native multi-IaC cost MCP server"), submissions to glama.ai / Smithery / FinOps Foundation MCP registry, a short demo video of `check_cost_budget` blocking a $15K mistake.
+Runs alongside 5.2 / 5.3. README repositioning ("the first agent-native multi-IaC cost MCP server"), submissions to glama.ai / Smithery / FinOps Foundation MCP registry, a short demo video of `check_cost_budget` blocking a $15K mistake.
 
 ---
 
