@@ -224,7 +224,7 @@ Config sections and their keys:
 | `parser`  | `resolve_modules`                                                             |
 | `budget`  | `monthly_limit`, `per_resource_limit`, `warn_percentage`                      |
 
-See the [Configuration section in README.md](README.md#configuration) for the full list of environment variable names and their defaults.
+See the [Configuration section in README.md](../README.md#configuration) for the full list of environment variable names and their defaults.
 
 ## Extension Points
 

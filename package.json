@@ -40,8 +40,7 @@
     "data",
     "README.md",
     "LICENSE",
-    "STABILITY.md",
-    "MIGRATION.md",
+    "VERSIONING.md",
     "CHANGELOG.md"
   ],
   "main": "dist/index.js",
