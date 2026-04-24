@@ -204,4 +204,129 @@ describe("compareActual", () => {
       expect(typeof entry.monthly_cost).toBe("number");
     }
   });
+
+  // -------------------------------------------------------------------------
+  // Provider / region defaulting
+  // -------------------------------------------------------------------------
+
+  it("defaults provider and region from the state when not explicitly supplied", async () => {
+    const result = await compareActual(
+      {
+        state_json: makeStateJson([AWS_INSTANCE_STATE]),
+        // No provider, no region — handler falls back to parsed inventory.
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+    expect(result.provider).toBe("aws");
+    // state has availability_zone us-east-1a → region us-east-1
+    expect(result.region).toBe("us-east-1");
+  });
+
+  it("explicit provider override wins over state-inferred provider", async () => {
+    const result = await compareActual(
+      {
+        state_json: makeStateJson([AWS_INSTANCE_STATE]),
+        provider: "azure",
+        region: "eastus",
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+    expect(result.provider).toBe("azure");
+    expect(result.region).toBe("eastus");
+  });
+
+  // -------------------------------------------------------------------------
+  // Currency conversion
+  // -------------------------------------------------------------------------
+
+  it("converts totals into the requested non-USD currency", async () => {
+    const usdResult = await compareActual(
+      {
+        state_json: makeStateJson([AWS_INSTANCE_STATE, AWS_EBS_STATE]),
+        provider: "aws",
+        region: "us-east-1",
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+
+    const eurResult = await compareActual(
+      {
+        state_json: makeStateJson([AWS_INSTANCE_STATE, AWS_EBS_STATE]),
+        provider: "aws",
+        region: "us-east-1",
+        currency: "EUR",
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+
+    expect(eurResult.currency).toBe("EUR");
+    // EUR conversion at ~0.92 rate: EUR total should be <= USD total.
+    expect(eurResult.actual_costs.total_monthly).toBeLessThan(
+      usdResult.actual_costs.total_monthly * 1.0001,
+    );
+    expect(eurResult.actual_costs.total_monthly).toBeGreaterThan(0);
+  });
+
+  it("recomputes delta after currency conversion when planned costs are present", async () => {
+    const result = await compareActual(
+      {
+        state_json: makeStateJson([AWS_INSTANCE_STATE]),
+        files: [{ path: "main.tf", content: SIMPLE_TF }],
+        provider: "aws",
+        region: "us-east-1",
+        currency: "EUR",
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+    expect(result.delta).toBeDefined();
+    // Whatever the sign, the recomputed delta should equal
+    // actual_monthly - planned_monthly to the nearest cent.
+    const expectedDelta =
+      Math.round((result.actual_costs.total_monthly - result.planned_costs!.total_monthly) * 100) /
+      100;
+    expect(result.delta!.monthly).toBeCloseTo(expectedDelta, 2);
+  });
+
+  // -------------------------------------------------------------------------
+  // pct_change edge cases
+  // -------------------------------------------------------------------------
+
+  it("pct_change is 0 when both planned and actual are 0 (empty state + empty files)", async () => {
+    const result = await compareActual(
+      {
+        state_json: makeStateJson([]),
+        files: [{ path: "empty.tf", content: 'provider "aws" { region = "us-east-1" }' }],
+        provider: "aws",
+        region: "us-east-1",
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+
+    expect(result.planned_costs!.total_monthly).toBe(0);
+    expect(result.actual_costs.total_monthly).toBe(0);
+    expect(result.delta!.pct_change).toBe(0);
+  });
+
+  it("pct_change is 100 when planned is 0 but actual is positive", async () => {
+    const result = await compareActual(
+      {
+        state_json: makeStateJson([AWS_INSTANCE_STATE]),
+        files: [{ path: "empty.tf", content: 'provider "aws" { region = "us-east-1" }' }],
+        provider: "aws",
+        region: "us-east-1",
+      },
+      pricingEngine,
+      DEFAULT_CONFIG,
+    );
+
+    expect(result.planned_costs!.total_monthly).toBe(0);
+    expect(result.actual_costs.total_monthly).toBeGreaterThan(0);
+    expect(result.delta!.pct_change).toBe(100);
+  });
 });
