@@ -288,4 +288,41 @@ describe("AwsReservedClient", () => {
     expect(rates).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("rejects malformed region without calling fetch (URL-injection defense)", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(client.getRiRates("AmazonRDS", "t3.large", "../../evil", "Linux")).rejects.toThrow(
+      /invalid AWS region/,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects service not in the allowlist without calling fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      client.getRiRates(
+        "AmazonFakeService" as unknown as "AmazonRDS",
+        "t3.large",
+        "us-east-1",
+        "Linux",
+      ),
+    ).rejects.toThrow(/invalid AWS pricing service/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects region with path-traversal / query characters", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    for (const bad of ["us-east-1/../etc", "us-east-1?x=1", "us-east-1#frag", ""]) {
+      await expect(client.getRiRates("AmazonRDS", "t3.large", bad, "Linux")).rejects.toThrow(
+        /invalid AWS region/,
+      );
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
