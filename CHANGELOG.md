@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **`check_cost_budget` MCP tool**: agent-ready cost guardrail that returns `allow` / `warn` / `block` with `blocking_resources` populated. Designed to be called by an AI agent between generating IaC and writing it to disk, so a model can't silently commit a runaway configuration. Promotes the budget primitives that previously only lived inside `detect_anomalies`. See [docs/guardrails.md](./docs/guardrails.md) for integration patterns.
+- New env vars: `CLOUDCOST_GUARDRAIL_MAX_MONTHLY`, `CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE`, `CLOUDCOST_GUARDRAIL_WARN_RATIO`. Thresholds cascade: per-call params → `guardrail` env → `budget` env.
+- New `GuardrailConfig` type on `CloudCostConfig`.
+
+### Security
+
+- Defense-in-depth on outbound HTTP: the AWS pricing fetchers (`bulk-loader`, `reserved-client`) now validate region and service against a strict allowlist, pin fetches to `pricing.us-east-1.amazonaws.com`, enforce HTTPS, and cap response bodies at 512 MiB. Extends the v1.0.1 MCP-surface hardening down into the network layer. Closes URL-injection via attacker-controlled region/service strings and caps OOM risk from a misbehaving upstream.
+
+### Changed
+
+- Coverage thresholds in `vitest.config.ts` raised to 75 / 75 / 80 / 75 (statements / branches / functions / lines) to reflect the current `main` level.
+- README: corrected the Limitations bullet that implied AWS Savings Plans were supported via `optimize_cost`. Savings Plans are not yet supported and are tracked in the new `ROADMAP.md`.
+
+### Tests
+
+- `src/reporting/csv-escape.ts` extracted out of `csv-report` and `focus-report`; dedicated `csv-escape.test.ts` covers the formula-injection defense surface.
+- `test/helpers/factories.ts` + `setup.ts` centralise test fixture construction; `test/integration/full-stack.test.ts` replaces the older end-to-end test with wider tool coverage.
+- New unit tests: `api-gateway`, `messaging`, `ml-ai`, `search`, `waf`, `csv-parser`, `resource-extractor`, `markdown-report`, `check-cost-budget`. Total passing tests: 1504 (+12).
+
 ## [1.0.1] - 2026-04-18
 
 ### Security

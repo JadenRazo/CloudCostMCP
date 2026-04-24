@@ -4,12 +4,19 @@ export interface BudgetConfig {
   warn_percentage?: number;
 }
 
+export interface GuardrailConfig {
+  max_monthly?: number;
+  max_per_resource?: number;
+  warn_ratio?: number;
+}
+
 export interface CloudCostConfig {
   cache: CacheConfig;
   pricing: PricingConfig;
   logging: LogConfig;
   parser: ParserConfig;
   budget?: BudgetConfig;
+  guardrail?: GuardrailConfig;
 }
 
 export interface CacheConfig {
@@ -58,5 +65,8 @@ export const DEFAULT_CONFIG: CloudCostConfig = {
   },
   budget: {
     warn_percentage: 80,
+  },
+  guardrail: {
+    warn_ratio: 0.8,
   },
 };
