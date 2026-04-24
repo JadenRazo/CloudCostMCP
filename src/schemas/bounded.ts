@@ -15,6 +15,12 @@ export const MAX_SHORT_STRING_LEN = 256;
 // Aggregate cap across all files in one tool call. Per-file .max() is not
 // enough — 2000 × 5 MiB = 10 GiB theoretical. This bounds the *sum*.
 export const MAX_TOTAL_FILE_BYTES = 50 * 1024 * 1024; // 50 MiB total
+// FOCUS (FinOps Open Cost and Usage Specification) billing export caps.
+// 10 MiB comfortably fits month-of-line-items exports for real workloads
+// while blocking multi-GB dumps being piped through the MCP client.
+// The row cap keeps pace with the byte cap at ~200 bytes/row.
+export const MAX_FOCUS_EXPORT_BYTES = 10 * 1024 * 1024; // 10 MiB
+export const MAX_FOCUS_ROWS = 50000;
 
 export const filePathSchema = z
   .string()
@@ -39,6 +45,18 @@ export const stateJsonSchema = z
 export const shortStringSchema = z
   .string()
   .max(MAX_SHORT_STRING_LEN, `value exceeds ${MAX_SHORT_STRING_LEN} characters`);
+
+/**
+ * FOCUS billing export input: either a CSV string (capped by byte length) or
+ * a pre-parsed JSON array of row objects (capped by row count). Both caps are
+ * enforced at schema validation time so the parser never sees oversized input.
+ */
+export const focusExportSchema = z.union([
+  z.string().max(MAX_FOCUS_EXPORT_BYTES, `FOCUS export exceeds ${MAX_FOCUS_EXPORT_BYTES} bytes`),
+  z
+    .array(z.record(z.string(), z.unknown()))
+    .max(MAX_FOCUS_ROWS, `FOCUS rows exceed ${MAX_FOCUS_ROWS}`),
+]);
 
 /**
  * Reject when the sum of all `content` fields exceeds MAX_TOTAL_FILE_BYTES.
