@@ -53,28 +53,55 @@ CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) ser
 | Pulumi | `.json` (stack export) | Yes |
 | Bicep/ARM | `.json` (ARM template) | Yes |
 
+### How this compares to Infracost
+
+Infracost is the mature choice for **Terraform-on-AWS cost estimation in CI** — PR-comment cost deltas, threshold gating, deep Terragrunt support. If that's your workflow, use it.
+
+CloudCostMCP targets a different surface:
+
+- **Agent-native via MCP.** Models call it as a tool *during* generation. `check_cost_budget` returns `allow` / `warn` / `block` with the specific blocking resources named, fast enough on a warm pricing cache for an agent to veto an expensive config before writing it to disk.
+- **Multi-IaC in one server.** Terraform, CloudFormation, Pulumi, Bicep/ARM — one tool, not four.
+- **Zero credentials.** All pricing comes from public endpoints. No account, no cloud IAM, no API keys.
+- **Optimization + what-if scenarios built in.** Right-sizing, reserved-pricing, cross-provider switching, and spot modeling are first-class tools.
+
+The two are complementary. Use Infracost in CI; use CloudCostMCP inside your agent or editor.
+
 ---
 
 ## Installation
 
 Requires **Node.js 20** or later.
 
+### 60-second quick start (Claude Code)
+
 ```bash
+npm install -g @jadenrazo/cloudcost-mcp
+claude mcp add cloudcost -- cloudcost-mcp
+```
+
+Then, inside a project directory with Terraform files, ask Claude:
+
+> *"Use cloudcost to estimate the monthly AWS cost of this Terraform config, then check it against a $2000/month budget with check_cost_budget."*
+
+No API keys, no cloud credentials, no separate account. For other MCP clients (Claude Desktop, Cursor, any MCP-compatible agent), see the detailed setup below.
+
+### All install options
+
+```bash
+# From source
 git clone https://github.com/jadenrazo/CloudCostMCP.git
 cd CloudCostMCP
 npm install
 npm run build
 ```
 
-Or install from npm:
-
 ```bash
+# Global npm install
 npm install -g @jadenrazo/cloudcost-mcp
 ```
 
-Or run directly without installing:
-
 ```bash
+# One-shot, no install
 npx -y @jadenrazo/cloudcost-mcp
 ```
 
@@ -127,7 +154,7 @@ node dist/index.js
 
 ## Tools
 
-The server exposes eleven MCP tools. Each accepts JSON input and returns structured JSON output.
+The server exposes twelve MCP tools. Each accepts JSON input and returns structured JSON output. For agent-centric workflows, `check_cost_budget` is the headline tool: it returns an `allow` / `warn` / `block` verdict fast enough to be called between IaC generation and disk write — see [docs/guardrails.md](./docs/guardrails.md).
 
 ### `analyze_terraform`
 
@@ -459,13 +486,7 @@ Configuration priority: environment variables > config file > built-in defaults.
   CSV (public)       (public, no auth)      (bundled files)
 ```
 
-### Key Design Decisions
-
-- **Zero API keys.** All pricing comes from public endpoints. AWS uses the unauthenticated Bulk Pricing files. Azure uses the free Retail Prices REST API. GCP queries the Cloud Billing Catalog API with bundled fallback.
-- **SQLite cache.** A single `better-sqlite3` database caches all pricing lookups with configurable TTL. Shared across all tools per server lifetime.
-- **Streaming for large files.** AWS EC2 pricing data (~267 MB CSV) is streamed line-by-line rather than loaded into memory. Prices for a region are extracted in one pass and cached.
-- **Graceful degradation.** If any live pricing source is unavailable, the server falls back to built-in tables with size-interpolation. Every response includes the pricing source so the consumer knows the confidence level.
-- **ESM-only.** Requires Node 20+. All internal imports use `.js` extensions.
+Highlights: zero API keys (all providers exposed via public endpoints), SQLite-backed price cache shared across tool calls, streaming ingest for the 267 MB AWS bulk CSV, and a graceful live → fallback → interpolated-table chain so every response carries a `pricing_source` and `confidence` field. Full layer-by-layer walkthrough and extension guides in [docs/architecture.md](./docs/architecture.md).
 
 ---
 
@@ -493,7 +514,7 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 
 ## Limitations
 
-- **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool recommends reserved instances; AWS Savings Plans are not yet supported (tracked in [ROADMAP.md](./ROADMAP.md)). Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
+- **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool recommends reserved instances; AWS Savings Plans are not yet supported (tracked in [docs/roadmap.md](./docs/roadmap.md)). Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
 - **GCP live pricing** is fetched from the Cloud Billing Catalog API with automatic fallback to bundled data when the API is unreachable. Bundled prices may lag slightly behind actual rates.
 - **Fallback-data signaling.** When a live pricing API is unreachable and `estimate_cost` / `compare_providers` / `get_pricing` serve data from bundled or fallback tables, the response includes a `warnings` entry ("using fallback/bundled pricing data for …") so callers can flag stale estimates. Bundled data is refreshed weekly via CI.
 - **First request latency**. The initial EC2 pricing lookup for a new AWS region may take 30-120 seconds as the CSV file is streamed. Subsequent lookups for the same region are instant (cached for 24 hours).
@@ -501,106 +522,17 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 
 ---
 
-## Troubleshooting
+## More docs
 
-**$0 cost estimates.** The instance type string in your Terraform code probably doesn't match any known pricing data. Check that you're using a real instance type (e.g., `t3.xlarge`) rather than a variable reference that wasn't resolved. Pass your `terraform.tfvars` content via the `tfvars` parameter to resolve variables.
-
-**Slow first request.** The first EC2 pricing lookup for a new region streams the full AWS pricing CSV (~267 MB). One-time cost per region; subsequent lookups hit the local SQLite cache. Set `CLOUDCOST_LOG_LEVEL=debug` to see progress.
-
-**Cache issues.** Delete `~/.cloudcost/cache.db` to clear all cached pricing data. The cache rebuilds automatically on the next request.
-
-**Node version.** Requires Node.js 20+. Uses ESM modules, Web Streams API (`TextDecoderStream`), and `AbortSignal.timeout()`.
-
----
-
-## GitHub Actions
-
-A reusable composite action is included at `.github/actions/cost-estimate/`. It detects changed `.tf` files, runs a cost comparison, and posts the result as a PR comment.
-
-```yaml
-# .github/workflows/cost-estimate.yml
-name: Terraform Cost Estimate
-
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  cost-estimate:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: ./.github/actions/cost-estimate
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # terraform_dir: "./terraform"
-          # providers: "aws,azure,gcp"
-          # format: "markdown"
-          # currency: "USD"
-```
-
-The action auto-detects the directory containing changed `.tf` files and skips gracefully when no Terraform changes are present in the PR.
-
----
-
-## Development
-
-```bash
-npm run dev            # Run with tsx (hot reload, no build needed)
-npm test               # Run all tests (vitest)
-npm run test:watch     # Watch mode
-npm run build          # Production build (tsup → dist/)
-npm run lint           # Type check (tsc --noEmit)
-```
-
-### Project Structure
-
-```
-src/
-├── index.ts              # Entry point (process error handlers + start)
-├── server.ts             # MCP server setup, tool registration
-├── config.ts             # Config loader (defaults → file → env vars)
-├── logger.ts             # Structured logger
-├── currency.ts           # Multi-currency conversion and formatting
-├── tools/
-│   ├── ...               # MCP tool handlers + Zod schemas
-│   └── what-if.ts        # Hypothetical scenario modeling
-├── parsers/
-│   ├── ...               # HCL parsing, variable resolution
-│   ├── module-resolver.ts  # Terraform module expansion
-│   └── dependency-graph.ts # Resource dependency graph builder
-├── pricing/
-│   ├── pricing-engine.ts # Router: dispatches to provider adapters
-│   ├── cache.ts          # SQLite-backed pricing cache
-│   ├── aws/              # Bulk CSV streaming + JSON + fallback
-│   ├── azure/            # Retail Prices REST API + fallback
-│   └── gcp/
-│       ├── bundled-loader.ts    # Static bundled pricing fallback
-│       └── cloud-billing-client.ts  # Live GCP Cloud Billing Catalog API
-├── calculator/
-│   ├── ...               # Cost calculations per resource type
-│   ├── projection.ts     # Multi-horizon cost projections
-│   ├── container-registry.ts
-│   ├── secrets.ts
-│   └── dns.ts
-├── mapping/              # Cross-provider resource/instance mapping
-├── reporting/
-│   ├── ...               # Markdown, JSON, CSV formatters
-│   └── focus-report.ts   # FOCUS-compliant export format
-└── types/                # Shared TypeScript interfaces
-
-data/
-├── instance-map.json     # Bidirectional instance type mappings
-├── storage-map.json      # Cross-provider storage type mappings
-├── gcp-pricing/          # Bundled GCP pricing data
-└── instance-types/       # Instance type metadata
-```
+- **[docs/guardrails.md](./docs/guardrails.md)** — `check_cost_budget` integration patterns for Claude Code, Cursor, and other agents.
+- **[docs/architecture.md](./docs/architecture.md)** — internal layers, design decisions, extension guides.
+- **[docs/ci-integration.md](./docs/ci-integration.md)** — GitHub Actions cost-estimate composite action for PR comments.
+- **[docs/development.md](./docs/development.md)** — local setup, npm scripts, source layout.
+- **[docs/troubleshooting.md](./docs/troubleshooting.md)** — `$0` estimates, slow first request, cache issues, fallback warnings.
+- **[docs/roadmap.md](./docs/roadmap.md)** — what's shipped, in flight, backlog, and explicitly not planned.
+- **[VERSIONING.md](./VERSIONING.md)** — SemVer-locked public surface and support policy.
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** — PR guidelines and code style.
+- **[SECURITY.md](./SECURITY.md)** — vulnerability reporting.
 
 ---
 
