@@ -47,12 +47,19 @@ export const shortStringSchema = z
   .max(MAX_SHORT_STRING_LEN, `value exceeds ${MAX_SHORT_STRING_LEN} characters`);
 
 /**
- * FOCUS billing export input: either a CSV string (capped by byte length) or
- * a pre-parsed JSON array of row objects (capped by row count). Both caps are
- * enforced at schema validation time so the parser never sees oversized input.
+ * FOCUS billing export input: either a CSV string (capped by UTF-8 byte length)
+ * or a pre-parsed JSON array of row objects (capped by row count). Both caps
+ * are enforced at schema validation time so the parser never sees oversized
+ * input. `z.string().max(n)` counts UTF-16 code units, not bytes — the refine
+ * below measures actual UTF-8 bytes to match `MAX_FOCUS_EXPORT_BYTES`.
  */
 export const focusExportSchema = z.union([
-  z.string().max(MAX_FOCUS_EXPORT_BYTES, `FOCUS export exceeds ${MAX_FOCUS_EXPORT_BYTES} bytes`),
+  z
+    .string()
+    .refine(
+      (s) => Buffer.byteLength(s, "utf8") <= MAX_FOCUS_EXPORT_BYTES,
+      `FOCUS export exceeds ${MAX_FOCUS_EXPORT_BYTES} bytes`,
+    ),
   z
     .array(z.record(z.string(), z.unknown()))
     .max(MAX_FOCUS_ROWS, `FOCUS rows exceed ${MAX_FOCUS_ROWS}`),

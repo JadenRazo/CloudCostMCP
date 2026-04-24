@@ -91,6 +91,13 @@ const KNOWN_COLUMNS = new Set<string>([
 
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
+// Strict numeric literal: optional sign, digits, optional fractional part,
+// optional exponent. Used to guard `parseFloat` from silently coercing values
+// like "0.01 USD", "1,234.56", or "1e308xx" — real billing exports sometimes
+// carry trailing currency symbols or thousands-separators, and silent
+// coercion would mask data-quality issues.
+const NUMERIC_RE = /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/;
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -104,7 +111,10 @@ export function parseFocusExport(
   const required = opts.requiredColumns ?? REQUIRED_COLUMNS;
 
   if (typeof input === "string") {
-    if (input.length > maxBytes) {
+    // `String.length` counts UTF-16 code units; for CJK or emoji payloads that
+    // understates the on-the-wire byte count by up to 4x. Measure in UTF-8 to
+    // match the name of `MAX_FOCUS_EXPORT_BYTES` and the Zod schema message.
+    if (Buffer.byteLength(input, "utf8") > maxBytes) {
       throw new Error(`FOCUS export exceeds ${maxBytes} bytes`);
     }
     return parseFocusCsv(input, { maxRows, required });
@@ -193,7 +203,14 @@ function parseFocusCsv(raw: string, opts: InternalOpts): FocusParseResult {
       throw new FocusCurrencyMismatchError(currency, rowCurrency);
     }
 
-    const effective = parseFloat(record.EffectiveCost ?? "");
+    const rawCost = String(record.EffectiveCost ?? "").trim();
+    if (!NUMERIC_RE.test(rawCost)) {
+      warnings.push(
+        `row ${i}: invalid EffectiveCost "${sanitizeForMessage(rawCost, 64)}" — skipped`,
+      );
+      continue;
+    }
+    const effective = parseFloat(rawCost);
     if (!Number.isFinite(effective)) {
       warnings.push(`row ${i}: non-finite EffectiveCost — skipped`);
       continue;
@@ -285,10 +302,19 @@ function parseFocusJson(
       throw new FocusCurrencyMismatchError(currency, rowCurrency);
     }
 
-    const effective =
-      typeof record.EffectiveCost === "number"
-        ? record.EffectiveCost
-        : parseFloat(String(record.EffectiveCost ?? ""));
+    let effective: number;
+    if (typeof record.EffectiveCost === "number") {
+      effective = record.EffectiveCost;
+    } else {
+      const rawCost = String(record.EffectiveCost ?? "").trim();
+      if (!NUMERIC_RE.test(rawCost)) {
+        warnings.push(
+          `row ${i}: invalid EffectiveCost "${sanitizeForMessage(rawCost, 64)}" — skipped`,
+        );
+        continue;
+      }
+      effective = parseFloat(rawCost);
+    }
     if (!Number.isFinite(effective)) {
       warnings.push(`row ${i}: non-finite EffectiveCost — skipped`);
       continue;

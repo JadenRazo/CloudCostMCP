@@ -181,6 +181,26 @@ describe("parseFocusExport — rejection paths", () => {
     expect(() => parseFocusExport(oversize, { maxBytes: 8 })).toThrow(/exceeds 8 bytes/);
   });
 
+  it("measures the byte cap in UTF-8, not UTF-16 code units", () => {
+    // One U+1F600 is 2 UTF-16 code units but 4 UTF-8 bytes. Building a CSV
+    // around an emoji-heavy ResourceId produces an input whose `.length` sits
+    // under the cap while its real byte size overshoots it. The prior
+    // implementation (which used `input.length`) would have let this slip.
+    const emoji = "\u{1F600}"; // 4 UTF-8 bytes, 2 UTF-16 units
+    const emojiId = emoji.repeat(300); // 600 code units, 1200 bytes
+    const csv = csvOf(row({ ResourceId: emojiId }));
+    const codeUnitLen = csv.length;
+    const byteLen = Buffer.byteLength(csv, "utf8");
+    // Pick a cap that a code-unit check would wave through but a byte check
+    // must reject — guarantees this is a real UTF-16-vs-UTF-8 regression test.
+    const cap = Math.floor((codeUnitLen + byteLen) / 2);
+    expect(codeUnitLen).toBeLessThan(cap);
+    expect(byteLen).toBeGreaterThan(cap);
+    expect(() => parseFocusExport(csv, { maxBytes: cap })).toThrow(
+      new RegExp(`exceeds ${cap} bytes`),
+    );
+  });
+
   it("rejects unterminated quoted field", () => {
     const badRow = row({ ServiceName: '"no-end' });
     expect(() => parseFocusExport(csvOf(badRow))).toThrow(/unterminated quoted field/);
@@ -225,7 +245,57 @@ describe("parseFocusExport — row-level tolerance", () => {
     );
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]!.resourceId).toBe("i-a");
-    expect(result.warnings.some((w) => /non-finite EffectiveCost/.test(w))).toBe(true);
+    // "NaN" fails the strict NUMERIC regex before it ever reaches parseFloat,
+    // so the warning wording is "invalid EffectiveCost", not "non-finite".
+    expect(result.warnings.some((w) => /invalid EffectiveCost/.test(w))).toBe(true);
+  });
+
+  it.each([
+    ["trailing currency symbol", "0.01 USD"],
+    ["thousands separator", '"1,234.56"'],
+    ["exponent with trailing junk", "1e308xx"],
+    ["empty string", ""],
+    ["whitespace only", "  "],
+    ["NaN literal", "NaN"],
+  ])("skips EffectiveCost with %s (%s) and warns — does not silently coerce", (_label, bad) => {
+    // Thousands-separator case is wrapped in CSV quotes so the embedded comma
+    // is treated as part of the field, exactly as a real billing export would
+    // deliver it — the value reaching parseFloat is still "1,234.56".
+    const result = parseFocusExport(
+      csvOf(row({ ResourceId: "i-good" }), row({ ResourceId: "i-bad", EffectiveCost: bad })),
+    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.resourceId).toBe("i-good");
+    expect(result.warnings.some((w) => /invalid EffectiveCost/.test(w))).toBe(true);
+  });
+
+  it("rejects EffectiveCost strings with trailing junk on the JSON path too", () => {
+    const result = parseFocusExport([
+      {
+        ResourceId: "i-a",
+        EffectiveCost: "0.01 USD",
+        Currency: "USD",
+        BillingPeriodStart: "2026-04-01",
+        BillingPeriodEnd: "2026-05-01",
+      },
+      {
+        ResourceId: "i-b",
+        EffectiveCost: "1,234.56",
+        Currency: "USD",
+        BillingPeriodStart: "2026-04-01",
+        BillingPeriodEnd: "2026-05-01",
+      },
+      {
+        ResourceId: "i-ok",
+        EffectiveCost: "5.0",
+        Currency: "USD",
+        BillingPeriodStart: "2026-04-01",
+        BillingPeriodEnd: "2026-05-01",
+      },
+    ]);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.resourceId).toBe("i-ok");
+    expect(result.warnings.filter((w) => /invalid EffectiveCost/.test(w))).toHaveLength(2);
   });
 
   it("skips rows with empty ResourceId and warns", () => {
@@ -332,19 +402,57 @@ describe("parseFocusExport — JSON path", () => {
     expect(result.warnings.some((w) => /aggregated 2/.test(w))).toBe(true);
   });
 
-  it("rejects prototype-pollution keys on JSON input", () => {
-    const malicious: unknown[] = [
-      {
-        __proto__: { polluted: true },
-        ResourceId: "i-a",
-        EffectiveCost: 1,
-        Currency: "USD",
-        BillingPeriodStart: "2026-04-01",
-        BillingPeriodEnd: "2026-05-01",
-      },
-    ];
-    parseFocusExport(malicious);
-    // Must NOT have polluted Object.prototype.
+  it("rejects prototype-pollution keys on JSON input (__proto__ as own-property via JSON.parse)", () => {
+    // Object literal `__proto__` is a prototype setter — `Object.entries` never
+    // sees it. JSON.parse surfaces `__proto__` as a real own-property, which is
+    // what a malicious MCP client would actually deliver. Sanity-check the
+    // payload shape first, then exercise the FORBIDDEN_KEYS guard.
+    const payload = JSON.parse(
+      '[{"__proto__":{"polluted":true},"ResourceId":"i-a","EffectiveCost":"1","Currency":"USD","BillingPeriodStart":"2026-04-01","BillingPeriodEnd":"2026-05-01"}]',
+    ) as unknown[];
+    const first = payload[0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(first, "__proto__")).toBe(true);
+
+    const result = parseFocusExport(payload);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.resourceId).toBe("i-a");
+    // Global Object.prototype must be intact.
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    // The returned row must not have inherited the polluted key via its own
+    // prototype chain either — proves the forbidden key never reached the
+    // internal record object.
+    expect((result.rows[0] as unknown as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("forbidden __proto__ own-property cannot leak values into the parsed row", () => {
+    // Without the FORBIDDEN_KEYS guard, `record[__proto__] = {ServiceName: ...}`
+    // would reassign the record's prototype, and `record.ServiceName` would
+    // then surface the attacker-controlled value via prototype lookup. This
+    // test proves the guard actually neuters that vector end-to-end.
+    const payload = JSON.parse(
+      '[{"__proto__":{"ServiceName":"ATTACKER","Region":"pwn-region"},"ResourceId":"i-a","EffectiveCost":"1","Currency":"USD","BillingPeriodStart":"2026-04-01","BillingPeriodEnd":"2026-05-01"}]',
+    ) as unknown[];
+    const result = parseFocusExport(payload);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]!.service).toBe("Other"); // default, not "ATTACKER"
+    expect(result.rows[0]!.region).toBe("unknown"); // default, not "pwn-region"
+  });
+
+  it("strips `constructor` own-property without letting it reach the record", () => {
+    const payload = JSON.parse(
+      '[{"constructor":{"polluted":true},"ResourceId":"i-a","EffectiveCost":"1","Currency":"USD","BillingPeriodStart":"2026-04-01","BillingPeriodEnd":"2026-05-01"}]',
+    ) as unknown[];
+    const result = parseFocusExport(payload);
+    expect(result.rows).toHaveLength(1);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("strips `prototype` own-property without letting it reach the record", () => {
+    const payload = JSON.parse(
+      '[{"prototype":{"polluted":true},"ResourceId":"i-a","EffectiveCost":"1","Currency":"USD","BillingPeriodStart":"2026-04-01","BillingPeriodEnd":"2026-05-01"}]',
+    ) as unknown[];
+    const result = parseFocusExport(payload);
+    expect(result.rows).toHaveLength(1);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
