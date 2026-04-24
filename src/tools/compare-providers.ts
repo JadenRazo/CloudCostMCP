@@ -12,6 +12,7 @@ import { generateCsvReport } from "../reporting/csv-report.js";
 import { SUPPORTED_CURRENCIES, convertBreakdownCurrency, convertCurrency } from "../currency.js";
 import { generateFocusReport } from "../reporting/focus-report.js";
 import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { summarizeFallbackMetadata } from "../types/fallback.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -134,6 +135,8 @@ export async function compareProviders(
 
   const dedupedWarnings = [...new Set([...parseWarnings, ...allWarnings])];
 
+  const fallback_metadata = summarizeFallbackMetadata(providerList);
+
   if (params.format === "json") {
     // The JSON report already contains the full structured data; returning
     // the raw comparison object on top would double the payload.
@@ -141,6 +144,7 @@ export async function compareProviders(
       report,
       format: params.format,
       warnings: dedupedWarnings,
+      fallback_metadata,
     };
   }
 
@@ -162,5 +166,6 @@ export async function compareProviders(
     format: params.format,
     comparison: comparisonSummary,
     warnings: dedupedWarnings,
+    fallback_metadata,
   };
 }

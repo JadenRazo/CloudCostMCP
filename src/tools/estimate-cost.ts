@@ -7,6 +7,7 @@ import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { SUPPORTED_CURRENCIES, convertBreakdownCurrency } from "../currency.js";
 import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { summarizeFallbackMetadata } from "../types/fallback.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -108,9 +109,12 @@ export async function estimateCost(
     generated_at: unknown;
   };
 
+  const fallback_metadata = summarizeFallbackMetadata([targetProvider]);
+
   return {
     ...convertedRest,
     by_resource: byResource,
     warnings: allWarnings,
+    fallback_metadata,
   } as unknown as object;
 }

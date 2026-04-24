@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { CloudProvider } from "../types/resources.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
-import { getFallbackMetadata } from "../data/loader.js";
+import { summarizeFallbackMetadata } from "../types/fallback.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -89,15 +89,18 @@ export async function getPricing(
   }
 
   // Expose bundled fallback freshness so downstream callers can judge
-  // whether the returned price is stale. Present only when the provider's
-  // data/<provider>-pricing/metadata.json file exists.
-  const meta = getFallbackMetadata(provider);
-  const fallback_metadata = meta
+  // whether the returned price is stale. Preserve the historic flat shape
+  // (last_updated / source / sku_count / refresh_script_version) that has
+  // shipped since 1.0.x — downstream consumers parse these keys directly,
+  // so the multi-provider summary shape is not suitable here.
+  const summary = summarizeFallbackMetadata([provider]);
+  const entry = summary.providers[provider] ?? null;
+  const fallback_metadata = entry
     ? {
-        last_updated: meta.last_updated,
-        source: meta.source,
-        sku_count: meta.sku_count,
-        refresh_script_version: meta.refresh_script_version,
+        last_updated: entry.last_updated,
+        source: entry.source,
+        sku_count: entry.sku_count,
+        refresh_script_version: entry.refresh_script_version,
       }
     : undefined;
 

@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 - **FOCUS reconciliation for `compare_actual`**: new optional `focus_export` parameter accepts a [FOCUS](https://focus.finops.org/)-formatted billing export (CSV string or JSON row array) and, when combined with planned Terraform `files`, produces a new `actual_vs_estimate_variance` field — per-resource variance between the planned estimate and what the cloud actually billed. Complements `check_cost_budget`: guardrail catches forward-looking mistakes, FOCUS reconciliation catches the ones that slipped through. Byte cap 10 MiB, row cap 50 000, mixed-currency exports rejected. See [docs/focus-reconciliation.md](./docs/focus-reconciliation.md).
+- **Structured `fallback_metadata` across cost tools**: `estimate_cost`, `compare_providers`, and `compare_actual` now return a `fallback_metadata` object summarising per-provider bundled-pricing freshness (`providers`, `stale`, `max_age_days`). Stale flag trips when any included provider's `data/<provider>-pricing/metadata.json` is older than 30 days, so downstream agents can route around stale estimates without re-implementing freshness checks. `get_pricing`'s single-provider flat shape is preserved byte-for-byte for backward compatibility.
 - **`check_cost_budget` MCP tool**: agent-ready cost guardrail that returns `allow` / `warn` / `block` with `blocking_resources` populated. Designed to be called by an AI agent between generating IaC and writing it to disk, so a model can't silently commit a runaway configuration. Promotes the budget primitives that previously only lived inside `detect_anomalies`. See [docs/guardrails.md](./docs/guardrails.md) for integration patterns.
 - New env vars: `CLOUDCOST_GUARDRAIL_MAX_MONTHLY`, `CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE`, `CLOUDCOST_GUARDRAIL_WARN_RATIO`. Thresholds cascade: per-call params → `guardrail` env → `budget` env.
 - New `GuardrailConfig` type on `CloudCostConfig`.
@@ -19,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
-- Coverage thresholds in `vitest.config.ts` raised to 75 / 75 / 80 / 75 (statements / branches / functions / lines) to reflect the current `main` level.
+- Coverage thresholds in `vitest.config.ts` raised to 80 / 80 / 80 / 80 (statements / branches / functions / lines) now that the wave 5.2 parser and variance surfaces have landed. Previous floor was 75 / 75 / 80 / 75.
 - README: corrected the Limitations bullet that implied AWS Savings Plans were supported via `optimize_cost`. Savings Plans are not yet supported and are tracked in [docs/roadmap.md](./docs/roadmap.md).
 
 ### Tests

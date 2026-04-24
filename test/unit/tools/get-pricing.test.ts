@@ -259,4 +259,40 @@ describe("getPricing", () => {
       expect(price.price_per_unit as number).toBeGreaterThan(0);
     }
   });
+
+  // -------------------------------------------------------------------------
+  // Backward-compatibility: fallback_metadata shape lock
+  //
+  // get_pricing has shipped this exact shape (flat keys:
+  // last_updated, source, sku_count, refresh_script_version) since 1.0.x.
+  // Downstream consumers parse it with fixed-key assumptions; the shared
+  // FallbackMetadataSummary refactor must not drift the single-provider
+  // output from this schema.
+  // -------------------------------------------------------------------------
+
+  it("fallback_metadata keeps its historic flat shape for single-provider calls", async () => {
+    const result = (await getPricing(
+      {
+        provider: "aws",
+        service: "compute",
+        resource_type: "t3.micro",
+        region: "us-east-1",
+      },
+      pricingEngine,
+    )) as Record<string, unknown>;
+
+    // When metadata.json exists for the provider, the response must include
+    // fallback_metadata at the top level with these exact keys.
+    if (result.fallback_metadata !== undefined) {
+      const meta = result.fallback_metadata as Record<string, unknown>;
+      const keys = Object.keys(meta).sort();
+      expect(keys).toEqual(
+        ["last_updated", "refresh_script_version", "sku_count", "source"].sort(),
+      );
+      expect(typeof meta.last_updated).toBe("string");
+      expect(typeof meta.source).toBe("string");
+      expect(typeof meta.sku_count).toBe("number");
+      expect(typeof meta.refresh_script_version).toBe("string");
+    }
+  });
 });

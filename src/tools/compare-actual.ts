@@ -17,6 +17,7 @@ import {
 import { parseFocusExport, FocusCurrencyMismatchError } from "../reporting/focus-parser.js";
 import { computeVariance, type VarianceResult } from "./variance.js";
 import { sanitizeForMessage } from "../util/sanitize.js";
+import { summarizeFallbackMetadata, type FallbackMetadataSummary } from "../types/fallback.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -91,6 +92,7 @@ export interface CompareActualResult {
     pct_change: number;
   };
   actual_vs_estimate_variance?: VarianceResult;
+  fallback_metadata: FallbackMetadataSummary;
   warnings: string[];
 }
 
@@ -150,6 +152,7 @@ export async function compareActual(
       resource_count: stateInventory.total_count,
       by_resource: actualByResource,
     },
+    fallback_metadata: summarizeFallbackMetadata([targetProvider]),
     warnings: [],
   };
 
