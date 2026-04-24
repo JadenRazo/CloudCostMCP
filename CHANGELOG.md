@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **FOCUS reconciliation for `compare_actual`**: new optional `focus_export` parameter accepts a [FOCUS](https://focus.finops.org/)-formatted billing export (CSV string or JSON row array) and, when combined with planned Terraform `files`, produces a new `actual_vs_estimate_variance` field — per-resource variance between the planned estimate and what the cloud actually billed. Complements `check_cost_budget`: guardrail catches forward-looking mistakes, FOCUS reconciliation catches the ones that slipped through. Byte cap 10 MiB, row cap 50 000, mixed-currency exports rejected. See [docs/focus-reconciliation.md](./docs/focus-reconciliation.md).
 - **`check_cost_budget` MCP tool**: agent-ready cost guardrail that returns `allow` / `warn` / `block` with `blocking_resources` populated. Designed to be called by an AI agent between generating IaC and writing it to disk, so a model can't silently commit a runaway configuration. Promotes the budget primitives that previously only lived inside `detect_anomalies`. See [docs/guardrails.md](./docs/guardrails.md) for integration patterns.
 - New env vars: `CLOUDCOST_GUARDRAIL_MAX_MONTHLY`, `CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE`, `CLOUDCOST_GUARDRAIL_WARN_RATIO`. Thresholds cascade: per-call params → `guardrail` env → `budget` env.
 - New `GuardrailConfig` type on `CloudCostConfig`.

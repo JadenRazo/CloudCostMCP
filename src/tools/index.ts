@@ -155,7 +155,7 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
   // -------------------------------------------------------------------------
   server.tool(
     "compare_actual",
-    "Parse a Terraform state file (.tfstate) and calculate actual infrastructure costs. Optionally compare against planned costs from HCL files to show drift.",
+    "Parse a Terraform state file (.tfstate) and calculate actual infrastructure costs. Optionally compare against planned costs from HCL files to show drift, and optionally reconcile planned costs against a FOCUS billing export to produce a per-resource actual_vs_estimate_variance.",
     compareActualSchema.shape,
     async (params) => {
       const result = await compareActual(params, pricingEngine, config);

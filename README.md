@@ -262,8 +262,12 @@ Parse `.tfstate` files to compare actual infrastructure costs vs estimates. Iden
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `state_json` | `string` | Yes | Contents of a `terraform.tfstate` file |
+| `files` | `{path, content}[]` | No | Optional HCL files to establish the planned estimate |
 | `provider` | `aws \| azure \| gcp` | No | Target provider for pricing (auto-detected if omitted) |
 | `currency` | `string` | No | Output currency (default: `USD`) |
+| `focus_export` | `string \| object[]` | No | FOCUS-formatted billing export (CSV or JSON rows) |
+
+When both `files` and `focus_export` are supplied, the response adds `actual_vs_estimate_variance` — a per-resource reconciliation of the planned estimate against what the cloud actually billed (top drivers, missing/extra resources, total variance). Caps: 10 MiB per CSV export, 50 000 rows for JSON arrays. Mixed currencies and unknown columns are handled safely; see [docs/focus-reconciliation.md](./docs/focus-reconciliation.md) for the full contract.
 
 ### `price_trends`
 

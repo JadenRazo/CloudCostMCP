@@ -12,7 +12,11 @@ import {
   fileContentSchema,
   tfvarsSchema,
   stateJsonSchema,
+  focusExportSchema,
 } from "../schemas/bounded.js";
+import { parseFocusExport, FocusCurrencyMismatchError } from "../reporting/focus-parser.js";
+import { computeVariance, type VarianceResult } from "./variance.js";
+import { sanitizeForMessage } from "../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -46,6 +50,11 @@ export const compareActualSchema = z.object({
     .optional()
     .default("USD")
     .describe("Output currency for cost estimates. Defaults to USD."),
+  focus_export: focusExportSchema
+    .optional()
+    .describe(
+      "Optional FOCUS-formatted billing export (CSV string or JSON row array). When supplied together with `files`, the response includes actual_vs_estimate_variance reconciling the planned estimate against what the cloud actually billed.",
+    ),
 });
 
 // ---------------------------------------------------------------------------
@@ -81,6 +90,7 @@ export interface CompareActualResult {
     yearly: number;
     pct_change: number;
   };
+  actual_vs_estimate_variance?: VarianceResult;
   warnings: string[];
 }
 
@@ -213,6 +223,52 @@ export async function compareActual(
       const deltaMonthly = result.actual_costs.total_monthly - result.planned_costs.total_monthly;
       result.delta.monthly = Math.round(deltaMonthly * 100) / 100;
       result.delta.yearly = Math.round(deltaMonthly * 12 * 100) / 100;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // FOCUS-based per-resource variance
+  //
+  // When the caller supplies a FOCUS billing export, reconcile the planned
+  // breakdown (estimate) against what the cloud actually billed. The variance
+  // surface is additive — legacy state-derived actual_costs / delta remain
+  // untouched so existing callers are not affected.
+  // -------------------------------------------------------------------------
+  if (params.focus_export !== undefined) {
+    if (!result.planned_costs) {
+      warnings.push(
+        "focus_export supplied without planned files; variance requires an estimate source",
+      );
+    } else {
+      try {
+        const parsed = parseFocusExport(params.focus_export);
+        warnings.push(...parsed.warnings);
+        if (parsed.currency !== currency) {
+          warnings.push(
+            `focus_export currency ${sanitizeForMessage(parsed.currency, 16)} does not match report currency ${currency}; variance skipped`,
+          );
+        } else {
+          const variance = computeVariance(
+            result.planned_costs.by_resource.map((r) => ({
+              resource_id: r.resource_id,
+              monthly_cost: r.monthly_cost,
+            })),
+            parsed.rows,
+            { currency },
+          );
+          warnings.push(...variance.warnings);
+          result.actual_vs_estimate_variance = variance;
+        }
+      } catch (err) {
+        if (err instanceof FocusCurrencyMismatchError) {
+          warnings.push(
+            `focus_export contains mixed currencies (${sanitizeForMessage(err.expected, 16)} vs ${sanitizeForMessage(err.actual, 16)}); variance skipped`,
+          );
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          warnings.push(`focus_export parse failed: ${sanitizeForMessage(msg, 256)}`);
+        }
+      }
     }
   }
 
