@@ -94,6 +94,35 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
     };
   }
 
+  if (
+    env.CLOUDCOST_GUARDRAIL_MAX_MONTHLY ||
+    env.CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE ||
+    env.CLOUDCOST_GUARDRAIL_WARN_RATIO
+  ) {
+    const parsePositive = (raw: string | undefined): number | undefined => {
+      if (!raw) return undefined;
+      const v = parseFloat(raw);
+      return Number.isFinite(v) && v > 0 ? v : undefined;
+    };
+
+    const maxMonthly = parsePositive(env.CLOUDCOST_GUARDRAIL_MAX_MONTHLY);
+    const maxPerResource = parsePositive(env.CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE);
+    const warnRatioRaw = env.CLOUDCOST_GUARDRAIL_WARN_RATIO
+      ? parseFloat(env.CLOUDCOST_GUARDRAIL_WARN_RATIO)
+      : NaN;
+    const warnRatio =
+      Number.isFinite(warnRatioRaw) && warnRatioRaw > 0 && warnRatioRaw <= 1
+        ? warnRatioRaw
+        : undefined;
+
+    config.guardrail = {
+      ...DEFAULT_CONFIG.guardrail,
+      ...(maxMonthly !== undefined && { max_monthly: maxMonthly }),
+      ...(maxPerResource !== undefined && { max_per_resource: maxPerResource }),
+      ...(warnRatio !== undefined && { warn_ratio: warnRatio }),
+    };
+  }
+
   return config;
 }
 
@@ -129,6 +158,11 @@ export function loadConfig(): CloudCostConfig {
       ...DEFAULT_CONFIG.budget,
       ...fileConfig.budget,
       ...envConfig.budget,
+    },
+    guardrail: {
+      ...DEFAULT_CONFIG.guardrail,
+      ...fileConfig.guardrail,
+      ...envConfig.guardrail,
     },
   };
 }

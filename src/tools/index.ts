@@ -14,6 +14,7 @@ import { analyzePlanSchema, analyzePlan } from "./analyze-plan.js";
 import { compareActualSchema, compareActual } from "./compare-actual.js";
 import { priceTrendsSchema, priceTrends } from "./price-trends.js";
 import { detectAnomaliesSchema, detectAnomalies } from "./detect-anomalies.js";
+import { checkCostBudgetSchema, checkCostBudget } from "./check-cost-budget.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration
@@ -188,6 +189,21 @@ export function registerTools(server: McpServer, config: CloudCostConfig): void 
     detectAnomaliesSchema.shape,
     async (params) => {
       const result = await detectAnomalies(params, pricingEngine, cache, config);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      };
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // check_cost_budget
+  // -------------------------------------------------------------------------
+  server.tool(
+    "check_cost_budget",
+    "Agent-ready cost guardrail. Returns allow / warn / block with blocking_resources so an AI agent can veto an expensive IaC write before committing. Thresholds cascade: per-call params > CLOUDCOST_GUARDRAIL_* env > CLOUDCOST_BUDGET_* env > no-op allow.",
+    checkCostBudgetSchema.shape,
+    async (params) => {
+      const result = await checkCostBudget(params, pricingEngine, config);
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };

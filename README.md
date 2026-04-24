@@ -262,6 +262,21 @@ Cost anomaly detection with budget checks, price changes, concentration risk, an
 | `budget_monthly` | `number` | No | Monthly budget cap in USD |
 | `currency` | `string` | No | Output currency (default: `USD`) |
 
+### `check_cost_budget`
+
+Fast cost-safety guardrail designed for AI agents. Returns `allow` / `warn` / `block` with the specific blocking resources named, so an agent can veto an expensive IaC generation before writing it to disk. Thresholds cascade: per-call params → `CLOUDCOST_GUARDRAIL_*` env → `CLOUDCOST_BUDGET_*` env. See [docs/guardrails.md](./docs/guardrails.md) for integration patterns.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `files` | `{path, content}[]` | Yes | IaC files to evaluate |
+| `tfvars` | `string` | No | Variable overrides |
+| `provider` | `aws \| azure \| gcp` | No | Target provider (auto-detected if omitted) |
+| `region` | `string` | No | Target region (auto-detected if omitted) |
+| `currency` | `string` | No | Output currency (default: `USD`) |
+| `max_monthly` | `number` | No | Aggregate monthly threshold. Over = `block`. |
+| `max_per_resource` | `number` | No | Per-resource threshold. One over = `block`. |
+| `warn_ratio` | `number` (0–1) | No | Fraction of limit that triggers `warn` (default `0.8`) |
+
 ---
 
 ## How Pricing Works
@@ -380,6 +395,9 @@ All configuration is optional. The server works out of the box with sensible def
 | `CLOUDCOST_BUDGET_MONTHLY` | | Monthly budget cap in USD. Triggers a warning when exceeded |
 | `CLOUDCOST_BUDGET_PER_RESOURCE` | | Per-resource monthly budget cap in USD |
 | `CLOUDCOST_BUDGET_WARN_PCT` | `80` | Percentage of budget at which a warning is surfaced (default: 80%) |
+| `CLOUDCOST_GUARDRAIL_MAX_MONTHLY` | | Aggregate monthly ceiling for `check_cost_budget`. Over = `block` verdict |
+| `CLOUDCOST_GUARDRAIL_MAX_PER_RESOURCE` | | Per-resource ceiling for `check_cost_budget`. One over = `block` verdict |
+| `CLOUDCOST_GUARDRAIL_WARN_RATIO` | `0.8` | Fraction of guardrail threshold that triggers `warn` instead of `allow` |
 
 ### Config File
 

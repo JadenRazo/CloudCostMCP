@@ -12,6 +12,9 @@ export const MAX_TFVARS_BYTES = 1 * 1024 * 1024; // 1 MiB
 export const MAX_PLAN_JSON_BYTES = 20 * 1024 * 1024; // 20 MiB
 export const MAX_STATE_JSON_BYTES = 20 * 1024 * 1024; // 20 MiB
 export const MAX_SHORT_STRING_LEN = 256;
+// Aggregate cap across all files in one tool call. Per-file .max() is not
+// enough — 2000 × 5 MiB = 10 GiB theoretical. This bounds the *sum*.
+export const MAX_TOTAL_FILE_BYTES = 50 * 1024 * 1024; // 50 MiB total
 
 export const filePathSchema = z
   .string()
@@ -36,3 +39,26 @@ export const stateJsonSchema = z
 export const shortStringSchema = z
   .string()
   .max(MAX_SHORT_STRING_LEN, `value exceeds ${MAX_SHORT_STRING_LEN} characters`);
+
+/**
+ * Reject when the sum of all `content` fields exceeds MAX_TOTAL_FILE_BYTES.
+ * Applied via `.superRefine` on a `files[]` schema that has already passed
+ * per-entry validation.
+ */
+export function assertTotalFileBytesWithin(
+  files: { content: string }[],
+  ctx: z.RefinementCtx,
+): void {
+  let total = 0;
+  for (const f of files) {
+    total += f.content.length;
+    if (total > MAX_TOTAL_FILE_BYTES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `aggregate file content exceeds ${MAX_TOTAL_FILE_BYTES} bytes`,
+        path: ["files"],
+      });
+      return;
+    }
+  }
+}

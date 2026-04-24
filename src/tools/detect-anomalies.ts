@@ -9,6 +9,7 @@ import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { SUPPORTED_CURRENCIES } from "../currency.js";
 import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { sanitizeForMessage } from "../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -188,12 +189,13 @@ export async function detectAnomalies(
 
   for (const est of byResource) {
     if (params.budget_per_resource != null && est.monthly_cost > params.budget_per_resource) {
+      const safeId = sanitizeForMessage(est.resource_id, 256);
       anomalies.push({
         type: "budget_exceeded",
         severity: "high",
-        resource: est.resource_id,
-        resource_type: est.resource_type,
-        message: `Resource ${est.resource_id} costs $${est.monthly_cost.toFixed(2)}/mo, exceeding per-resource budget of $${params.budget_per_resource.toFixed(2)}`,
+        resource: safeId,
+        resource_type: sanitizeForMessage(est.resource_type, 128),
+        message: `Resource ${safeId} costs $${est.monthly_cost.toFixed(2)}/mo, exceeding per-resource budget of $${params.budget_per_resource.toFixed(2)}`,
         details: {
           current_cost: est.monthly_cost,
           threshold: params.budget_per_resource,
@@ -215,19 +217,20 @@ export async function detectAnomalies(
 
     if (priceChange && Math.abs(priceChange.change_percent) > priceChangeThreshold) {
       const direction = priceChange.change_percent > 0 ? "increased" : "decreased";
+      const safeId = sanitizeForMessage(est.resource_id, 256);
       anomalies.push({
         type: "price_change",
         severity: Math.abs(priceChange.change_percent) > 20 ? "high" : "medium",
-        resource: est.resource_id,
-        resource_type: est.resource_type,
-        message: `Pricing for ${est.resource_id} has ${direction} by ${Math.abs(priceChange.change_percent).toFixed(1)}%`,
+        resource: safeId,
+        resource_type: sanitizeForMessage(est.resource_type, 128),
+        message: `Pricing for ${safeId} has ${direction} by ${Math.abs(priceChange.change_percent).toFixed(1)}%`,
         details: {
           current_cost: est.monthly_cost,
           price_change_percent: priceChange.change_percent,
         },
       });
       recommendations.push(
-        `Review pricing change for ${est.resource_id} (${Math.abs(priceChange.change_percent).toFixed(1)}% ${direction}). Consider locking in reserved pricing.`,
+        `Review pricing change for ${safeId} (${Math.abs(priceChange.change_percent).toFixed(1)}% ${direction}). Consider locking in reserved pricing.`,
       );
     }
   }
@@ -238,19 +241,20 @@ export async function detectAnomalies(
     for (const est of byResource) {
       const sharePercent = (est.monthly_cost / totalMonthly) * 100;
       if (sharePercent > 50 && byResource.length > 1) {
+        const safeId = sanitizeForMessage(est.resource_id, 256);
         anomalies.push({
           type: "cost_concentration",
           severity: "medium",
-          resource: est.resource_id,
-          resource_type: est.resource_type,
-          message: `Resource ${est.resource_id} accounts for ${sharePercent.toFixed(1)}% of total cost (concentration risk)`,
+          resource: safeId,
+          resource_type: sanitizeForMessage(est.resource_type, 128),
+          message: `Resource ${safeId} accounts for ${sharePercent.toFixed(1)}% of total cost (concentration risk)`,
           details: {
             current_cost: est.monthly_cost,
             cost_share_percent: sharePercent,
           },
         });
         recommendations.push(
-          `${est.resource_id} dominates total spend at ${sharePercent.toFixed(1)}%. Evaluate whether workload can be distributed or right-sized.`,
+          `${safeId} dominates total spend at ${sharePercent.toFixed(1)}%. Evaluate whether workload can be distributed or right-sized.`,
         );
       }
     }
@@ -261,18 +265,22 @@ export async function detectAnomalies(
   for (const est of byResource) {
     const instanceType = resolveInstanceType(est);
     if (isOversizedInstance(instanceType)) {
+      const safeId = sanitizeForMessage(est.resource_id, 256);
+      // instanceType is matched against a whitelist regex in resolveInstanceType,
+      // but cap-and-sanitise defensively.
+      const safeType = instanceType ? sanitizeForMessage(instanceType, 64) : "(unknown)";
       anomalies.push({
         type: "potential_oversizing",
         severity: "low",
-        resource: est.resource_id,
-        resource_type: est.resource_type,
-        message: `Instance ${est.resource_id} uses ${instanceType} which may be over-provisioned`,
+        resource: safeId,
+        resource_type: sanitizeForMessage(est.resource_type, 128),
+        message: `Instance ${safeId} uses ${safeType} which may be over-provisioned`,
         details: {
           current_cost: est.monthly_cost,
         },
       });
       recommendations.push(
-        `Consider whether ${est.resource_id} (${instanceType}) needs all allocated resources. Smaller instance types can significantly reduce cost.`,
+        `Consider whether ${safeId} (${safeType}) needs all allocated resources. Smaller instance types can significantly reduce cost.`,
       );
     }
   }
