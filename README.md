@@ -475,8 +475,9 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 
 ## Limitations
 
-- **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool will recommend reserved instances and savings plans, but base estimates use on-demand. Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
+- **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool recommends reserved instances; AWS Savings Plans are not yet supported (tracked in [ROADMAP.md](./ROADMAP.md)). Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
 - **GCP live pricing** is fetched from the Cloud Billing Catalog API with automatic fallback to bundled data when the API is unreachable. Bundled prices may lag slightly behind actual rates.
+- **Fallback-data signaling.** When a live pricing API is unreachable and `estimate_cost` / `compare_providers` / `get_pricing` serve data from bundled or fallback tables, the response includes a `warnings` entry ("using fallback/bundled pricing data for …") so callers can flag stale estimates. Bundled data is refreshed weekly via CI.
 - **First request latency**. The initial EC2 pricing lookup for a new AWS region may take 30-120 seconds as the CSV file is streamed. Subsequent lookups for the same region are instant (cached for 24 hours).
 - **Specialty instance types**. GPU instances (p4d, g5, etc.), high-memory (x2idn), and bare-metal types may fall back to interpolated pricing if not in the built-in tables and live fetch fails.
 
