@@ -7,10 +7,14 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+permissions:
+  contents: read
+
 jobs:
   cost-estimate:
     name: Cost Estimate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     permissions:
       contents: read
