@@ -7,6 +7,7 @@ import { sanitizeForMessage } from "../../../src/util/sanitize.js";
 import { safeJsonParse, stripForbiddenKeys } from "../../../src/parsers/safe-json.js";
 import { resolveWithinBoundary } from "../../../src/parsers/path-safety.js";
 import { resolveModules } from "../../../src/parsers/module-resolver.js";
+import { parseTerraform, deriveModuleBasePath } from "../../../src/parsers/index.js";
 import { parseTerraformState } from "../../../src/parsers/terraform/state-parser.js";
 import { parseTerraformPlan } from "../../../src/parsers/terraform/plan-parser.js";
 import { analyzeTerraformSchema } from "../../../src/tools/analyze-terraform.js";
@@ -214,6 +215,77 @@ describe("resolveModules – path-traversal defence", () => {
     await resolveModules(hclJson, process.cwd(), {}, warnings);
 
     expect(warnings.some((w) => w.includes("\u200B"))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Module base-path derivation from client-supplied file paths
+// ---------------------------------------------------------------------------
+
+describe("deriveModuleBasePath", () => {
+  it("uses the dirname of a safe relative path", () => {
+    expect(deriveModuleBasePath("infra/prod/main.tf")).toBe(join("infra", "prod"));
+    expect(deriveModuleBasePath("main.tf")).toBe(".");
+  });
+
+  it("falls back to cwd for absolute paths", () => {
+    expect(deriveModuleBasePath("/etc/x.tf")).toBe(process.cwd());
+  });
+
+  it("falls back to cwd for Windows drive-letter and UNC paths", () => {
+    expect(deriveModuleBasePath("C:\\evil\\x.tf")).toBe(process.cwd());
+    expect(deriveModuleBasePath("C:/evil/x.tf")).toBe(process.cwd());
+    expect(deriveModuleBasePath("\\\\server\\share\\x.tf")).toBe(process.cwd());
+  });
+
+  it("falls back to cwd for paths that escape upward, even after normalisation", () => {
+    expect(deriveModuleBasePath("../x.tf")).toBe(process.cwd());
+    expect(deriveModuleBasePath("../../secret/x.tf")).toBe(process.cwd());
+    expect(deriveModuleBasePath("foo/../../x.tf")).toBe(process.cwd());
+  });
+});
+
+describe("parseTerraform – module base path is not derived from absolute client paths", () => {
+  it("does not read .terraform/modules relative to an absolute files[0].path", async () => {
+    // Simulate the attack: the MCP client claims the file lives in an
+    // attacker-chosen absolute directory whose .terraform/modules/ contains
+    // real .tf files. Registry-module lookup is confined to
+    // <basePath>/.terraform/modules — so a basePath derived from the
+    // untrusted absolute path would read those files. It must not.
+    const tmpRoot = mkdtempSync(join(tmpdir(), "cloudcost-basepath-"));
+    try {
+      const moduleDir = join(tmpRoot, ".terraform", "modules", "m");
+      mkdirSync(moduleDir, { recursive: true });
+      writeFileSync(
+        join(moduleDir, "main.tf"),
+        'resource "aws_instance" "leaked" { instance_type = "t3.micro" }',
+      );
+
+      const inventory = await parseTerraform([
+        {
+          path: join(tmpRoot, "main.tf"),
+          content: 'module "m" { source = "registry-namespace/vpc/aws" }',
+        },
+      ]);
+
+      expect(inventory.resources.filter((r) => r.id.startsWith("module."))).toHaveLength(0);
+      expect(inventory.parse_warnings.some((w) => w.includes('Registry module "m"'))).toBe(true);
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("still honours an explicit basePath argument", async () => {
+    // Explicit basePath is trusted (it comes from the host application, not
+    // the MCP client) and must keep working exactly as before.
+    const parentDir = join(process.cwd(), "test/fixtures/modules/parent");
+    const inventory = await parseTerraform(
+      [{ path: join(parentDir, "main.tf"), content: 'module "m" { source = "../child" }' }],
+      undefined,
+      parentDir,
+    );
+
+    expect(inventory.resources.some((r) => r.id.startsWith("module.m."))).toBe(true);
   });
 });
 

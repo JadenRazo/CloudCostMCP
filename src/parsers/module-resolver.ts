@@ -56,8 +56,14 @@ function readTfFiles(dirPath: string): Array<{ path: string; content: string }> 
  * Merge multiple HCL JSON objects into one so that variable and provider
  * blocks from separate .tf files are combined. Duplicate keys at the top level
  * are merged recursively; arrays are concatenated.
+ *
+ * This is the single shared implementation (also used by `parseTerraform` in
+ * ./index.ts). It strips FORBIDDEN_MERGE_KEYS at every level because the
+ * inputs can originate from attacker-controlled HCL, where `__proto__` /
+ * `constructor` / `prototype` keys would otherwise enable prototype pollution
+ * through the deep merge.
  */
-function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown> {
+export function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
 
   for (const json of jsons) {
