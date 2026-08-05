@@ -48,7 +48,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx prettier --check src test
-      - run: npm test
+      # test:coverage enforces the vitest.config.ts coverage thresholds, so
+      # the gate actually fails CI when coverage regresses below the floor.
+      - run: npm run test:coverage
       - run: npm run build
 
   build-artifact:
