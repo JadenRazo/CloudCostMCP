@@ -57,6 +57,13 @@ export interface CostBreakdown {
   generated_at: string;
   warnings: string[];
   budget_warnings?: string[];
+  /**
+   * Portion of total_monthly contributed by the synthetic default-egress
+   * line items (see DEFAULT_EGRESS_GB). Present only when data-transfer
+   * estimation is enabled and produced a non-zero cost. total_monthly still
+   * INCLUDES this amount — the field only makes the composition visible.
+   */
+  estimated_egress_monthly?: number;
 }
 
 export interface ProviderComparison {

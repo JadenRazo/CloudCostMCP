@@ -26,6 +26,7 @@ import {
   calculateAwsDataTransferCost,
   calculateAzureDataTransferCost,
   calculateGcpDataTransferCost,
+  DEFAULT_EGRESS_GB,
 } from "./data-transfer.js";
 import { calculateContainerRegistryCost } from "./container-registry.js";
 import { calculateSecretsCost } from "./secrets.js";
@@ -576,7 +577,7 @@ export class CostEngine {
             name: `data-transfer-${estimate.provider}-${estimate.region}`,
             provider: estimate.provider,
             region: estimate.region,
-            attributes: { monthly_egress_gb: 100 },
+            attributes: { monthly_egress_gb: DEFAULT_EGRESS_GB },
             tags: {},
             source_file: "synthetic",
           },
@@ -611,6 +612,22 @@ export class CostEngine {
 
     const totalMonthly = estimates.reduce((sum, e) => sum + e.monthly_cost, 0);
 
+    // Surface how much of the total comes from the synthetic default-egress
+    // assumption so consumers can see the composition. Kept INSIDE
+    // total_monthly for backward compatibility (check_cost_budget thresholds
+    // compare against the same total as before).
+    const estimatedEgressMonthly = estimates
+      .filter((e) => DATA_TRANSFER_TYPES.has(e.resource_type))
+      .reduce((sum, e) => sum + e.monthly_cost, 0);
+
+    if (estimatedEgressMonthly > 0) {
+      warnings.push(
+        `total_monthly includes a synthetic estimate of ${DEFAULT_EGRESS_GB} GB/month internet egress ` +
+          `($${(Math.round(estimatedEgressMonthly * 100) / 100).toFixed(2)}/mo, USD) — see estimated_egress_monthly. ` +
+          `Set CLOUDCOST_INCLUDE_DATA_TRANSFER=false to exclude it.`,
+      );
+    }
+
     const budgetWarnings = this.evaluateBudget(totalMonthly, estimates);
 
     return {
@@ -625,6 +642,9 @@ export class CostEngine {
       by_resource: estimates,
       generated_at: new Date().toISOString(),
       warnings,
+      ...(estimatedEgressMonthly > 0 && {
+        estimated_egress_monthly: Math.round(estimatedEgressMonthly * 100) / 100,
+      }),
       ...(budgetWarnings.length > 0 && { budget_warnings: budgetWarnings }),
     };
   }

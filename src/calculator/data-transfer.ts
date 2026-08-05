@@ -3,7 +3,7 @@ import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 
 // Default egress volume (GB/month) for data transfer cost estimates when no
 // explicit traffic figure is available in the resource attributes.
-const DEFAULT_EGRESS_GB = 100;
+export const DEFAULT_EGRESS_GB = 100;
 
 // ---------------------------------------------------------------------------
 // AWS data transfer pricing
