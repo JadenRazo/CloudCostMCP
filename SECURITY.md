@@ -16,10 +16,10 @@ Include in your report:
 
 | Version | Supported |
 | ------- | --------- |
-| 0.3.x   | Yes       |
-| < 0.3.0 | No        |
+| 1.x     | Yes       |
+| < 1.0.0 | No        |
 
-Only the latest release receives security fixes. Upgrade to v0.3.0 or later before reporting.
+Only the latest release receives security fixes. Upgrade to v1.0.0 or later before reporting.
 
 ## Responsible Disclosure Timeline
 
@@ -54,18 +54,23 @@ The only data written to disk is a local SQLite database at `~/.cloudcost/cache.
 
 IaC files passed to the MCP tools are **parsed entirely in process**. The HCL parser (`@cdktf/hcl2json`) runs locally via WebAssembly. Terraform content is never transmitted to an external service. The only outbound network traffic the server initiates is to the public pricing endpoints documented above.
 
-### Dependency Minimalism
+### Transport: stdio Only — No Authentication (Explicit Non-Goal)
 
-The server has exactly **four runtime dependencies**:
+**This server speaks the MCP stdio transport only and has no authentication layer. Do not expose it over HTTP** (or any network transport). It is designed to be spawned as a local child process by a trusted MCP client; anyone who can reach its transport can invoke every tool. Network exposure, TLS, and authentication are explicit non-goals — if you need remote access, put the server behind your own authenticated gateway and treat that gateway as the security boundary.
+
+### Dependency Footprint
+
+The server has **five direct runtime dependencies**:
 
 | Package                     | Purpose                                             |
 | --------------------------- | --------------------------------------------------- |
 | `@cdktf/hcl2json`           | HCL-to-JSON parsing (WASM, no native code)          |
 | `@modelcontextprotocol/sdk` | MCP stdio transport and tool registration           |
 | `better-sqlite3`            | Local SQLite cache (native addon)                   |
+| `yaml`                      | YAML parsing for CloudFormation templates           |
 | `zod`                       | Input schema validation for all MCP tool parameters |
 
-The only native addon is `better-sqlite3`. All other dependencies are pure JavaScript or WebAssembly.
+These resolve to roughly **130+ production packages** in the lockfile (and ~400 packages total including dev tooling). Most of the transitive production footprint comes from the MCP SDK, which bundles an HTTP server stack (`express`, `cors`, `eventsource`, and friends) that this project **does not use** — only the stdio transport is ever started (see the non-goal above). The only native addon is `better-sqlite3`. Run `npm ls --omit=dev --all` to inspect the full resolved tree.
 
 ## Dependency Audit Policy
 
