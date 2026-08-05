@@ -33,7 +33,11 @@ function readTfFiles(dirPath: string): Array<{ path: string; content: string }> 
   let entries: string[];
   try {
     entries = readdirSync(dirPath);
-  } catch {
+  } catch (err) {
+    logger.warn("Cannot list module directory; skipping", {
+      dirPath: sanitizeForMessage(dirPath),
+      error: sanitizeForMessage(err instanceof Error ? err.message : String(err), 512),
+    });
     return [];
   }
 
@@ -44,8 +48,13 @@ function readTfFiles(dirPath: string): Array<{ path: string; content: string }> 
     try {
       const content = readFileSync(fullPath, "utf-8");
       files.push({ path: fullPath, content });
-    } catch {
-      // Silently skip files that cannot be read — callers handle warnings.
+    } catch (err) {
+      // Skipping an unreadable .tf file changes the cost estimate — log it
+      // rather than silently under-counting the module's resources.
+      logger.warn("Cannot read module file; skipping", {
+        path: sanitizeForMessage(fullPath),
+        error: sanitizeForMessage(err instanceof Error ? err.message : String(err), 512),
+      });
     }
   }
 
