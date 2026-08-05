@@ -23,10 +23,10 @@ import {
   BULK_PRICING_BASE,
   AWS_PRICING_HOST,
   SIZE_ORDER,
-  regionMultiplier,
   assertValidAwsRegion,
   assertValidAwsPricingService,
 } from "./fallback-data.js";
+import { regionMultiplier } from "../region-multiplier.js";
 
 export class AwsBulkLoader {
   private cache: PricingCache;
@@ -151,7 +151,7 @@ export class AwsBulkLoader {
   }
 
   async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("aws", region);
     return {
       provider: "aws",
       service: "elb",
@@ -170,7 +170,7 @@ export class AwsBulkLoader {
   }
 
   async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("aws", region);
     return {
       provider: "aws",
       service: "vpc",
@@ -188,7 +188,7 @@ export class AwsBulkLoader {
   }
 
   async getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("aws", region);
     return {
       provider: "aws",
       service: "eks",
@@ -650,7 +650,7 @@ export class AwsBulkLoader {
       return null;
     }
 
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("aws", region);
     const result: NormalizedPrice = {
       provider: "aws",
       service: "ec2",
@@ -688,7 +688,7 @@ export class AwsBulkLoader {
       return null;
     }
 
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("aws", region);
     const result: NormalizedPrice = {
       provider: "aws",
       service: "rds",
@@ -722,7 +722,7 @@ export class AwsBulkLoader {
       return null;
     }
 
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("aws", region);
     const result: NormalizedPrice = {
       provider: "aws",
       service: "ebs",

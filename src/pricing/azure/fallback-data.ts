@@ -1,6 +1,3 @@
-import { getRegionPriceMultipliers } from "../../data/loader.js";
-import { logger } from "../../logger.js";
-
 // ---------------------------------------------------------------------------
 // Fallback pricing data (approximate eastus on-demand prices, April 2026)
 // ---------------------------------------------------------------------------
@@ -101,17 +98,3 @@ export const CACHE_TTL = 86400; // 24 hours
 
 export const RETAIL_API_BASE = "https://prices.azure.com/api/retail/prices";
 
-// ---------------------------------------------------------------------------
-// Regional price multiplier lookup -- reads from the shared data file so all
-// providers use consistent values sourced from one place.
-// ---------------------------------------------------------------------------
-
-export function regionMultiplier(region: string): number {
-  const multipliers = getRegionPriceMultipliers();
-  const mult = multipliers.azure[region.toLowerCase()];
-  if (mult === undefined) {
-    logger.warn("region-multiplier: unknown Azure region, defaulting to 1.0x", { region });
-    return 1.0;
-  }
-  return mult;
-}

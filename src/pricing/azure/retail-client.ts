@@ -21,8 +21,8 @@ import {
   AKS_HOURLY,
   CACHE_TTL,
   RETAIL_API_BASE,
-  regionMultiplier,
 } from "./fallback-data.js";
+import { regionMultiplier } from "../region-multiplier.js";
 
 export class AzureRetailClient {
   private cache: PricingCache;
@@ -223,7 +223,7 @@ export class AzureRetailClient {
   }
 
   async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("azure", region);
     return {
       provider: "azure",
       service: "load-balancer",
@@ -242,7 +242,7 @@ export class AzureRetailClient {
   }
 
   async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("azure", region);
     return {
       provider: "azure",
       service: "nat-gateway",
@@ -260,7 +260,7 @@ export class AzureRetailClient {
   }
 
   async getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("azure", region);
     return {
       provider: "azure",
       service: "aks",
@@ -563,7 +563,7 @@ export class AzureRetailClient {
       return null;
     }
 
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("azure", region);
     const result: NormalizedPrice = {
       provider: "azure",
       service: "virtual-machines",
@@ -599,7 +599,7 @@ export class AzureRetailClient {
       return null;
     }
 
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("azure", region);
     const result: NormalizedPrice = {
       provider: "azure",
       service: "azure-database",
@@ -633,7 +633,7 @@ export class AzureRetailClient {
       return null;
     }
 
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("azure", region);
     const result: NormalizedPrice = {
       provider: "azure",
       service: "managed-disks",
