@@ -9,6 +9,9 @@ on:
     # Weekly smoke test against live provider pricing APIs (Mondays 12:00 UTC)
     - cron: '0 12 * * 1'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
