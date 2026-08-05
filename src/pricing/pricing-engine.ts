@@ -312,7 +312,8 @@ const SERVICE_ALIAS_LOOKUPS: ReadonlyMap<string, ServicePriceLookup> = (() => {
   const groups: [readonly string[], ServicePriceLookup][] = [
     [
       ["compute", "ec2", "vm", "instance", "virtual-machines"],
-      (p, resourceType, region, attributes) => p.getComputePrice(resourceType, region, attributes.os),
+      (p, resourceType, region, attributes) =>
+        p.getComputePrice(resourceType, region, attributes.os),
     ],
     [
       ["database", "rds", "sql", "db", "cloud-sql", "azure-database"],

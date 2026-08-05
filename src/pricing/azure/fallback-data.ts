@@ -97,4 +97,3 @@ export const AKS_HOURLY = 0.1;
 export const CACHE_TTL = 86400; // 24 hours
 
 export const RETAIL_API_BASE = "https://prices.azure.com/api/retail/prices";
-

@@ -172,4 +172,3 @@ function extractAttributes(
       return {};
   }
 }
-

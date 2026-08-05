@@ -154,7 +154,6 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-
 function asBoolean(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value;
   if (value === "true") return true;

@@ -232,4 +232,3 @@ export const SIZE_ORDER: readonly string[] = [
   "32xlarge",
   "48xlarge",
 ];
-
