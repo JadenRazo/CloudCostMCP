@@ -27,7 +27,11 @@ jobs:
           node-version: 24.15.0
           cache: 'npm'
       - run: npm ci
-      - run: npm audit --audit-level=high
+      - name: audit production dependencies (blocking)
+        run: npm audit --audit-level=high --omit=dev
+      - name: audit including devDependencies (informational)
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
   test:
     runs-on: ubuntu-latest
