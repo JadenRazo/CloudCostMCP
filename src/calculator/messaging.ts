@@ -1,4 +1,5 @@
 import type { ParsedResource } from "../types/resources.js";
+import { makeCostEstimate } from "./estimate-factory.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 
@@ -219,20 +220,16 @@ export function calculateMessagingCost(
     }
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: hasExplicitMessages ? "high" : "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -296,20 +293,16 @@ export function calculateMqBrokerCost(
     monthly_cost: storageCost,
   });
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: hourlyPrice !== undefined ? "medium" : "low",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -350,20 +343,16 @@ export function calculateEventHubCost(
     `Azure Event Hubs: ${sku} tier, ${capacity} ${unitLabel}(s) — $${hourlyPrice}/${unitLabel}/hr`,
   );
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -408,18 +397,14 @@ export function calculatePubSubSubscriptionCost(
     `GCP Pub/Sub subscription: $${GCP_PUBSUB_SUBSCRIPTION_PER_MILLION_OPS}/million ack operations`,
   );
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: opsCost,
-    yearly_cost: opsCost * 12,
-    currency: "USD",
+    monthlyCost: opsCost,
     breakdown,
     confidence: hasExplicitMessages ? "high" : "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }

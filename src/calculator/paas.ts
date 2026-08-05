@@ -1,4 +1,5 @@
 import type { ParsedResource } from "../types/resources.js";
+import { makeCostEstimate } from "./estimate-factory.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 
@@ -91,20 +92,16 @@ export function calculateAppServicePlanCost(
     );
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: hourlyPrice !== undefined ? "medium" : "low",
     notes,
-    pricing_source: pricingSource,
-  };
+    pricingSource: pricingSource,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -197,20 +194,16 @@ export function calculateCosmosDbCost(
     totalMonthly += storageCost;
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: pricingSource,
-  };
+    pricingSource: pricingSource,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -274,20 +267,16 @@ export function calculateAzureFunctionCost(
 
   notes.push("Azure Function App on Consumption plan (dedicated plan not priced separately)");
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -399,20 +388,16 @@ export function calculateCloudRunCost(
 
   notes.push(`Cloud Run: ${vcpus} vCPU, ${memoryGib.toFixed(2)}GiB memory`);
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -476,20 +461,16 @@ export function calculateBigQueryCost(
 
   notes.push("BigQuery on-demand pricing; flat-rate/reservations not included");
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -553,18 +534,14 @@ export function calculateGcpFunctionCost(
     notes.push(`Cloud Function runtime: ${resource.attributes.runtime}`);
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }

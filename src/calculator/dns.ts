@@ -1,4 +1,5 @@
 import type { ParsedResource } from "../types/resources.js";
+import { makeCostEstimate } from "./estimate-factory.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 
@@ -89,18 +90,14 @@ export function calculateDnsCost(
 
   const totalMonthly = zonePrice + queryCost;
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: hasExplicitQueries ? "high" : "medium",
     notes,
-    pricing_source: "bundled",
-  };
+    pricingSource: "bundled",
+  });
 }

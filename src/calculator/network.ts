@@ -1,4 +1,5 @@
 import type { ParsedResource } from "../types/resources.js";
+import { makeCostEstimate } from "./estimate-factory.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
@@ -79,20 +80,16 @@ export async function calculateNatGatewayCost(
     notes.push(`No pricing data found for ${resource.type} in ${targetRegion}`);
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: natPrice ? "medium" : "low",
     notes,
-    pricing_source: natPricingSource,
-  };
+    pricingSource: natPricingSource,
+  });
 }
 
 /**
@@ -145,18 +142,14 @@ export async function calculateLoadBalancerCost(
     notes.push(`No pricing data found for ${resource.type} in ${targetRegion}`);
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: lbPrice ? "medium" : "low",
     notes,
-    pricing_source: lbPricingSource,
-  };
+    pricingSource: lbPricingSource,
+  });
 }
