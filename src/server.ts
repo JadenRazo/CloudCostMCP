@@ -6,9 +6,13 @@ import { setLogLevel, logger } from "./logger.js";
 import { registerTools } from "./tools/index.js";
 
 const require = createRequire(import.meta.url);
-const { version } = require("../package.json");
+const { version } = require("../package.json") as { version: string };
 
-export async function startServer(): Promise<void> {
+/**
+ * Starts the MCP server on stdio and returns a shutdown hook that closes the
+ * server connection and releases shared resources (the SQLite pricing cache).
+ */
+export async function startServer(): Promise<() => Promise<void>> {
   const config = loadConfig();
   setLogLevel(config.logging.level);
 
@@ -17,9 +21,15 @@ export async function startServer(): Promise<void> {
     version,
   });
 
-  registerTools(server, config);
+  const closeTools = registerTools(server, config);
 
   const transport = new StdioServerTransport();
   logger.info("Starting CloudCost MCP server");
   await server.connect(transport);
+
+  return async () => {
+    logger.info("Shutting down CloudCost MCP server");
+    await server.close();
+    closeTools();
+  };
 }
