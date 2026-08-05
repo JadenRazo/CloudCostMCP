@@ -297,6 +297,55 @@ class GcpProvider implements PricingProvider {
  * The engine is intentionally thin: it does not contain pricing logic itself,
  * only routing and provider lifecycle management.
  */
+type ServicePriceLookup = (
+  provider: PricingProvider,
+  resourceType: string,
+  region: string,
+  attributes: Record<string, string>,
+) => Promise<NormalizedPrice | null>;
+
+/**
+ * Maps every accepted service alias to the PricingProvider method that
+ * serves it. Built once at module load from an alias-list → lookup table.
+ */
+const SERVICE_ALIAS_LOOKUPS: ReadonlyMap<string, ServicePriceLookup> = (() => {
+  const groups: [readonly string[], ServicePriceLookup][] = [
+    [
+      ["compute", "ec2", "vm", "instance", "virtual-machines"],
+      (p, resourceType, region, attributes) => p.getComputePrice(resourceType, region, attributes.os),
+    ],
+    [
+      ["database", "rds", "sql", "db", "cloud-sql", "azure-database"],
+      (p, resourceType, region, attributes) =>
+        p.getDatabasePrice(resourceType, region, attributes.engine),
+    ],
+    [
+      ["storage", "ebs", "disk", "gcs", "managed-disks", "persistent-disk", "cloud-storage"],
+      (p, resourceType, region, attributes) => {
+        const sizeGb = attributes.size_gb ? parseFloat(attributes.size_gb) : undefined;
+        return p.getStoragePrice(resourceType, region, sizeGb);
+      },
+    ],
+    [
+      ["lb", "load-balancer", "alb", "nlb", "elb", "cloud-load-balancing"],
+      (p, resourceType, region) => p.getLoadBalancerPrice(resourceType, region),
+    ],
+    [
+      ["nat", "nat-gateway", "cloud-nat"],
+      (p, _resourceType, region) => p.getNatGatewayPrice(region),
+    ],
+    [
+      ["k8s", "kubernetes", "eks", "aks", "gke"],
+      (p, _resourceType, region, attributes) => p.getKubernetesPrice(region, attributes.mode),
+    ],
+  ];
+  const map = new Map<string, ServicePriceLookup>();
+  for (const [aliases, lookup] of groups) {
+    for (const alias of aliases) map.set(alias, lookup);
+  }
+  return map;
+})();
+
 export class PricingEngine {
   private providers: Map<CloudProvider, PricingProvider> = new Map();
   private readonly config: CloudCostConfig;
@@ -354,57 +403,9 @@ export class PricingEngine {
       region,
     });
 
-    if (
-      svc === "compute" ||
-      svc === "ec2" ||
-      svc === "vm" ||
-      svc === "instance" ||
-      svc === "virtual-machines"
-    ) {
-      return p.getComputePrice(resourceType, region, attributes.os);
-    }
-
-    if (
-      svc === "database" ||
-      svc === "rds" ||
-      svc === "sql" ||
-      svc === "db" ||
-      svc === "cloud-sql" ||
-      svc === "azure-database"
-    ) {
-      return p.getDatabasePrice(resourceType, region, attributes.engine);
-    }
-
-    if (
-      svc === "storage" ||
-      svc === "ebs" ||
-      svc === "disk" ||
-      svc === "gcs" ||
-      svc === "managed-disks" ||
-      svc === "persistent-disk" ||
-      svc === "cloud-storage"
-    ) {
-      const sizeGb = attributes.size_gb ? parseFloat(attributes.size_gb) : undefined;
-      return p.getStoragePrice(resourceType, region, sizeGb);
-    }
-
-    if (
-      svc === "lb" ||
-      svc === "load-balancer" ||
-      svc === "alb" ||
-      svc === "nlb" ||
-      svc === "elb" ||
-      svc === "cloud-load-balancing"
-    ) {
-      return p.getLoadBalancerPrice(resourceType, region);
-    }
-
-    if (svc === "nat" || svc === "nat-gateway" || svc === "cloud-nat") {
-      return p.getNatGatewayPrice(region);
-    }
-
-    if (svc === "k8s" || svc === "kubernetes" || svc === "eks" || svc === "aks" || svc === "gke") {
-      return p.getKubernetesPrice(region, attributes.mode);
+    const lookup = SERVICE_ALIAS_LOOKUPS.get(svc);
+    if (lookup) {
+      return lookup(p, resourceType, region, attributes);
     }
 
     logger.warn("PricingEngine: unrecognised service", { service, provider });
