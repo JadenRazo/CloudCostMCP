@@ -1,6 +1,7 @@
 import type { ParsedResource, ResourceAttributes, CloudProvider } from "../types/index.js";
 import { detectProvider } from "./provider-detector.js";
 import { substituteVariables } from "./variable-resolver.js";
+import { coerceToString } from "./extractors/helpers.js";
 import { logger } from "../logger.js";
 import { str, num } from "./extractors/helpers.js";
 import type { AttributeExtractor } from "./extractors/helpers.js";
@@ -119,7 +120,7 @@ function extractTags(block: Record<string, unknown>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [k, v] of Object.entries(tags as Record<string, unknown>)) {
     if (typeof v === "string") result[k] = v;
-    else if (v !== null && v !== undefined) result[k] = String(v);
+    else if (v !== null && v !== undefined) result[k] = coerceToString(v);
   }
   return result;
 }
@@ -152,7 +153,7 @@ function resolveCount(rawCount: unknown, resourceId: string, warnings: string[])
  */
 function resolveForEachKeys(rawForEach: unknown, resourceId: string, warnings: string[]): string[] {
   if (rawForEach && typeof rawForEach === "object" && !Array.isArray(rawForEach)) {
-    const keys = Object.keys(rawForEach as Record<string, unknown>);
+    const keys = Object.keys(rawForEach);
     if (keys.length > 0) return keys;
   }
 

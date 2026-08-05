@@ -427,7 +427,7 @@ export class CloudBillingClient {
         throw new Error(`GCP Billing API HTTP ${res.status} for service ${serviceId}`);
       }
 
-      const body: SkuListResponse = await res.json();
+      const body = (await res.json()) as SkuListResponse;
       const skus: GcpSku[] = body.skus ?? [];
 
       // Only keep SKUs that cover the target region
@@ -499,7 +499,7 @@ export class CloudBillingClient {
 
     // Sort by SKU ID for determinism, pick the first
     candidates.sort((a, b) => a.skuId.localeCompare(b.skuId));
-    const sku = candidates[0]!;
+    const sku = candidates[0];
 
     const price = extractUnitPrice(sku);
     if (price === null) return null;
@@ -553,7 +553,7 @@ export class CloudBillingClient {
     if (candidates.length === 0) return null;
 
     candidates.sort((a, b) => a.skuId.localeCompare(b.skuId));
-    const sku = candidates[0]!;
+    const sku = candidates[0];
 
     const price = extractUnitPrice(sku);
     if (price === null) return null;
@@ -611,7 +611,7 @@ export class CloudBillingClient {
     if (candidates.length === 0) return null;
 
     candidates.sort((a, b) => a.skuId.localeCompare(b.skuId));
-    const sku = candidates[0]!;
+    const sku = candidates[0];
 
     const price = extractUnitPrice(sku);
     if (price === null) return null;
@@ -665,7 +665,7 @@ export class CloudBillingClient {
     if (candidates.length === 0) return null;
 
     candidates.sort((a, b) => a.skuId.localeCompare(b.skuId));
-    const sku = candidates[0]!;
+    const sku = candidates[0];
 
     const price = extractUnitPrice(sku);
     if (price === null) return null;

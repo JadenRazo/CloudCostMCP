@@ -50,9 +50,9 @@ export function calculateElastiCacheCost(
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const nodeType = (resource.attributes.instance_type as string | undefined) ?? "cache.t3.micro";
-  const numNodes = (resource.attributes.node_count as number | undefined) ?? 1;
-  const engine = (resource.attributes.engine as string | undefined) ?? "redis";
+  const nodeType = resource.attributes.instance_type ?? "cache.t3.micro";
+  const numNodes = resource.attributes.node_count ?? 1;
+  const engine = resource.attributes.engine ?? "redis";
 
   const basePrice = ELASTICACHE_NODE_PRICES[nodeType.toLowerCase()];
   let totalMonthly = 0;
@@ -133,7 +133,7 @@ export function calculateAzureRedisCacheCost(
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const sku = ((resource.attributes.sku as string | undefined) ?? "Standard").toLowerCase();
+  const sku = (resource.attributes.sku ?? "Standard").toLowerCase();
   const family = ((resource.attributes.family as string | undefined) ?? "C").toLowerCase();
   const capacity = (resource.attributes.capacity as number | undefined) ?? 1;
 
@@ -200,11 +200,11 @@ export function calculateGcpRedisCost(
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const tier = ((resource.attributes.tier as string | undefined) ?? "BASIC").toLowerCase();
+  const tier = (resource.attributes.tier ?? "BASIC").toLowerCase();
   const memorySizeGb = (resource.attributes.memory_size as number | undefined) ?? 1;
 
   const normalizedTier = tier === "standard_ha" || tier === "standard" ? "standard_ha" : "basic";
-  const pricePerGbHour = GCP_REDIS_PRICES[normalizedTier]!;
+  const pricePerGbHour = GCP_REDIS_PRICES[normalizedTier];
 
   const totalMonthly = pricePerGbHour * memorySizeGb * MONTHLY_HOURS;
 

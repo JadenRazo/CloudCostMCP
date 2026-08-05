@@ -18,12 +18,12 @@ export class ArmParser implements IaCParser {
     });
   }
 
-  async parse(files: FileInput[], options?: ParseOptions): Promise<ResourceInventory> {
+  parse(files: FileInput[], options?: ParseOptions): Promise<ResourceInventory> {
     const warnings: string[] = [];
 
     const file = files.find((f) => f.path.endsWith(".json"));
     if (!file) {
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     let template: ArmTemplate;
@@ -33,12 +33,12 @@ export class ArmParser implements IaCParser {
       const msg = err instanceof Error ? err.message : String(err);
       warnings.push(`Failed to parse ARM template ${file.path}: ${msg}`);
       logger.warn("ARM template parse error", { path: file.path, error: msg });
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     if (!template || typeof template !== "object" || !Array.isArray(template.resources)) {
       warnings.push(`Invalid ARM template: missing resources array in ${file.path}`);
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     // Resolve parameters: defaults first, then overrides
@@ -82,7 +82,7 @@ export class ArmParser implements IaCParser {
       warningCount: warnings.length,
     });
 
-    return inventory;
+    return Promise.resolve(inventory);
   }
 }
 

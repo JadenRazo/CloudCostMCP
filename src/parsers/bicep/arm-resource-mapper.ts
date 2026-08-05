@@ -87,7 +87,7 @@ function extractAttributes(
     }
 
     case "microsoft.compute/disks": {
-      const diskProps = props as Record<string, unknown>;
+      const diskProps = props;
       return {
         sku: resource.sku?.name,
         storage_size_gb: asNumber(diskProps.diskSizeGB),
@@ -158,7 +158,7 @@ function extractAttributes(
       };
 
     case "microsoft.documentdb/databaseaccounts": {
-      const dbProps = props as Record<string, unknown>;
+      const dbProps = props;
       return {
         kind: resource.kind,
         database_account_offer_type:

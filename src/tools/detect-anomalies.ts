@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CloudProvider } from "../types/resources.js";
 import type { CloudCostConfig } from "../types/config.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
 import type { PricingCache } from "../pricing/cache.js";
@@ -141,7 +140,7 @@ export async function detectAnomalies(
 ): Promise<AnomalyResult> {
   const inventory = await parseTerraform(params.files, params.tfvars);
 
-  const targetProvider = params.provider as CloudProvider;
+  const targetProvider = params.provider;
   const targetRegion =
     params.region ?? mapRegion(inventory.region, inventory.provider, targetProvider);
 

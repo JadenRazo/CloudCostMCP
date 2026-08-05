@@ -100,8 +100,7 @@ export async function whatIf(
 ): Promise<WhatIfResult> {
   const inventory = await parseTerraform(params.files, params.tfvars);
 
-  const targetProvider: CloudProvider =
-    (params.provider as CloudProvider | undefined) ?? inventory.provider;
+  const targetProvider: CloudProvider = params.provider ?? inventory.provider;
 
   const targetRegion =
     params.region ?? mapRegion(inventory.region, inventory.provider, targetProvider);

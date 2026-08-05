@@ -5,7 +5,7 @@ import type {
   CloudProvider,
 } from "../../types/resources.js";
 import type { TerraformState } from "./state-types.js";
-import { str, num, bool } from "../extractors/helpers.js";
+import { str, num, bool, coerceToString } from "../extractors/helpers.js";
 import { logger } from "../../logger.js";
 import { safeJsonParse } from "../safe-json.js";
 import { sanitizeForMessage } from "../../util/sanitize.js";
@@ -156,7 +156,7 @@ function extractTags(attrs: Record<string, unknown>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [k, v] of Object.entries(tags as Record<string, unknown>)) {
     if (typeof v === "string") result[k] = v;
-    else if (v !== null && v !== undefined) result[k] = String(v);
+    else if (v !== null && v !== undefined) result[k] = coerceToString(v);
   }
   return result;
 }

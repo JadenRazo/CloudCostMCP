@@ -143,7 +143,7 @@ export function calculateMessagingCost(
       );
     }
   } else if (targetProvider === "azure") {
-    const tier = ((resource.attributes.sku as string | undefined) ?? "basic").toLowerCase();
+    const tier = (resource.attributes.sku ?? "basic").toLowerCase();
 
     if (tier === "standard" || tier === "premium") {
       // Standard tier
@@ -250,12 +250,11 @@ export function calculateMqBrokerCost(
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const instanceType = (resource.attributes.instance_type as string | undefined) ?? "mq.m5.large";
+  const instanceType = resource.attributes.instance_type ?? "mq.m5.large";
   const engine = (resource.attributes.engine_type as string | undefined) ?? "ActiveMQ";
   const deploymentMode =
     (resource.attributes.deployment_mode as string | undefined) ?? "SINGLE_INSTANCE";
-  const storageGb =
-    (resource.attributes.storage_size_gb as number | undefined) ?? AWS_MQ_DEFAULT_STORAGE_GB;
+  const storageGb = resource.attributes.storage_size_gb ?? AWS_MQ_DEFAULT_STORAGE_GB;
 
   const instanceMultiplier = deploymentMode === "ACTIVE_STANDBY_MULTI_AZ" ? 2 : 1;
 
@@ -323,10 +322,10 @@ export function calculateEventHubCost(
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const sku = ((resource.attributes.sku as string | undefined) ?? "Standard").toLowerCase();
+  const sku = (resource.attributes.sku ?? "Standard").toLowerCase();
   const capacity = (resource.attributes.capacity as number | undefined) ?? 1;
 
-  const hourlyPrice = AZURE_EVENTHUB_TIER_PRICES[sku] ?? AZURE_EVENTHUB_TIER_PRICES["standard"]!;
+  const hourlyPrice = AZURE_EVENTHUB_TIER_PRICES[sku] ?? AZURE_EVENTHUB_TIER_PRICES["standard"];
   const unitLabel = sku === "premium" ? "PU" : "TU";
 
   const totalMonthly = hourlyPrice * capacity * MONTHLY_HOURS;

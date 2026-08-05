@@ -253,13 +253,13 @@ function derivePricingQuantity(resource: ParsedResource): number {
 
 function billingPeriodStart(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]!;
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
 }
 
 function billingPeriodEnd(): string {
   const now = new Date();
   // First day of next month = last day of this month + 1.
-  return new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0]!;
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0];
 }
 
 // ---------------------------------------------------------------------------

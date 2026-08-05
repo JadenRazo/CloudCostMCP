@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CloudProvider } from "../types/resources.js";
 import type { CloudCostConfig } from "../types/config.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { parseTerraform } from "../parsers/index.js";
@@ -41,7 +40,7 @@ export async function estimateCost(
 ): Promise<object> {
   const inventory = await parseTerraform(params.files, params.tfvars);
 
-  const targetProvider = params.provider as CloudProvider;
+  const targetProvider = params.provider;
 
   // Resolve the target region: use the explicit override if supplied,
   // otherwise map the source region to the nearest equivalent on the target
@@ -103,5 +102,5 @@ export async function estimateCost(
     by_resource: byResource,
     warnings: allWarnings,
     pricing_metadata: getPricingMetadata(targetProvider),
-  } as unknown as object;
+  };
 }

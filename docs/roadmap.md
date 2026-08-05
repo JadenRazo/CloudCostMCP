@@ -1,12 +1,12 @@
 # Roadmap
 
-Tracks planned work beyond v1.0.x. Grouped by "in flight" (v1.1), "backlog" (not yet scheduled), and "not planned" (explicitly rejected, included so users don't have to ask).
+Tracks planned work beyond v1.0.x. Grouped by "in flight" (v1.2), "backlog" (not yet scheduled), and "not planned" (explicitly rejected, included so users don't have to ask).
 
 Each in-flight item links back to the tracking issue when one exists. This file is the canonical source; the `CHANGELOG.md` records what actually shipped.
 
 ---
 
-## Shipped in v1.1
+## Shipped in v1.1.0
 
 ### Wave 5.0 — Stabilize WIP
 
@@ -22,7 +22,7 @@ Shipped as the 12th MCP tool: `check_cost_budget`. Returns `{ verdict: "allow" |
 
 **Non-goals (intentional):** policy-as-code DSL, persistent policy storage, CI integration (use Infracost for that).
 
-## In flight — v1.1.0
+## In flight — v1.2
 
 ### Wave 5.2 — Real billing-data reconciliation (FOCUS input)
 
@@ -52,7 +52,7 @@ Runs alongside 5.2 / 5.3. README repositioning ("the first agent-native multi-Ia
 
 ## Backlog
 
-Items the project wants, in rough priority order, but that are not scheduled into v1.1.
+Items the project wants, in rough priority order, but that are not scheduled into v1.2.
 
 - **AWS Savings Plans support in `optimize_cost`.** AWS Compute Savings Plans can save 17–30% over on-demand, often more than RIs. Not trivial — requires modelling commitment terms, upfront/partial/no-upfront options, and plan-vs-RI comparison logic. Tracked separately because it's a multi-week data-model change, not a single-wave feature.
 - **Carbon-intensity overlay.** "Deploying in `eu-west-1` vs `us-east-1` saves N kg CO2/yr at cost difference of $M." Needs a new external data dependency (Electricity Maps / WattTime). Revisit for v1.2 when regulatory pressure (EU AI Act enforcement) forces the requirement.

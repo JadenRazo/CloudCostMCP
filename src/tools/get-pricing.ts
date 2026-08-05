@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CloudProvider } from "../types/resources.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { getFallbackMetadata } from "../data/loader.js";
 
@@ -46,7 +45,7 @@ export async function getPricing(
   params: z.infer<typeof getPricingSchema>,
   pricingEngine: PricingEngine,
 ): Promise<object> {
-  const provider = params.provider as CloudProvider;
+  const provider = params.provider;
 
   // Map the user-facing service enum to an internal service identifier that
   // PricingEngine.getPrice() recognises.

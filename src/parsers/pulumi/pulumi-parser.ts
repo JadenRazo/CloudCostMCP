@@ -20,7 +20,7 @@ export class PulumiParser implements IaCParser {
     });
   }
 
-  async parse(files: FileInput[], _options?: ParseOptions): Promise<ResourceInventory> {
+  parse(files: FileInput[], _options?: ParseOptions): Promise<ResourceInventory> {
     const warnings: string[] = [];
 
     // Find the first file that looks like a Pulumi stack export
@@ -35,7 +35,7 @@ export class PulumiParser implements IaCParser {
     });
 
     if (!file) {
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     let stackExport: PulumiStackExport;
@@ -45,12 +45,12 @@ export class PulumiParser implements IaCParser {
       const msg = err instanceof Error ? err.message : String(err);
       warnings.push(`Failed to parse Pulumi stack export ${file.path}: ${msg}`);
       logger.warn("Pulumi parse error", { path: file.path, error: msg });
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     if (!stackExport?.deployment?.resources || !Array.isArray(stackExport.deployment.resources)) {
       warnings.push(`Invalid Pulumi stack export: missing deployment.resources in ${file.path}`);
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     // Map resources, skipping Pulumi internal types (pulumi:pulumi:Stack, pulumi:providers:*)
@@ -94,7 +94,7 @@ export class PulumiParser implements IaCParser {
       warningCount: warnings.length,
     });
 
-    return inventory;
+    return Promise.resolve(inventory);
   }
 }
 

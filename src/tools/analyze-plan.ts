@@ -81,8 +81,7 @@ export async function analyzePlan(
 ): Promise<AnalyzePlanResult> {
   const analysis = parseTerraformPlan(params.plan_json);
 
-  const targetProvider: CloudProvider =
-    (params.provider as CloudProvider | undefined) ?? analysis.after.provider;
+  const targetProvider: CloudProvider = params.provider ?? analysis.after.provider;
 
   const targetRegion =
     params.region ?? mapRegion(analysis.after.region, analysis.after.provider, targetProvider);

@@ -63,15 +63,14 @@ export function calculateSearchCost(
   const notes: string[] = [];
   const breakdown: CostLineItem[] = [];
 
-  const instanceType =
-    (resource.attributes.instance_type as string | undefined) ?? DEFAULT_INSTANCE_TYPE;
+  const instanceType = resource.attributes.instance_type ?? DEFAULT_INSTANCE_TYPE;
   const instanceCount =
     (resource.attributes.instance_count as number | undefined) ?? DEFAULT_INSTANCE_COUNT;
   const volumeSizeGb =
     (resource.attributes.volume_size as number | undefined) ??
-    (resource.attributes.storage_size_gb as number | undefined) ??
+    resource.attributes.storage_size_gb ??
     DEFAULT_VOLUME_SIZE_GB;
-  const engineVersion = resource.attributes.engine_version as string | undefined;
+  const engineVersion = resource.attributes.engine_version;
 
   let totalMonthly = 0;
 

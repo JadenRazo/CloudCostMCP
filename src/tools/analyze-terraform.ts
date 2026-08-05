@@ -51,7 +51,7 @@ export async function analyzeTerraform(
     if (
       trimmed.tags &&
       typeof trimmed.tags === "object" &&
-      Object.keys(trimmed.tags as object).length === 0
+      Object.keys(trimmed.tags).length === 0
     ) {
       delete trimmed.tags;
     }
@@ -100,5 +100,5 @@ export async function analyzeTerraform(
     response["mermaid_diagram"] = generateMermaidDiagram(graph);
   }
 
-  return response as unknown as object;
+  return response;
 }

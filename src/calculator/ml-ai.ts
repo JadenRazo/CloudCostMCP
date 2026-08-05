@@ -98,7 +98,7 @@ export function calculateMlAiCost(
   let totalMonthly = 0;
 
   if (targetProvider === "aws") {
-    const instanceType = (resource.attributes.instance_type as string | undefined) ?? "ml.m5.large";
+    const instanceType = resource.attributes.instance_type ?? "ml.m5.large";
     const instanceCount = (resource.attributes.instance_count as number | undefined) ?? 1;
 
     const hourlyPrice = SAGEMAKER_INSTANCE_PRICES[instanceType.toLowerCase()];
@@ -126,7 +126,7 @@ export function calculateMlAiCost(
       "ML/AI endpoint pricing is highly variable — actual costs depend on auto-scaling and traffic patterns",
     );
   } else if (targetProvider === "gcp") {
-    const machineType = (resource.attributes.machine_type as string | undefined) ?? "n1-standard-4";
+    const machineType = resource.attributes.machine_type ?? "n1-standard-4";
     const instanceCount = (resource.attributes.instance_count as number | undefined) ?? 1;
 
     const hourlyPrice = VERTEX_AI_MACHINE_PRICES[machineType.toLowerCase()];

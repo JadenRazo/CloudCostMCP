@@ -97,8 +97,7 @@ export async function compareActual(
   const stateInventory = parseTerraformState(params.state_json);
   warnings.push(...stateInventory.parse_warnings);
 
-  const targetProvider: CloudProvider =
-    (params.provider as CloudProvider | undefined) ?? stateInventory.provider;
+  const targetProvider: CloudProvider = params.provider ?? stateInventory.provider;
 
   const targetRegion = params.region ?? stateInventory.region;
 
@@ -143,8 +142,7 @@ export async function compareActual(
     const plannedInventory = await parseTerraform(params.files, params.tfvars);
     warnings.push(...plannedInventory.parse_warnings);
 
-    const plannedProvider: CloudProvider =
-      (params.provider as CloudProvider | undefined) ?? plannedInventory.provider;
+    const plannedProvider: CloudProvider = params.provider ?? plannedInventory.provider;
 
     const plannedRegion =
       params.region ??

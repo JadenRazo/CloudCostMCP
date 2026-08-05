@@ -41,11 +41,10 @@ export function calculateContainerRegistryCost(
   const breakdown: CostLineItem[] = [];
 
   const storageGb =
-    (resource.attributes.storage_gb as number | undefined) ??
-    (resource.attributes.storage_size_gb as number | undefined);
+    (resource.attributes.storage_gb as number | undefined) ?? resource.attributes.storage_size_gb;
 
   const hasExplicitStorage = storageGb !== undefined && storageGb > 0;
-  const resolvedStorageGb = hasExplicitStorage ? storageGb! : DEFAULT_STORAGE_GB;
+  const resolvedStorageGb = hasExplicitStorage ? storageGb : DEFAULT_STORAGE_GB;
 
   if (!hasExplicitStorage) {
     notes.push(
@@ -60,7 +59,7 @@ export function calculateContainerRegistryCost(
     pricePerGb = AWS_ECR_STORAGE_PRICE_PER_GB;
     tierLabel = "ECR";
   } else if (targetProvider === "azure") {
-    const rawSku = (resource.attributes.sku as string | undefined) ?? "Basic";
+    const rawSku = resource.attributes.sku ?? "Basic";
     const sku = rawSku.toLowerCase();
     pricePerGb = AZURE_ACR_STORAGE_PRICE[sku] ?? AZURE_ACR_STORAGE_PRICE["basic"];
     tierLabel = `ACR ${rawSku}`;

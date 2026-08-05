@@ -1,5 +1,5 @@
 import type { ParsedResource } from "../../types/resources.js";
-import { num as asNumber } from "../extractors/helpers.js";
+import { num as asNumber, coerceToString } from "../extractors/helpers.js";
 import type { CfnResource } from "./cfn-types.js";
 
 /** Map from CloudFormation resource type to internal Terraform-style type. */
@@ -143,7 +143,8 @@ function extractTags(props: Record<string, unknown>): Record<string, string> {
   if (Array.isArray(rawTags)) {
     for (const tag of rawTags) {
       if (tag && typeof tag === "object" && "Key" in tag && "Value" in tag) {
-        tags[String(tag.Key)] = String(tag.Value);
+        const { Key, Value } = tag as { Key: unknown; Value: unknown };
+        tags[coerceToString(Key)] = coerceToString(Value);
       }
     }
   }

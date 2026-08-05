@@ -36,16 +36,14 @@ export const getEquivalentsSchema = z.object({
  * Return the cross-provider resource type equivalents for a given Terraform
  * resource type. Optionally also maps an instance type when provided.
  */
-export async function getEquivalents(
-  params: z.infer<typeof getEquivalentsSchema>,
-): Promise<object> {
-  const sourceProvider = params.source_provider as CloudProvider;
+export function getEquivalents(params: z.infer<typeof getEquivalentsSchema>): object {
+  const sourceProvider = params.source_provider;
 
   // Resource-type equivalents
   let resourceEquivalents: Partial<Record<string, string | null>>;
 
   if (params.target_provider) {
-    const targetProvider = params.target_provider as CloudProvider;
+    const targetProvider = params.target_provider;
     const equivalent = findEquivalent(params.resource_type, sourceProvider, targetProvider);
     resourceEquivalents = { [targetProvider]: equivalent };
   } else {
@@ -58,7 +56,7 @@ export async function getEquivalents(
   if (params.instance_type) {
     const providers: CloudProvider[] = ["aws", "azure", "gcp"];
     const targets = params.target_provider
-      ? [params.target_provider as CloudProvider]
+      ? [params.target_provider]
       : providers.filter((p) => p !== sourceProvider);
 
     instanceEquivalents = {};

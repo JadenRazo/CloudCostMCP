@@ -71,7 +71,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   let i = 0;
   while (i < args.length) {
-    const arg = args[i]!;
+    const arg = args[i];
 
     if (arg === "--help" || arg === "-h") {
       parsed.help = true;
@@ -84,9 +84,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
     } else if (arg === "--format" && args[i + 1]) {
       parsed.format = args[++i]!;
     } else if (arg === "--providers" && args[i + 1]) {
-      parsed.providers = args[++i]!.split(",").map((p) => p.trim());
+      parsed.providers = args[++i].split(",").map((p) => p.trim());
     } else if (arg === "--currency" && args[i + 1]) {
-      parsed.currency = args[++i]!.toUpperCase();
+      parsed.currency = args[++i].toUpperCase();
     } else if (arg === "--changes" && args[i + 1]) {
       parsed.changes = args[++i]!;
     } else if (!arg.startsWith("--")) {
@@ -376,7 +376,7 @@ async function runWhatIf(
   } else if (
     parsedChanges !== null &&
     typeof parsedChanges === "object" &&
-    "changes" in (parsedChanges as object) &&
+    "changes" in parsedChanges &&
     Array.isArray((parsedChanges as Record<string, unknown>)["changes"])
   ) {
     changesArray = (parsedChanges as Record<string, unknown>)["changes"];
@@ -400,9 +400,9 @@ async function runWhatIf(
       throw new Error(`Change at index ${index} "new_value" must be a string or number`);
     }
     return {
-      resource_id: c["resource_id"] as string,
-      attribute: c["attribute"] as string,
-      new_value: c["new_value"] as string | number,
+      resource_id: c["resource_id"],
+      attribute: c["attribute"],
+      new_value: c["new_value"],
     };
   });
 

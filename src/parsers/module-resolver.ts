@@ -79,7 +79,7 @@ export function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, 
     for (const [key, value] of Object.entries(json)) {
       if (FORBIDDEN_MERGE_KEYS.has(key)) continue;
       if (!(key in merged)) {
-        merged[key] = JSON.parse(JSON.stringify(value));
+        merged[key] = JSON.parse(JSON.stringify(value)) as unknown;
         continue;
       }
 
@@ -97,7 +97,7 @@ export function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, 
           value as Record<string, unknown>,
         );
       } else if (Array.isArray(existing) && Array.isArray(value)) {
-        merged[key] = [...existing, ...value];
+        merged[key] = [...(existing as unknown[]), ...(value as unknown[])];
       } else {
         merged[key] = JSON.parse(JSON.stringify(value));
       }
@@ -129,9 +129,9 @@ function mergeObjects(
     ) {
       result[key] = mergeObjects(aVal as Record<string, unknown>, bVal as Record<string, unknown>);
     } else if (Array.isArray(aVal) && Array.isArray(bVal)) {
-      result[key] = [...aVal, ...bVal];
+      result[key] = [...(aVal as unknown[]), ...(bVal as unknown[])];
     } else {
-      result[key] = JSON.parse(JSON.stringify(bVal));
+      result[key] = JSON.parse(JSON.stringify(bVal)) as unknown;
     }
   }
   return result;
@@ -146,7 +146,7 @@ function getSourceAttr(moduleDeclaration: unknown): string | undefined {
   if (!Array.isArray(moduleDeclaration) || moduleDeclaration.length === 0) {
     return undefined;
   }
-  const block = moduleDeclaration[0];
+  const block: unknown = moduleDeclaration[0];
   if (!block || typeof block !== "object") return undefined;
   const source = (block as Record<string, unknown>)["source"];
   return typeof source === "string" ? source : undefined;
@@ -160,7 +160,7 @@ function extractModuleInputs(moduleDeclaration: unknown): Record<string, unknown
   if (!Array.isArray(moduleDeclaration) || moduleDeclaration.length === 0) {
     return {};
   }
-  const block = moduleDeclaration[0];
+  const block: unknown = moduleDeclaration[0];
   if (!block || typeof block !== "object") return {};
 
   const inputs: Record<string, unknown> = {};

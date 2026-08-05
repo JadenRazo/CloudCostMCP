@@ -77,7 +77,7 @@ export function interpolateByVcpuRatio(
   }
 
   if (bestKey === undefined || bestNum === 0) return undefined;
-  return table[bestKey]! * (targetNum / bestNum);
+  return table[bestKey] * (targetNum / bestNum);
 }
 
 /**
@@ -137,7 +137,7 @@ export function interpolateByStepOrder(
 
   if (bestKey === undefined || bestIdx === -1) return undefined;
 
-  const knownPrice = table[bestKey]!;
+  const knownPrice = table[bestKey];
   const steps = targetIdx - bestIdx;
   // Each step doubles (positive = bigger instance, negative = smaller)
   return knownPrice * Math.pow(2, steps);

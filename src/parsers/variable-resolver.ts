@@ -1,4 +1,5 @@
 import { logger } from "../logger.js";
+import { coerceToString } from "./extractors/helpers.js";
 
 /**
  * Collect variable defaults from parsed HCL JSON and merge in any overrides
@@ -150,7 +151,8 @@ function substituteInString(str: string, variables: Record<string, unknown>): un
   return str.replace(VAR_INLINE_RE, (_match, varName: string) => {
     if (varName in variables) {
       const v = variables[varName];
-      return v === null ? "" : String(v);
+      if (v === null || v === undefined) return "";
+      return coerceToString(v);
     }
     return _match;
   });
