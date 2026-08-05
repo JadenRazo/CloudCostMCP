@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-05
+
 ### Added
 
 - **`check_cost_budget` MCP tool**: agent-ready cost guardrail that returns `allow` / `warn` / `block` with `blocking_resources` populated. Designed to be called by an AI agent between generating IaC and writing it to disk, so a model can't silently commit a runaway configuration. Promotes the budget primitives that previously only lived inside `detect_anomalies`. See [docs/guardrails.md](./docs/guardrails.md) for integration patterns.
@@ -18,14 +20,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
-- Coverage thresholds in `vitest.config.ts` raised to 75 / 75 / 80 / 75 (statements / branches / functions / lines) to reflect the current `main` level.
+- MCP tools migrated from the deprecated `server.tool()` to `server.registerTool()`. Every tool now advertises `annotations.readOnlyHint: true`, and handler failures return a JSON `{error}` text payload with `isError: true` instead of a protocol-level failure. `check_cost_budget`'s structured error results (`provider_unresolved`, `non_finite_total`) also set `isError`. Result payloads remain JSON text in `content[0].text` — no client-facing format change.
+- Graceful shutdown: SIGINT/SIGTERM now close the MCP server connection and the SQLite pricing cache before exit; `unhandledRejection` logs, closes, and exits instead of hard-exiting.
+- Per-resource `monthly_cost` / `yearly_cost` on every `CostEstimate` are now consistently rounded to cents via the new shared estimate factory (previously only data-transfer estimates were rounded; totals were already rounded).
+- Data-transfer (egress) estimates now read regional multipliers from the shared `data/region-price-multipliers.json` instead of drifted per-provider in-file tables; estimates in non-baseline regions shift slightly.
+- Azure and GCP pricing normalizers validate/canonicalize upstream effective dates the same way AWS does (invalid dates fall back to "now"; valid ones normalize to ISO `.000Z` form).
+- Coverage thresholds in `vitest.config.ts` set to 75 / 71 / 80 / 75 (statements / branches / functions / lines) and now enforced in CI: the test job runs `npm run test:coverage`, so a regression below the floor fails the build. 71 is the measured branch-coverage floor at gate-enable time; the other thresholds were already met.
+- Lint upgraded to typescript-eslint `recommendedTypeChecked` for `src/` with `@typescript-eslint/no-explicit-any` promoted to error; the publish workflow now runs `npm run lint` before publishing and attaches a CycloneDX SBOM (`sbom.cdx.json`) to each GitHub release.
 - README: corrected the Limitations bullet that implied AWS Savings Plans were supported via `optimize_cost`. Savings Plans are not yet supported and are tracked in [docs/roadmap.md](./docs/roadmap.md).
 
 ### Tests
 
 - `src/reporting/csv-escape.ts` extracted out of `csv-report` and `focus-report`; dedicated `csv-escape.test.ts` covers the formula-injection defense surface.
 - `test/helpers/factories.ts` + `setup.ts` centralise test fixture construction; `test/integration/full-stack.test.ts` replaces the older end-to-end test with wider tool coverage.
-- New unit tests: `api-gateway`, `messaging`, `ml-ai`, `search`, `waf`, `csv-parser`, `resource-extractor`, `markdown-report`, `check-cost-budget`. Total passing tests: 1507 (+15).
+- New unit tests: `api-gateway`, `messaging`, `ml-ai`, `search`, `waf`, `csv-parser`, `resource-extractor`, `markdown-report`, `check-cost-budget`.
+- New `register-tools` suite locks the MCP surface: all 12 tools register, names match VERSIONING.md's locked table, every tool carries `readOnlyHint`, and the error envelope (`isError` + JSON `{error}`) is exercised end-to-end over an in-memory transport.
 
 ## [1.0.1] - 2026-04-18
 
