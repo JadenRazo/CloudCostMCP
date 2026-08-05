@@ -5,14 +5,9 @@ import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
-import { SUPPORTED_CURRENCIES, convertBreakdownCurrency } from "../currency.js";
-import {
-  filePathSchema,
-  fileContentSchema,
-  tfvarsSchema,
-  shortStringSchema,
-  assertTotalFileBytesWithin,
-} from "../schemas/bounded.js";
+import { convertBreakdownCurrency } from "../currency.js";
+import { shortStringSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 import { sanitizeForMessage } from "../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
@@ -20,19 +15,11 @@ import { sanitizeForMessage } from "../util/sanitize.js";
 // ---------------------------------------------------------------------------
 
 export const checkCostBudgetSchema = z.object({
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries")
-    .superRefine(assertTotalFileBytesWithin)
-    .describe("IaC files to evaluate (Terraform, CloudFormation, Pulumi, or Bicep/ARM)"),
-  tfvars: tfvarsSchema.optional().describe("Variable overrides for Terraform"),
-  provider: z
-    .enum(["aws", "azure", "gcp"])
+  files: iacFilesSchema.describe(
+    "IaC files to evaluate (Terraform, CloudFormation, Pulumi, or Bicep/ARM)",
+  ),
+  tfvars: tfvarsField,
+  provider: providerEnum
     .optional()
     .describe(
       "Target cloud provider. Defaults to the provider detected in the files; if no provider can be detected and none is passed, the call returns a structured error rather than silently picking AWS.",
@@ -40,11 +27,9 @@ export const checkCostBudgetSchema = z.object({
   region: shortStringSchema
     .optional()
     .describe("Target region. Defaults to the region detected in the files."),
-  currency: z
-    .enum(SUPPORTED_CURRENCIES)
-    .optional()
-    .default("USD")
-    .describe("Currency for the threshold comparisons and output. Defaults to USD."),
+  currency: currencyField.describe(
+    "Currency for the threshold comparisons and output. Defaults to USD.",
+  ),
   max_monthly: z
     .number()
     .positive()

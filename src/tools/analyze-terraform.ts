@@ -1,23 +1,15 @@
 import { z } from "zod";
 import { parseTerraform, parseHclToJson } from "../parsers/index.js";
 import { buildDependencyGraph, generateMermaidDiagram } from "../parsers/dependency-graph.js";
-import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, tfvarsField } from "../schemas/fragments.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const analyzeTerraformSchema = z.object({
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content (HCL)"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries")
-    .describe("Terraform files to analyze"),
-  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
+  files: iacFilesSchema.describe("Terraform files to analyze"),
+  tfvars: tfvarsField,
   include_dependencies: z
     .boolean()
     .optional()
