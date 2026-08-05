@@ -11,6 +11,7 @@ import { generateJsonReport } from "../reporting/json-report.js";
 import { generateCsvReport } from "../reporting/csv-report.js";
 import { convertBreakdownCurrency, convertCurrency } from "../currency.js";
 import { generateFocusReport } from "../reporting/focus-report.js";
+import { getPricingMetadata } from "../data/loader.js";
 import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 
 // ---------------------------------------------------------------------------
@@ -123,6 +124,9 @@ export async function compareProviders(
 
   const dedupedWarnings = [...new Set([...parseWarnings, ...allWarnings])];
 
+  // Freshness of the bundled pricing data backing each compared provider.
+  const pricingMetadata = Object.fromEntries(providerList.map((p) => [p, getPricingMetadata(p)]));
+
   if (params.format === "json") {
     // The JSON report already contains the full structured data; returning
     // the raw comparison object on top would double the payload.
@@ -130,6 +134,7 @@ export async function compareProviders(
       report,
       format: params.format,
       warnings: dedupedWarnings,
+      pricing_metadata: pricingMetadata,
     };
   }
 
@@ -151,5 +156,6 @@ export async function compareProviders(
     format: params.format,
     comparison: comparisonSummary,
     warnings: dedupedWarnings,
+    pricing_metadata: pricingMetadata,
   };
 }

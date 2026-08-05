@@ -153,7 +153,7 @@ describe("AzureRetailClient.getSpotPrice", () => {
     expect(result!.price_per_unit).toBeCloseTo(0.0192, 4);
     expect(result!.attributes.pricing_source).toBe("live");
     expect(result!.attributes.purchase_option).toBe("spot");
-    expect(result!.effective_date).toBe("2026-01-01T00:00:00Z");
+    expect(result!.effective_date).toBe("2026-01-01T00:00:00.000Z");
   });
 
   it("filters out Windows spot rows when OS is linux", async () => {

@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { type CloudCostConfig, DEFAULT_CONFIG } from "./types/config.js";
+import { logger } from "./logger.js";
 
 function getConfigDir(): string {
   return join(homedir(), ".cloudcost");
@@ -12,7 +13,13 @@ function loadFileConfig(): Partial<CloudCostConfig> {
   if (!existsSync(configPath)) return {};
   try {
     return JSON.parse(readFileSync(configPath, "utf-8"));
-  } catch {
+  } catch (err) {
+    // A malformed config file silently falling back to defaults is a
+    // debugging trap — say so loudly (stderr; stdout carries JSON-RPC).
+    logger.warn("Ignoring malformed config file; using defaults", {
+      path: configPath,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return {};
   }
 }

@@ -1,4 +1,5 @@
 import type { CloudProvider, ParsedResource } from "../../types/resources.js";
+import { num as asNumber } from "../extractors/helpers.js";
 import type { PulumiResource } from "./pulumi-types.js";
 
 /** Map from Pulumi resource type to { internal type, provider }. */
@@ -274,15 +275,6 @@ function extractTags(props: Record<string, unknown>): Record<string, string> {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const n = Number(value);
-    return Number.isNaN(n) ? undefined : n;
-  }
-  return undefined;
 }
 
 function asBoolean(value: unknown): boolean | undefined {

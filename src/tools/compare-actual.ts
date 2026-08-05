@@ -6,7 +6,12 @@ import { parseTerraformState } from "../parsers/terraform/state-parser.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
-import { convertBreakdownCurrency } from "../currency.js";
+import {
+  convertBreakdownCurrency,
+  getExchangeRateInfo,
+  type ExchangeRateInfo,
+} from "../currency.js";
+import { getPricingMetadata, type PricingMetadataBlock } from "../data/loader.js";
 import { stateJsonSchema, shortStringSchema } from "../schemas/bounded.js";
 import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 
@@ -65,6 +70,10 @@ export interface CompareActualResult {
     pct_change: number;
   };
   warnings: string[];
+  /** Freshness of the bundled pricing data that produced these numbers. */
+  pricing_metadata?: PricingMetadataBlock;
+  /** Present when currency !== USD: the static rate + vintage applied. */
+  exchange_rate?: ExchangeRateInfo;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +133,7 @@ export async function compareActual(
       by_resource: actualByResource,
     },
     warnings: [],
+    pricing_metadata: getPricingMetadata(targetProvider),
   };
 
   // -------------------------------------------------------------------------
@@ -181,6 +191,7 @@ export async function compareActual(
   // Currency conversion
   // -------------------------------------------------------------------------
   if (currency !== "USD") {
+    result.exchange_rate = getExchangeRateInfo(currency);
     // Re-calculate through the conversion utility by wrapping in a breakdown
     const actualConverted = convertBreakdownCurrency(actualBreakdown, currency);
     result.actual_costs.total_monthly = Math.round(actualConverted.total_monthly * 100) / 100;

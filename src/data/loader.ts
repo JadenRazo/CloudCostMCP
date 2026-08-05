@@ -283,6 +283,56 @@ export function getFallbackMetadata(provider: "aws" | "azure" | "gcp"): Fallback
 }
 
 // ---------------------------------------------------------------------------
+// Pricing freshness summary
+// ---------------------------------------------------------------------------
+
+export type PricingStaleness = "fresh" | "aging" | "stale";
+
+/**
+ * Compact freshness block surfaced in cost-tool responses so consumers know
+ * what data vintage produced a number. `staleness` buckets:
+ *   fresh: < 14 days, aging: < 45 days, stale: >= 45 days (or unknown age).
+ */
+export interface PricingMetadataBlock {
+  source: string;
+  as_of: string | null;
+  age_days: number | null;
+  staleness: PricingStaleness;
+}
+
+const FRESH_MAX_AGE_DAYS = 14;
+const AGING_MAX_AGE_DAYS = 45;
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Summarise the bundled pricing data vintage for a provider from
+ * data/<provider>-pricing/metadata.json. Missing or unparseable metadata is
+ * reported as "stale" (fail-safe: never claim freshness we cannot prove).
+ */
+export function getPricingMetadata(
+  provider: "aws" | "azure" | "gcp",
+  now: Date = new Date(),
+): PricingMetadataBlock {
+  const meta = getFallbackMetadata(provider);
+  const source = meta?.source ?? "unknown";
+
+  if (!meta?.last_updated) {
+    return { source, as_of: null, age_days: null, staleness: "stale" };
+  }
+
+  const asOf = new Date(meta.last_updated);
+  if (Number.isNaN(asOf.getTime())) {
+    return { source, as_of: meta.last_updated, age_days: null, staleness: "stale" };
+  }
+
+  const ageDays = Math.max(0, Math.floor((now.getTime() - asOf.getTime()) / MS_PER_DAY));
+  const staleness: PricingStaleness =
+    ageDays < FRESH_MAX_AGE_DAYS ? "fresh" : ageDays < AGING_MAX_AGE_DAYS ? "aging" : "stale";
+
+  return { source, as_of: meta.last_updated, age_days: ageDays, staleness };
+}
+
+// ---------------------------------------------------------------------------
 // Cache reset – only useful in tests that need a clean slate between runs.
 // Not exported to consumers; imported via the test helper path if needed.
 // ---------------------------------------------------------------------------

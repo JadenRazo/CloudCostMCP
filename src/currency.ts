@@ -16,6 +16,13 @@ export const SUPPORTED_CURRENCIES = [
 ] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
+/**
+ * Vintage of the static EXCHANGE_RATES table below. Surfaced alongside every
+ * converted total (as `rate_as_of`) so consumers know a March-2026 snapshot —
+ * not a live FX feed — produced the number.
+ */
+export const EXCHANGE_RATES_AS_OF = "2026-03";
+
 // Static exchange rates (approximate, as of March 2026)
 const EXCHANGE_RATES: Record<string, number> = {
   USD: 1.0,
@@ -55,6 +62,23 @@ export function convertCurrency(amountUsd: number, targetCurrency: string): numb
   return amountUsd * rate;
 }
 
+/** Disclosure block emitted wherever a static-rate conversion happens. */
+export interface ExchangeRateInfo {
+  rate: number;
+  rate_as_of: string;
+}
+
+/**
+ * Return the static exchange rate used for a currency together with the
+ * vintage of the rates table. Unknown currencies report rate 1.0 (identity).
+ */
+export function getExchangeRateInfo(currency: string): ExchangeRateInfo {
+  return {
+    rate: EXCHANGE_RATES[currency] ?? 1.0,
+    rate_as_of: EXCHANGE_RATES_AS_OF,
+  };
+}
+
 /**
  * Return the currency symbol for a given currency code.
  * Falls back to the currency code itself when no symbol is registered.
@@ -84,6 +108,8 @@ interface ConvertedBreakdown extends CostBreakdown {
     total_monthly: number;
     total_yearly: number;
   };
+  /** Static rate + vintage that produced the converted figures. */
+  exchange_rate: ExchangeRateInfo;
 }
 
 function convertLineItem(item: CostLineItem, currency: string): CostLineItem {
@@ -130,6 +156,10 @@ export function convertBreakdownCurrency(
     currency,
     by_service: convertedByService,
     by_resource: breakdown.by_resource.map((est) => convertCostEstimate(est, currency)),
+    ...(breakdown.estimated_egress_monthly !== undefined && {
+      estimated_egress_monthly: convertCurrency(breakdown.estimated_egress_monthly, currency),
+    }),
     original_usd,
+    exchange_rate: getExchangeRateInfo(currency),
   };
 }

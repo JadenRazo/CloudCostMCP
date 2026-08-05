@@ -5,7 +5,6 @@ import {
   getGcpSqlPricing,
   getGcpStoragePricing,
   getGcpDiskPricing,
-  getRegionPriceMultipliers,
 } from "../../data/loader.js";
 import {
   normalizeGcpCompute,
@@ -13,6 +12,7 @@ import {
   normalizeGcpStorage,
   normalizeGcpDisk,
 } from "./gcp-normalizer.js";
+import { regionMultiplier } from "../region-multiplier.js";
 
 // ---------------------------------------------------------------------------
 // GCP-specific infrastructure pricing (not in bundled data files)
@@ -35,22 +35,6 @@ const NAT_PER_GB = 0.045;
 // preferred. This constant is the last-resort per-vCPU/hr fallback.
 const GKE_STANDARD_HOURLY = 0.1;
 const GKE_AUTOPILOT_VCPU_HOURLY = 0.0445;
-
-// ---------------------------------------------------------------------------
-// Regional price multiplier lookup – reads from the shared data file.
-// Used for infrastructure services (LB, NAT, GKE) that are not covered by
-// the bundled per-region compute/storage data files.
-// ---------------------------------------------------------------------------
-
-function regionMultiplier(region: string): number {
-  const multipliers = getRegionPriceMultipliers();
-  const mult = multipliers.gcp[region.toLowerCase()];
-  if (mult === undefined) {
-    logger.warn("region-multiplier: unknown GCP region, defaulting to 1.0x", { region });
-    return 1.0;
-  }
-  return mult;
-}
 
 export class GcpBundledLoader {
   // -------------------------------------------------------------------------
@@ -193,7 +177,7 @@ export class GcpBundledLoader {
   }
 
   async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("gcp", region);
     return {
       provider: "gcp",
       service: "cloud-load-balancing",
@@ -211,7 +195,7 @@ export class GcpBundledLoader {
   }
 
   async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("gcp", region);
     return {
       provider: "gcp",
       service: "cloud-nat",
@@ -232,7 +216,7 @@ export class GcpBundledLoader {
     region: string,
     mode: "standard" | "autopilot" = "standard",
   ): Promise<NormalizedPrice | null> {
-    const multiplier = regionMultiplier(region);
+    const multiplier = regionMultiplier("gcp", region);
     const baseHourly = mode === "autopilot" ? GKE_AUTOPILOT_VCPU_HOURLY : GKE_STANDARD_HOURLY;
 
     return {

@@ -156,6 +156,8 @@ node dist/index.js
 
 The server exposes twelve MCP tools. Each accepts JSON input and returns structured JSON output. For agent-centric workflows, `check_cost_budget` is the headline tool: it returns an `allow` / `warn` / `block` verdict fast enough to be called between IaC generation and disk write — see [docs/guardrails.md](./docs/guardrails.md).
 
+Cost-reporting tools (`estimate_cost`, `compare_providers`, `check_cost_budget`, `analyze_plan`, `compare_actual`) also include a `pricing_metadata` block — `{ source, as_of, age_days, staleness }` — describing the vintage of the bundled pricing data behind the numbers (`fresh` < 14 days, `aging` < 45 days, `stale` ≥ 45 days; `compare_providers` reports one block per compared provider). When a non-USD `currency` is requested, responses additionally carry `exchange_rate: { rate, rate_as_of }` — conversions use a static rate snapshot (currently `2026-03`), not a live FX feed.
+
 ### `analyze_terraform`
 
 Parse Terraform files and return a resource inventory. Detects the cloud provider, resolves variables (including `tfvars`), and extracts cost-relevant attributes like instance types, storage sizes, and database engines.
@@ -416,7 +418,7 @@ All configuration is optional. The server works out of the box with sensible def
 | `CLOUDCOST_CACHE_PATH` | `~/.cloudcost/cache.db` | SQLite cache file location |
 | `CLOUDCOST_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `CLOUDCOST_MONTHLY_HOURS` | `730` | Hours per month for cost calculations |
-| `CLOUDCOST_INCLUDE_DATA_TRANSFER` | `false` | Include estimated data transfer costs in reports |
+| `CLOUDCOST_INCLUDE_DATA_TRANSFER` | `true` | Include a synthetic default estimate of 100 GB/month internet egress per provider+region. Its share of the total is surfaced separately as `estimated_egress_monthly` (still included in `total_monthly`) |
 | `CLOUDCOST_PRICING_MODEL` | `on_demand` | Default pricing model: `on_demand`, `spot`, or `reserved` |
 | `CLOUDCOST_RESOLVE_MODULES` | `true` | Expand referenced Terraform modules during parsing |
 | `CLOUDCOST_BUDGET_MONTHLY` | | Monthly budget cap in USD. Triggers a warning when exceeded |
@@ -517,6 +519,8 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 - **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool recommends reserved instances; AWS Savings Plans are not yet supported (tracked in [docs/roadmap.md](./docs/roadmap.md)). Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
 - **GCP live pricing** is fetched from the Cloud Billing Catalog API with automatic fallback to bundled data when the API is unreachable. Bundled prices may lag slightly behind actual rates.
 - **Fallback-data signaling.** When a live pricing API is unreachable and `estimate_cost` / `compare_providers` / `get_pricing` serve data from bundled or fallback tables, the response includes a `warnings` entry ("using fallback/bundled pricing data for …") so callers can flag stale estimates. Bundled data is refreshed weekly via CI.
+- **Synthetic egress line item.** Unless `CLOUDCOST_INCLUDE_DATA_TRANSFER=false`, every breakdown includes an assumed 100 GB/month of internet egress per provider+region. `total_monthly` includes it (unchanged behavior); its share is reported separately as `estimated_egress_monthly` with an explanatory warning so the composition is visible.
+- **Static FX rates.** Non-USD output is converted with a bundled rate table, not a live feed. Every converted response carries `exchange_rate: { rate, rate_as_of }` so consumers know which snapshot produced the figures.
 - **First request latency**. The initial EC2 pricing lookup for a new AWS region may take 30-120 seconds as the CSV file is streamed. Subsequent lookups for the same region are instant (cached for 24 hours).
 - **Specialty instance types**. GPU instances (p4d, g5, etc.), high-memory (x2idn), and bare-metal types may fall back to interpolated pricing if not in the built-in tables and live fetch fails.
 

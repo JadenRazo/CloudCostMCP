@@ -33,7 +33,7 @@ function makeCostEngine(
 // ---------------------------------------------------------------------------
 
 describe("calculateAwsDataTransferCost", () => {
-  it("returns a non-zero estimate using the default 100 GB egress volume", async () => {
+  it("returns a non-zero estimate using the default 100 GB egress volume", () => {
     const resource = makeResource({
       id: "dt-aws",
       type: "aws_data_transfer",
@@ -43,7 +43,7 @@ describe("calculateAwsDataTransferCost", () => {
       attributes: {},
     });
 
-    const estimate = await calculateAwsDataTransferCost(resource, "us-east-1");
+    const estimate = calculateAwsDataTransferCost(resource, "us-east-1");
 
     // 100 GB * $0.09/GB = $9.00
     expect(estimate.monthly_cost).toBeCloseTo(9.0, 1);
@@ -56,7 +56,7 @@ describe("calculateAwsDataTransferCost", () => {
     expect(estimate.pricing_source).toBe("fallback");
   });
 
-  it("uses the monthly_egress_gb attribute when provided", async () => {
+  it("uses the monthly_egress_gb attribute when provided", () => {
     const resource = makeResource({
       id: "dt-aws-custom",
       type: "aws_data_transfer",
@@ -66,13 +66,13 @@ describe("calculateAwsDataTransferCost", () => {
       attributes: { monthly_egress_gb: 500 },
     });
 
-    const estimate = await calculateAwsDataTransferCost(resource, "us-east-1");
+    const estimate = calculateAwsDataTransferCost(resource, "us-east-1");
 
     // 500 GB * $0.09/GB = $45.00
     expect(estimate.monthly_cost).toBeCloseTo(45.0, 1);
   });
 
-  it("applies regional multiplier for APAC regions", async () => {
+  it("applies regional multiplier for APAC regions", () => {
     const usResource = makeResource({
       id: "dt-aws-us",
       type: "aws_data_transfer",
@@ -91,14 +91,14 @@ describe("calculateAwsDataTransferCost", () => {
       attributes: { monthly_egress_gb: 100 },
     });
 
-    const usEstimate = await calculateAwsDataTransferCost(usResource, "us-east-1");
-    const apEstimate = await calculateAwsDataTransferCost(apResource, "ap-northeast-1");
+    const usEstimate = calculateAwsDataTransferCost(usResource, "us-east-1");
+    const apEstimate = calculateAwsDataTransferCost(apResource, "ap-northeast-1");
 
     // APAC regions have a higher multiplier than US regions
     expect(apEstimate.monthly_cost).toBeGreaterThan(usEstimate.monthly_cost);
   });
 
-  it("includes a note about the estimated egress volume when no attribute is set", async () => {
+  it("includes a note about the estimated egress volume when no attribute is set", () => {
     const resource = makeResource({
       id: "dt-aws-note",
       type: "aws_data_transfer",
@@ -108,14 +108,14 @@ describe("calculateAwsDataTransferCost", () => {
       attributes: {},
     });
 
-    const estimate = await calculateAwsDataTransferCost(resource, "us-east-1");
+    const estimate = calculateAwsDataTransferCost(resource, "us-east-1");
 
     expect(estimate.notes.some((n) => n.includes("100 GB/month"))).toBe(true);
   });
 });
 
 describe("calculateAzureDataTransferCost", () => {
-  it("returns a non-zero estimate using the default 100 GB egress volume", async () => {
+  it("returns a non-zero estimate using the default 100 GB egress volume", () => {
     const resource = makeResource({
       id: "dt-azure",
       type: "azurerm_data_transfer",
@@ -125,7 +125,7 @@ describe("calculateAzureDataTransferCost", () => {
       attributes: {},
     });
 
-    const estimate = await calculateAzureDataTransferCost(resource, "eastus");
+    const estimate = calculateAzureDataTransferCost(resource, "eastus");
 
     // 100 GB * $0.087/GB = $8.70
     expect(estimate.monthly_cost).toBeCloseTo(8.7, 1);
@@ -134,7 +134,7 @@ describe("calculateAzureDataTransferCost", () => {
     expect(estimate.confidence).toBe("low");
   });
 
-  it("applies a higher multiplier for Zone 2 Azure regions", async () => {
+  it("applies a higher multiplier for Zone 2 Azure regions", () => {
     const zone1Resource = makeResource({
       id: "dt-azure-z1",
       type: "azurerm_data_transfer",
@@ -153,15 +153,15 @@ describe("calculateAzureDataTransferCost", () => {
       attributes: { monthly_egress_gb: 100 },
     });
 
-    const z1Estimate = await calculateAzureDataTransferCost(zone1Resource, "eastus");
-    const z2Estimate = await calculateAzureDataTransferCost(zone2Resource, "eastasia");
+    const z1Estimate = calculateAzureDataTransferCost(zone1Resource, "eastus");
+    const z2Estimate = calculateAzureDataTransferCost(zone2Resource, "eastasia");
 
     expect(z2Estimate.monthly_cost).toBeGreaterThan(z1Estimate.monthly_cost);
   });
 });
 
 describe("calculateGcpDataTransferCost", () => {
-  it("returns a non-zero estimate using the default 100 GB egress volume", async () => {
+  it("returns a non-zero estimate using the default 100 GB egress volume", () => {
     const resource = makeResource({
       id: "dt-gcp",
       type: "google_data_transfer",
@@ -171,7 +171,7 @@ describe("calculateGcpDataTransferCost", () => {
       attributes: {},
     });
 
-    const estimate = await calculateGcpDataTransferCost(resource, "us-central1");
+    const estimate = calculateGcpDataTransferCost(resource, "us-central1");
 
     // 100 GB * $0.085/GB = $8.50
     expect(estimate.monthly_cost).toBeCloseTo(8.5, 1);
@@ -180,7 +180,7 @@ describe("calculateGcpDataTransferCost", () => {
     expect(estimate.confidence).toBe("low");
   });
 
-  it("applies a higher multiplier for South America GCP regions", async () => {
+  it("applies a higher multiplier for South America GCP regions", () => {
     const usResource = makeResource({
       id: "dt-gcp-us",
       type: "google_data_transfer",
@@ -199,8 +199,8 @@ describe("calculateGcpDataTransferCost", () => {
       attributes: { monthly_egress_gb: 100 },
     });
 
-    const usEstimate = await calculateGcpDataTransferCost(usResource, "us-central1");
-    const saEstimate = await calculateGcpDataTransferCost(saResource, "southamerica-east1");
+    const usEstimate = calculateGcpDataTransferCost(usResource, "us-central1");
+    const saEstimate = calculateGcpDataTransferCost(saResource, "southamerica-east1");
 
     expect(saEstimate.monthly_cost).toBeGreaterThan(usEstimate.monthly_cost);
   });

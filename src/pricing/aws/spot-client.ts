@@ -54,12 +54,15 @@ interface SpotAdvisorDoc {
  */
 export class AwsSpotClient {
   private cache: PricingCache;
+  /** Cache TTL for pricing writes (seconds); from config.cache.ttl_seconds. */
+  private ttlSeconds: number;
 
   /** In-flight fetch deduplication. */
   private inflight: Promise<SpotAdvisorDoc | null> | null = null;
 
-  constructor(cache: PricingCache) {
+  constructor(cache: PricingCache, ttlSeconds: number = CACHE_TTL) {
     this.cache = cache;
+    this.ttlSeconds = ttlSeconds;
   }
 
   /**
@@ -149,7 +152,7 @@ export class AwsSpotClient {
       // Cache the full document so subsequent instance lookups are free. The
       // spot-advisor blob is ~2 MB uncompressed — small enough to keep in the
       // single-row cache table.
-      this.cache.set(SPOT_ADVISOR_CACHE_KEY, doc, "aws", "spot-advisor", "global", CACHE_TTL);
+      this.cache.set(SPOT_ADVISOR_CACHE_KEY, doc, "aws", "spot-advisor", "global", this.ttlSeconds);
 
       return doc;
     } catch (err) {

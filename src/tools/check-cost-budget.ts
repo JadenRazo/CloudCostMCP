@@ -5,7 +5,12 @@ import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
-import { convertBreakdownCurrency } from "../currency.js";
+import {
+  convertBreakdownCurrency,
+  getExchangeRateInfo,
+  type ExchangeRateInfo,
+} from "../currency.js";
+import { getPricingMetadata, type PricingMetadataBlock } from "../data/loader.js";
 import { shortStringSchema } from "../schemas/bounded.js";
 import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 import { sanitizeForMessage } from "../util/sanitize.js";
@@ -89,6 +94,10 @@ export interface CheckCostBudgetResult {
   blocking_resources: ResourceVerdict[];
   warning_resources: ResourceVerdict[];
   summary: string;
+  /** Freshness of the bundled pricing data that produced these numbers. */
+  pricing_metadata?: PricingMetadataBlock;
+  /** Present when currency !== USD: the static rate + vintage applied. */
+  exchange_rate?: ExchangeRateInfo;
   /** Error flag set when input could not be evaluated (e.g. ambiguous provider). */
   error?: string;
 }
@@ -180,6 +189,10 @@ export async function checkCostBudget(
   const targetRegion =
     params.region ?? mapRegion(inventory.region, inventory.provider, targetProvider);
 
+  // Data-provenance disclosure attached to every verdict computed below.
+  const pricingMetadata = getPricingMetadata(targetProvider);
+  const exchangeRate = currency !== "USD" ? getExchangeRateInfo(currency) : undefined;
+
   const costEngine = new CostEngine(pricingEngine, config);
   let breakdown = await costEngine.calculateBreakdown(
     inventory.resources,
@@ -207,6 +220,8 @@ export async function checkCostBudget(
       blocking_resources: [],
       warning_resources: [],
       summary: "block: non-finite total cost",
+      pricing_metadata: pricingMetadata,
+      ...(exchangeRate && { exchange_rate: exchangeRate }),
       error: "non_finite_total",
     };
   }
@@ -229,6 +244,8 @@ export async function checkCostBudget(
       blocking_resources: [],
       warning_resources: [],
       summary: `allow: no thresholds configured (${resourceCount} resources, ${formatMoney(totalMonthly, currency)}/mo)`,
+      pricing_metadata: pricingMetadata,
+      ...(exchangeRate && { exchange_rate: exchangeRate }),
     };
   }
 
@@ -316,6 +333,8 @@ export async function checkCostBudget(
     blocking_resources: blocking,
     warning_resources: warning,
     summary: summaryParts.join("; "),
+    pricing_metadata: pricingMetadata,
+    ...(exchangeRate && { exchange_rate: exchangeRate }),
   };
 }
 

@@ -271,3 +271,26 @@ describe("convertBreakdownCurrency — JPY conversion", () => {
     expect(result.original_usd.total_yearly).toBe(1200);
   });
 });
+
+describe("convertBreakdownCurrency — FX disclosure and egress passthrough", () => {
+  it("emits the exchange_rate block with the static rate and its vintage", () => {
+    const result = convertBreakdownCurrency(makeBreakdown(), "EUR");
+    expect(result.exchange_rate).toEqual({ rate: 0.92, rate_as_of: "2026-03" });
+  });
+
+  it("emits an identity exchange_rate block for USD", () => {
+    const result = convertBreakdownCurrency(makeBreakdown(), "USD");
+    expect(result.exchange_rate).toEqual({ rate: 1.0, rate_as_of: "2026-03" });
+  });
+
+  it("converts estimated_egress_monthly when present", () => {
+    const breakdown = makeBreakdown({ estimated_egress_monthly: 9 });
+    const result = convertBreakdownCurrency(breakdown, "EUR");
+    expect(result.estimated_egress_monthly).toBeCloseTo(9 * 0.92, 5);
+  });
+
+  it("omits estimated_egress_monthly when the source breakdown has none", () => {
+    const result = convertBreakdownCurrency(makeBreakdown(), "EUR");
+    expect(result.estimated_egress_monthly).toBeUndefined();
+  });
+});

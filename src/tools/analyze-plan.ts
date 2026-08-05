@@ -8,6 +8,8 @@ import { mapRegion } from "../mapping/region-mapper.js";
 import { SUPPORTED_CURRENCIES, convertCurrency } from "../currency.js";
 import { logger } from "../logger.js";
 import { planJsonSchema } from "../schemas/bounded.js";
+import { getPricingMetadata, type PricingMetadataBlock } from "../data/loader.js";
+import { getExchangeRateInfo, type ExchangeRateInfo } from "../currency.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -58,6 +60,10 @@ export interface AnalyzePlanResult {
   };
   resource_diffs: PlanCostResourceDiff[];
   warnings: string[];
+  /** Freshness of the bundled pricing data that produced these numbers. */
+  pricing_metadata?: PricingMetadataBlock;
+  /** Present when currency !== USD: the static rate + vintage applied. */
+  exchange_rate?: ExchangeRateInfo;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +153,7 @@ export async function analyzePlan(
     summary: analysis.summary,
     resource_diffs: resourceDiffs,
     warnings: [...new Set(warnings)],
+    pricing_metadata: getPricingMetadata(targetProvider),
   };
 
   // Apply currency conversion if requested
@@ -177,6 +184,7 @@ function applyResultCurrency(result: AnalyzePlanResult, currency: string): Analy
   return {
     ...result,
     currency,
+    exchange_rate: getExchangeRateInfo(currency),
     total_before_monthly: round2(convertCurrency(result.total_before_monthly, currency)),
     total_after_monthly: round2(convertCurrency(result.total_after_monthly, currency)),
     total_delta_monthly: round2(convertCurrency(result.total_delta_monthly, currency)),

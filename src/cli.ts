@@ -6,8 +6,8 @@
  *
  * Usage:
  *   cloudcost analyze <path>
- *   cloudcost estimate <path> [--provider aws|azure|gcp] [--region <region>]
- *   cloudcost compare <path> [--format markdown|json|csv]
+ *   cloudcost estimate <path> [--provider aws|azure|gcp] [--region <region>] [--currency <code>]
+ *   cloudcost compare <path> [--format markdown|json|csv|focus] [--currency <code>]
  *   cloudcost optimize <path> [--providers aws,azure,gcp]
  *   cloudcost what-if <path> --changes <changes.json> [--provider aws|azure|gcp] [--region <region>]
  *
@@ -16,10 +16,12 @@
  *   --help, -h    Show usage
  */
 
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, realpathSync } from "node:fs";
 import { resolve, extname, join } from "node:path";
 import { readdirSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { loadConfig } from "./config.js";
+import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "./currency.js";
 import { PricingCache } from "./pricing/cache.js";
 import { PricingEngine } from "./pricing/pricing-engine.js";
 import { analyzeTerraform } from "./tools/analyze-terraform.js";
@@ -32,19 +34,26 @@ import { whatIf } from "./tools/what-if.js";
 // Arg parsing helpers
 // ---------------------------------------------------------------------------
 
-interface ParsedArgs {
+export interface ParsedArgs {
   command: string | undefined;
   path: string | undefined;
   provider: string;
   region: string | undefined;
   format: string;
   providers: string[];
+  currency: string;
   changes: string | undefined;
   json: boolean;
   help: boolean;
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
+export const VALID_PROVIDERS = ["aws", "azure", "gcp"] as const;
+export type ValidProvider = (typeof VALID_PROVIDERS)[number];
+
+export const VALID_FORMATS = ["markdown", "json", "csv", "focus"] as const;
+export type ValidFormat = (typeof VALID_FORMATS)[number];
+
+export function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2); // strip node + script path
 
   const parsed: ParsedArgs = {
@@ -54,6 +63,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     region: undefined,
     format: "markdown",
     providers: ["aws", "azure", "gcp"],
+    currency: "USD",
     changes: undefined,
     json: false,
     help: false,
@@ -75,6 +85,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       parsed.format = args[++i]!;
     } else if (arg === "--providers" && args[i + 1]) {
       parsed.providers = args[++i]!.split(",").map((p) => p.trim());
+    } else if (arg === "--currency" && args[i + 1]) {
+      parsed.currency = args[++i]!.toUpperCase();
     } else if (arg === "--changes" && args[i + 1]) {
       parsed.changes = args[++i]!;
     } else if (!arg.startsWith("--")) {
@@ -89,6 +101,29 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   return parsed;
+}
+
+/**
+ * Validate option values after parsing. Returns a human-readable usage error
+ * for the first invalid value, or null when everything is valid. Kept
+ * separate from parseArgs so both are unit-testable without process.exit.
+ */
+export function validateArgs(args: ParsedArgs): string | null {
+  if (!VALID_PROVIDERS.includes(args.provider as ValidProvider)) {
+    return `Invalid --provider "${args.provider}". Must be one of: ${VALID_PROVIDERS.join(", ")}`;
+  }
+  if (!VALID_FORMATS.includes(args.format as ValidFormat)) {
+    return `Invalid --format "${args.format}". Must be one of: ${VALID_FORMATS.join(", ")}`;
+  }
+  if (!(SUPPORTED_CURRENCIES as readonly string[]).includes(args.currency)) {
+    return `Invalid --currency "${args.currency}". Must be one of: ${SUPPORTED_CURRENCIES.join(", ")}`;
+  }
+  for (const p of args.providers) {
+    if (!VALID_PROVIDERS.includes(p as ValidProvider)) {
+      return `Invalid provider "${p}" in --providers. Must be a comma-separated list of: ${VALID_PROVIDERS.join(", ")}`;
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,8 +220,9 @@ Usage:
 Options:
   --provider <aws|azure|gcp>                     Target provider (default: aws)
   --region <region>                              Target region (default: auto-detect)
-  --format <markdown|json|csv>                   Report format for compare (default: markdown)
+  --format <markdown|json|csv|focus>             Report format for compare (default: markdown)
   --providers <aws,azure,gcp>                    Comma-separated providers for compare/optimize
+  --currency <USD|EUR|GBP|JPY|CAD|AUD|INR|BRL>   Output currency for estimate/compare (default: USD)
   --changes <path>                               JSON file with changes array for what-if
   --json                                         Output raw JSON
   --help, -h                                     Show this help
@@ -223,20 +259,13 @@ async function runEstimate(
   pricingEngine: PricingEngine,
   config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
-  const validProviders = ["aws", "azure", "gcp"] as const;
-  type ValidProvider = (typeof validProviders)[number];
-
-  if (!validProviders.includes(args.provider as ValidProvider)) {
-    throw new Error(`Invalid provider "${args.provider}". Must be one of: aws, azure, gcp`);
-  }
-
   const result = await estimateCost(
     {
       files,
       tfvars,
       provider: args.provider as ValidProvider,
       region: args.region,
-      currency: "USD",
+      currency: args.currency as SupportedCurrency,
     },
     pricingEngine,
     config,
@@ -256,16 +285,8 @@ async function runCompare(
   pricingEngine: PricingEngine,
   config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
-  const validFormats = ["markdown", "json", "csv"] as const;
-  type ValidFormat = (typeof validFormats)[number];
-  type ValidProvider = "aws" | "azure" | "gcp";
-
-  if (!validFormats.includes(args.format as ValidFormat)) {
-    throw new Error(`Invalid format "${args.format}". Must be one of: markdown, json, csv`);
-  }
-
-  const validatedProviders = args.providers.filter(
-    (p): p is ValidProvider => p === "aws" || p === "azure" || p === "gcp",
+  const validatedProviders = args.providers.filter((p): p is ValidProvider =>
+    VALID_PROVIDERS.includes(p as ValidProvider),
   );
 
   const result = await compareProviders(
@@ -273,7 +294,7 @@ async function runCompare(
       files,
       tfvars,
       format: args.format as ValidFormat,
-      currency: "USD",
+      currency: args.currency as SupportedCurrency,
       providers: validatedProviders.length > 0 ? validatedProviders : ["aws", "azure", "gcp"],
     },
     pricingEngine,
@@ -300,10 +321,8 @@ async function runOptimize(
   pricingEngine: PricingEngine,
   config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<void> {
-  type ValidProvider = "aws" | "azure" | "gcp";
-
-  const validatedProviders = args.providers.filter(
-    (p): p is ValidProvider => p === "aws" || p === "azure" || p === "gcp",
+  const validatedProviders = args.providers.filter((p): p is ValidProvider =>
+    VALID_PROVIDERS.includes(p as ValidProvider),
   );
 
   const result = await optimizeCost(
@@ -387,10 +406,7 @@ async function runWhatIf(
     };
   });
 
-  const validProviders = ["aws", "azure", "gcp"] as const;
-  type ValidProvider = (typeof validProviders)[number];
-
-  const provider = validProviders.includes(args.provider as ValidProvider)
+  const provider = VALID_PROVIDERS.includes(args.provider as ValidProvider)
     ? (args.provider as ValidProvider)
     : undefined;
 
@@ -438,6 +454,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const argError = validateArgs(args);
+  if (argError) {
+    process.stderr.write(`Error: ${argError}\n\n`);
+    printUsage();
+    process.exit(1);
+  }
+
   let files: TfFile[];
   let tfvars: string | undefined;
 
@@ -481,7 +504,24 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  process.stderr.write(`Fatal error: ${err instanceof Error ? err.message : String(err)}\n`);
-  process.exit(1);
-});
+/**
+ * Only run the CLI when this file is the entry point. Guarding on the real
+ * path (symlink-resolved, matching Node's ESM entry resolution for npm bin
+ * shims) lets tests import parseArgs/validateArgs without triggering main().
+ */
+function isMainModule(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
+  main().catch((err) => {
+    process.stderr.write(`Fatal error: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(1);
+  });
+}

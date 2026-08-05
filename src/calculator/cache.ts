@@ -1,4 +1,5 @@
 import type { ParsedResource } from "../types/resources.js";
+import { makeCostEstimate } from "./estimate-factory.js";
 import type { CloudProvider } from "../types/resources.js";
 import type { CostEstimate, CostLineItem } from "../types/pricing.js";
 
@@ -76,20 +77,16 @@ export function calculateElastiCacheCost(
     notes.push(`No pricing data found for ElastiCache node type ${nodeType}; cost reported as $0`);
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: basePrice !== undefined ? "medium" : "low",
     notes,
-    pricing_source: pricingSource,
-  };
+    pricingSource: pricingSource,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -167,20 +164,16 @@ export function calculateAzureRedisCacheCost(
     );
   }
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: hourlyPrice !== undefined ? "medium" : "low",
     notes,
-    pricing_source: pricingSource,
-  };
+    pricingSource: pricingSource,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -227,20 +220,16 @@ export function calculateGcpRedisCost(
     `GCP Memorystore Redis: ${normalizedTier} tier, ${memorySizeGb}GB — $${pricePerGbHour}/GB/hr`,
   );
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -310,18 +299,14 @@ export function calculateCloudFrontCost(
     `CloudFront ${priceClass} — HTTPS request charges excluded (runtime traffic data required)`,
   );
 
-  return {
-    resource_id: resource.id,
-    resource_type: resource.type,
-    resource_name: resource.name,
+  return makeCostEstimate({
+    resource,
     provider: targetProvider,
     region: targetRegion,
-    monthly_cost: totalMonthly,
-    yearly_cost: totalMonthly * 12,
-    currency: "USD",
+    monthlyCost: totalMonthly,
     breakdown,
     confidence: "medium",
     notes,
-    pricing_source: "fallback",
-  };
+    pricingSource: "fallback",
+  });
 }

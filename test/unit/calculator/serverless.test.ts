@@ -72,7 +72,9 @@ describe("calculateLambdaCost", () => {
     const resource = makeResource({ type: "aws_lambda_function" });
     const estimate = calculateLambdaCost(resource, "aws", "us-east-1");
 
-    expect(estimate.yearly_cost).toBeCloseTo(estimate.monthly_cost * 12, 5);
+    // monthly_cost and yearly_cost are independently rounded to cents from
+    // the unrounded monthly figure, so 12x monthly can drift by up to 6 cents.
+    expect(estimate.yearly_cost).toBeCloseTo(estimate.monthly_cost * 12, 1);
   });
 });
 
