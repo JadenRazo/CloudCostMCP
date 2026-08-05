@@ -14,6 +14,9 @@ import { logger } from "../logger.js";
 // PricingProvider interface
 // ---------------------------------------------------------------------------
 
+/** Default pricing-cache TTL (24h) used when config.cache.ttl_seconds is unset. */
+const DEFAULT_CACHE_TTL_SECONDS = 86400;
+
 /**
  * Common interface that all cloud provider pricing implementations must satisfy.
  * Each method returns null when no pricing information is available for the
@@ -70,10 +73,10 @@ class AwsProvider implements PricingProvider {
   private spotClient: AwsSpotClient;
   private reservedClient: AwsReservedClient;
 
-  constructor(cache: PricingCache) {
-    this.loader = new AwsBulkLoader(cache);
-    this.spotClient = new AwsSpotClient(cache);
-    this.reservedClient = new AwsReservedClient(cache);
+  constructor(cache: PricingCache, ttlSeconds?: number) {
+    this.loader = new AwsBulkLoader(cache, ttlSeconds);
+    this.spotClient = new AwsSpotClient(cache, ttlSeconds);
+    this.reservedClient = new AwsReservedClient(cache, ttlSeconds);
   }
 
   getSpotFactor(instanceType: string, region: string, os?: string): Promise<number | null> {
@@ -131,8 +134,8 @@ class AwsProvider implements PricingProvider {
 class AzureProvider implements PricingProvider {
   private client: AzureRetailClient;
 
-  constructor(cache: PricingCache) {
-    this.client = new AzureRetailClient(cache);
+  constructor(cache: PricingCache, ttlSeconds?: number) {
+    this.client = new AzureRetailClient(cache, ttlSeconds);
   }
 
   getComputePrice(
@@ -200,9 +203,9 @@ class GcpProvider implements PricingProvider {
   private loader: GcpBundledLoader;
   private liveClient: CloudBillingClient;
 
-  constructor(cache: PricingCache) {
+  constructor(cache: PricingCache, ttlSeconds?: number) {
     this.loader = new GcpBundledLoader();
-    this.liveClient = new CloudBillingClient(cache);
+    this.liveClient = new CloudBillingClient(cache, ttlSeconds);
   }
 
   async getComputePrice(
@@ -296,11 +299,17 @@ class GcpProvider implements PricingProvider {
  */
 export class PricingEngine {
   private providers: Map<CloudProvider, PricingProvider> = new Map();
+  private readonly config: CloudCostConfig;
 
-  constructor(cache: PricingCache, _config: CloudCostConfig) {
-    this.providers.set("aws", new AwsProvider(cache));
-    this.providers.set("azure", new AzureProvider(cache));
-    this.providers.set("gcp", new GcpProvider(cache));
+  constructor(cache: PricingCache, config: CloudCostConfig) {
+    this.config = config;
+    // Honour the configured cache TTL (CLOUDCOST_CACHE_TTL /
+    // config.cache.ttl_seconds). Falls back to the historical 24h default
+    // when unset so behavior is unchanged for existing deployments.
+    const ttlSeconds = config?.cache?.ttl_seconds ?? DEFAULT_CACHE_TTL_SECONDS;
+    this.providers.set("aws", new AwsProvider(cache, ttlSeconds));
+    this.providers.set("azure", new AzureProvider(cache, ttlSeconds));
+    this.providers.set("gcp", new GcpProvider(cache, ttlSeconds));
   }
 
   /**

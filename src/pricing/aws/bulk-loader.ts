@@ -30,6 +30,8 @@ import {
 
 export class AwsBulkLoader {
   private cache: PricingCache;
+  /** Cache TTL for pricing writes (seconds); from config.cache.ttl_seconds. */
+  private ttlSeconds: number;
 
   /**
    * Deduplicates concurrent streaming CSV fetches for the same region.
@@ -37,8 +39,9 @@ export class AwsBulkLoader {
    */
   private ec2CsvFetchInProgress: Map<string, Promise<boolean>> = new Map();
 
-  constructor(cache: PricingCache) {
+  constructor(cache: PricingCache, ttlSeconds: number = CACHE_TTL) {
     this.cache = cache;
+    this.ttlSeconds = ttlSeconds;
   }
 
   // -------------------------------------------------------------------------
@@ -77,7 +80,7 @@ export class AwsBulkLoader {
       if (bulk) {
         const result = this.extractEc2Price(bulk, instanceType, region, os);
         if (result) {
-          this.cache.set(cacheKey, result, "aws", "ec2", region, CACHE_TTL);
+          this.cache.set(cacheKey, result, "aws", "ec2", region, this.ttlSeconds);
           return result;
         }
       }
@@ -107,7 +110,7 @@ export class AwsBulkLoader {
       if (bulk) {
         const result = this.extractRdsPrice(bulk, instanceClass, region, engine);
         if (result) {
-          this.cache.set(cacheKey, result, "aws", "rds", region, CACHE_TTL);
+          this.cache.set(cacheKey, result, "aws", "rds", region, this.ttlSeconds);
           return result;
         }
       }
@@ -132,7 +135,7 @@ export class AwsBulkLoader {
       if (bulk) {
         const result = this.extractEbsPrice(bulk, volumeType, region);
         if (result) {
-          this.cache.set(cacheKey, result, "aws", "ebs", region, CACHE_TTL);
+          this.cache.set(cacheKey, result, "aws", "ebs", region, this.ttlSeconds);
           return result;
         }
       }
@@ -408,7 +411,7 @@ export class AwsBulkLoader {
             effective_date: effectiveDate,
           };
 
-          this.cache.set(csvCacheKey, normalized, "aws", "ec2", region, CACHE_TTL);
+          this.cache.set(csvCacheKey, normalized, "aws", "ec2", region, this.ttlSeconds);
           cachedCount++;
         }
       }
@@ -448,7 +451,7 @@ export class AwsBulkLoader {
               "aws",
               "ec2",
               region,
-              CACHE_TTL,
+              this.ttlSeconds,
             );
             cachedCount++;
           }
@@ -666,7 +669,7 @@ export class AwsBulkLoader {
       effective_date: new Date().toISOString(),
     };
 
-    this.cache.set(cacheKey, result, "aws", "ec2", region, CACHE_TTL);
+    this.cache.set(cacheKey, result, "aws", "ec2", region, this.ttlSeconds);
     return result;
   }
 
@@ -704,7 +707,7 @@ export class AwsBulkLoader {
       effective_date: new Date().toISOString(),
     };
 
-    this.cache.set(cacheKey, result, "aws", "rds", region, CACHE_TTL);
+    this.cache.set(cacheKey, result, "aws", "rds", region, this.ttlSeconds);
     return result;
   }
 
@@ -736,7 +739,7 @@ export class AwsBulkLoader {
       effective_date: new Date().toISOString(),
     };
 
-    this.cache.set(cacheKey, result, "aws", "ebs", region, CACHE_TTL);
+    this.cache.set(cacheKey, result, "aws", "ebs", region, this.ttlSeconds);
     return result;
   }
 }

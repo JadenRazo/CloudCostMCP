@@ -123,9 +123,12 @@ function skuCoversRegion(sku: GcpSku, region: string): boolean {
 
 export class CloudBillingClient {
   private cache: PricingCache;
+  /** Cache TTL for pricing writes (seconds); from config.cache.ttl_seconds. */
+  private ttlSeconds: number;
 
-  constructor(cache: PricingCache) {
+  constructor(cache: PricingCache, ttlSeconds: number = CACHE_TTL) {
     this.cache = cache;
+    this.ttlSeconds = ttlSeconds;
   }
 
   // -------------------------------------------------------------------------
@@ -151,7 +154,7 @@ export class CloudBillingClient {
       const result = this.extractComputePrice(skus, machineType, family, region);
 
       if (result) {
-        this.cache.set(cacheKey, result, "gcp", "compute", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "gcp", "compute", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -178,7 +181,7 @@ export class CloudBillingClient {
       const result = this.extractDatabasePrice(skus, tier, region);
 
       if (result) {
-        this.cache.set(cacheKey, result, "gcp", "cloud-sql", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "gcp", "cloud-sql", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -206,7 +209,7 @@ export class CloudBillingClient {
       const result = this.extractStoragePrice(skus, storageClass, region);
 
       if (result) {
-        this.cache.set(cacheKey, result, "gcp", "cloud-storage", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "gcp", "cloud-storage", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -239,7 +242,7 @@ export class CloudBillingClient {
       const result = this.extractGpuPrice(skus, accelerator, region);
 
       if (result) {
-        this.cache.set(cacheKey, result, "gcp", "compute-gpu", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "gcp", "compute-gpu", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -349,7 +352,7 @@ export class CloudBillingClient {
         return null;
       }
 
-      this.cache.set(cacheKey, result, "gcp", "compute-cud", region, CACHE_TTL);
+      this.cache.set(cacheKey, result, "gcp", "compute-cud", region, this.ttlSeconds);
       return result;
     } catch (err) {
       logger.warn("GCP Cloud Billing CUD fetch failed", {
@@ -377,7 +380,7 @@ export class CloudBillingClient {
       const result = this.extractAutopilotPodRates(skus, region);
 
       if (result) {
-        this.cache.set(cacheKey, result, "gcp", "gke-autopilot", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "gcp", "gke-autopilot", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {

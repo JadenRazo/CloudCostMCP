@@ -26,9 +26,12 @@ import {
 
 export class AzureRetailClient {
   private cache: PricingCache;
+  /** Cache TTL for pricing writes (seconds); from config.cache.ttl_seconds. */
+  private ttlSeconds: number;
 
-  constructor(cache: PricingCache) {
+  constructor(cache: PricingCache, ttlSeconds: number = CACHE_TTL) {
     this.cache = cache;
+    this.ttlSeconds = ttlSeconds;
   }
 
   // -------------------------------------------------------------------------
@@ -55,7 +58,7 @@ export class AzureRetailClient {
       const match = this.pickVmItem(items, vmSize, os);
       if (match) {
         const result = normalizeAzureCompute(match);
-        this.cache.set(cacheKey, result, "azure", "vm", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "azure", "vm", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -84,7 +87,7 @@ export class AzureRetailClient {
       const result = await this.queryDatabasePrice(tier, armRegion, serviceName);
 
       if (result) {
-        this.cache.set(cacheKey, result, "azure", "db", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "azure", "db", region, this.ttlSeconds);
         return result;
       }
 
@@ -200,7 +203,7 @@ export class AzureRetailClient {
         // Sort for deterministic selection across runs
         items.sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
         const result = normalizeAzureStorage(items[0]);
-        this.cache.set(cacheKey, result, "azure", "storage", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "azure", "storage", region, this.ttlSeconds);
         return result;
       }
 
@@ -312,7 +315,7 @@ export class AzureRetailClient {
         const result = normalizeAzureCompute(spotItems[0]);
         result.attributes.pricing_source = "live";
         result.attributes.purchase_option = "spot";
-        this.cache.set(cacheKey, result, "azure", "vm-spot", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "azure", "vm-spot", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -363,7 +366,7 @@ export class AzureRetailClient {
         result.attributes.pricing_source = "live";
         result.attributes.purchase_option = "reservation";
         result.attributes.reservation_term = termLabel;
-        this.cache.set(cacheKey, result, "azure", "vm-ri", region, CACHE_TTL);
+        this.cache.set(cacheKey, result, "azure", "vm-ri", region, this.ttlSeconds);
         return result;
       }
     } catch (err) {
@@ -578,7 +581,7 @@ export class AzureRetailClient {
       effective_date: new Date().toISOString(),
     };
 
-    this.cache.set(cacheKey, result, "azure", "vm", region, CACHE_TTL);
+    this.cache.set(cacheKey, result, "azure", "vm", region, this.ttlSeconds);
     return result;
   }
 
@@ -614,7 +617,7 @@ export class AzureRetailClient {
       effective_date: new Date().toISOString(),
     };
 
-    this.cache.set(cacheKey, result, "azure", "db", region, CACHE_TTL);
+    this.cache.set(cacheKey, result, "azure", "db", region, this.ttlSeconds);
     return result;
   }
 
@@ -647,7 +650,7 @@ export class AzureRetailClient {
       effective_date: new Date().toISOString(),
     };
 
-    this.cache.set(cacheKey, result, "azure", "storage", region, CACHE_TTL);
+    this.cache.set(cacheKey, result, "azure", "storage", region, this.ttlSeconds);
     return result;
   }
 }

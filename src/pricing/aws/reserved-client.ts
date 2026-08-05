@@ -119,9 +119,12 @@ export function extractRiRatesFromBulk(
  */
 export class AwsReservedClient {
   private cache: PricingCache;
+  /** Cache TTL for pricing writes (seconds); from config.cache.ttl_seconds. */
+  private ttlSeconds: number;
 
-  constructor(cache: PricingCache) {
+  constructor(cache: PricingCache, ttlSeconds: number = CACHE_TTL) {
     this.cache = cache;
+    this.ttlSeconds = ttlSeconds;
   }
 
   async getRiRates(
@@ -178,7 +181,7 @@ export class AwsReservedClient {
         unit: "none",
         rates,
       };
-      this.cache.set(cacheKey, entry, "aws", "ri", region, CACHE_TTL);
+      this.cache.set(cacheKey, entry, "aws", "ri", region, this.ttlSeconds);
       return rates;
     } catch (err) {
       logger.debug("AWS RI bulk fetch failed, will use static fallback", {
