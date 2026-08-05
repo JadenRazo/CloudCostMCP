@@ -6,6 +6,7 @@ import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { convertBreakdownCurrency } from "../currency.js";
+import { getPricingMetadata } from "../data/loader.js";
 import { shortStringSchema } from "../schemas/bounded.js";
 import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 
@@ -101,5 +102,6 @@ export async function estimateCost(
     ...convertedRest,
     by_resource: byResource,
     warnings: allWarnings,
+    pricing_metadata: getPricingMetadata(targetProvider),
   } as unknown as object;
 }
