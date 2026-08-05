@@ -480,23 +480,37 @@ export class AzureRetailClient {
     // Sort by skuId for deterministic selection across runs
     const sorted = [...items].sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
 
-    const vmLower = vmSize.toLowerCase();
+    // The Retail API's skuName uses "D2s v3" style, while callers pass ARM
+    // names like "Standard_D2s_v3" — normalise before substring matching.
+    const skuFragment = vmSize
+      .toLowerCase()
+      .replace(/^standard_/, "")
+      .replace(/_/g, " ");
     const isWindows = os.toLowerCase().includes("windows");
 
-    // Prefer exact sku match with the right OS
-    for (const item of sorted) {
+    // Exclude Spot / Low Priority meters: they share the armSkuName but are
+    // not on-demand consumption prices.
+    const onDemand = sorted.filter((item) => {
+      const meterLower = (item.meterName ?? "").toLowerCase();
+      return !meterLower.includes("low priority") && !meterLower.includes("spot");
+    });
+
+    // Prefer exact sku match with the right OS. Windows rows are flagged in
+    // productName ("... Series Windows"), not always in skuName.
+    for (const item of onDemand) {
       const skuLower = (item.skuName ?? "").toLowerCase();
-      const hasWindows = skuLower.includes("windows");
+      const hasWindows =
+        skuLower.includes("windows") || (item.productName ?? "").toLowerCase().includes("windows");
       if (
-        skuLower.includes(vmLower) &&
+        skuLower.includes(skuFragment) &&
         ((isWindows && hasWindows) || (!isWindows && !hasWindows))
       ) {
         return item;
       }
     }
 
-    // Fallback: return the first sorted item
-    return sorted[0];
+    // Fallback: first on-demand item, then first item overall
+    return onDemand[0] ?? sorted[0];
   }
 
   // -------------------------------------------------------------------------

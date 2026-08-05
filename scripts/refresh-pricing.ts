@@ -13,14 +13,18 @@
  *   - GCP:   Public pricing JSON from gstatic.com
  *
  * On any fetch failure for a given SKU, the existing fallback value is
- * preserved. The script never blanks out entries. It is safe to run offline:
- * all network steps will gracefully degrade and leave data unchanged.
+ * preserved. The script never blanks out entries. Per-SKU misses degrade
+ * gracefully, but a provider-level fetch failure (endpoint gone, network
+ * down) is reported at the end and makes the script exit non-zero so stale
+ * data is never silently kept — successful providers are still written.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { spawnSync } from "child_process";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parseCsvLine } from "../src/pricing/aws/csv-parser.js";
+import { fetchWithRetry } from "../src/pricing/fetch-utils.js";
 import {
   EC2_BASE_PRICES,
   RDS_BASE_PRICES,
@@ -42,6 +46,15 @@ const AZURE_FALLBACK_PATH = resolve(PROJECT_ROOT, "src/pricing/azure/fallback-da
 
 const WRITE_MODE = process.argv.includes("--write");
 const REFRESH_SCRIPT_VERSION = "2.0.0";
+
+/**
+ * Provider-level refresh failures collected during the run. A non-empty list
+ * makes the script exit non-zero after all providers have been attempted, so
+ * a broken upstream is loud in CI instead of silently leaving stale data —
+ * while still letting the other providers' refreshes complete and be
+ * committed.
+ */
+const refreshFailures: string[] = [];
 
 // ---------------------------------------------------------------------------
 // Diff-summary helpers
@@ -156,11 +169,13 @@ async function refreshGcpComputePricing(): Promise<void> {
     gcp: { compute: { gce: { vms_on_demand: Record<string, Record<string, GcpSkuData>> } } };
   };
   try {
-    const resp = await fetch(GCP_PRICING_URL);
+    const resp = await fetchWithRetry(GCP_PRICING_URL);
     if (!resp.ok) throw new Error(`GCP pricing fetch failed: ${resp.status}`);
     data = (await resp.json()) as typeof data;
   } catch (err) {
-    console.log(`  WARNING: GCP fetch failed, keeping existing data: ${err instanceof Error ? err.message : String(err)}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`  ERROR: GCP pricing refresh failed — existing data is now stale: ${message}`);
+    refreshFailures.push(`GCP: ${message} (URL: ${GCP_PRICING_URL})`);
     return;
   }
 
@@ -238,7 +253,11 @@ async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
   const timeoutId = setTimeout(() => controller.abort(), AWS_CSV_TIMEOUT_MS);
 
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetchWithRetry(
+      url,
+      { signal: controller.signal },
+      { maxResponseBytes: Infinity },
+    );
     if (!res.ok || !res.body) {
       console.log(`  WARNING: AWS EC2 CSV fetch returned ${res.status}`);
       return prices;
@@ -328,7 +347,11 @@ async function fetchAwsRdsPrices(region: string): Promise<Map<string, number>> {
   const timeoutId = setTimeout(() => controller.abort(), AWS_CSV_TIMEOUT_MS);
 
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetchWithRetry(
+      url,
+      { signal: controller.signal },
+      { maxResponseBytes: Infinity },
+    );
     if (!res.ok || !res.body) return prices;
 
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -531,7 +554,7 @@ const AZURE_REGION = "eastus";
 
 async function azureQuery(filter: string): Promise<AzurePriceItem[]> {
   try {
-    const resp = await fetch(`${AZURE_API}?$filter=${encodeURIComponent(filter)}`);
+    const resp = await fetchWithRetry(`${AZURE_API}?$filter=${encodeURIComponent(filter)}`);
     if (!resp.ok) return [];
     const data = (await resp.json()) as { Items: AzurePriceItem[] };
     return data.Items ?? [];
@@ -657,11 +680,6 @@ function validateRewrittenModule(
   originalContent: string,
   expectedExports: string[],
 ): void {
-  // Use spawnSync so we get a clean child process whose module cache is
-  // independent of the parent (avoids stale-cache false positives).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { spawnSync } = require("child_process") as typeof import("child_process");
-
   const probe = `
     import(${JSON.stringify(modulePath)}).then((m) => {
       const missing = ${JSON.stringify(expectedExports)}.filter((k) => m[k] === undefined);
@@ -728,6 +746,18 @@ async function main() {
   console.log("\n=== Done ===");
   if (!WRITE_MODE) {
     console.log("Re-run with --write to persist changes.");
+  }
+
+  if (refreshFailures.length > 0) {
+    console.error("\n=== REFRESH FAILURES ===");
+    for (const failure of refreshFailures) {
+      console.error(`  - ${failure}`);
+    }
+    console.error(
+      "One or more providers could not be refreshed; their bundled data is stale. " +
+        "Successful providers were still written.",
+    );
+    process.exitCode = 1;
   }
 }
 

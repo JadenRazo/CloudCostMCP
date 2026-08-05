@@ -4,13 +4,18 @@
  * All pricing loaders gracefully fall back to bundled/static data when fetch
  * fails, so this gives deterministic results without network dependency.
  *
- * Individual test files that need custom fetch behaviour (e.g. pricing live
- * tests) can override the stub with vi.stubGlobal("fetch", ...) in their
- * own beforeEach/beforeAll.
+ * When RUN_INTEGRATION=1 the stub is NOT installed: the integration smoke
+ * tests exist precisely to exercise the live provider APIs, and stubbing
+ * fetch here silently forced them onto the static fallback path.
+ *
+ * Individual test files that need custom fetch behaviour can still override
+ * with vi.stubGlobal("fetch", ...) in their own beforeEach/beforeAll.
  */
 
 import { vi } from "vitest";
 
-vi.stubGlobal("fetch", async () => {
-  throw new Error("fetch disabled in unit tests");
-});
+if (process.env.RUN_INTEGRATION !== "1") {
+  vi.stubGlobal("fetch", async () => {
+    throw new Error("fetch disabled in unit tests");
+  });
+}

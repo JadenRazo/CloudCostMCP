@@ -40,5 +40,8 @@ describe.skipIf(!RUN)("AWS pricing smoke", () => {
     });
     expect(result!.price_per_unit).toBeGreaterThan(0);
     expect(result!.price_per_unit).toBeLessThan(10);
-  }, 60_000);
+    // The bulk loader streams the full regional EC2 CSV (hundreds of MB) and
+    // aborts its own fetch after 120s before falling back — the test timeout
+    // must sit above that so the loader, not vitest, decides the outcome.
+  }, 180_000);
 });
