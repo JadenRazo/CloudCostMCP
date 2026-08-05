@@ -1,4 +1,5 @@
 import type { ParsedResource, CloudProvider } from "../types/resources.js";
+import { makeCostEstimate } from "./estimate-factory.js";
 import type { CostEstimate, CostBreakdown } from "../types/pricing.js";
 import type { CloudCostConfig } from "../types/config.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
@@ -473,20 +474,16 @@ export class CostEngine {
     // Unsupported resource type – return a zero-cost estimate so callers can
     // still include it in the breakdown without crashing.
     logger.warn("CostEngine: unsupported resource type", { type, targetProvider });
-    return {
-      resource_id: resource.id,
-      resource_type: type,
-      resource_name: resource.name,
+    return makeCostEstimate({
+      resource,
       provider: targetProvider,
       region: targetRegion,
-      monthly_cost: 0,
-      yearly_cost: 0,
-      currency: "USD",
+      monthlyCost: 0,
       breakdown: [],
       confidence: "low",
       notes: [`Resource type "${type}" is not yet supported by the cost engine`],
-      pricing_source: "fallback" as const,
-    };
+      pricingSource: "fallback",
+    });
   }
 
   /**

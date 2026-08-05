@@ -58,7 +58,7 @@ describe("Azure normalizers propagate effectiveStartDate", () => {
 
   it("normalizeAzureCompute copies effectiveStartDate to effective_date", () => {
     const result = normalizeAzureCompute(baseItem);
-    expect(result.effective_date).toBe("2025-07-01T00:00:00Z");
+    expect(result.effective_date).toBe("2025-07-01T00:00:00.000Z");
   });
 
   it("normalizeAzureDatabase copies effectiveStartDate to effective_date", () => {
@@ -68,7 +68,7 @@ describe("Azure normalizers propagate effectiveStartDate", () => {
       productName: "SQL Database Single",
       effectiveStartDate: "2026-01-15T00:00:00Z",
     });
-    expect(result.effective_date).toBe("2026-01-15T00:00:00Z");
+    expect(result.effective_date).toBe("2026-01-15T00:00:00.000Z");
   });
 
   it("normalizeAzureStorage copies effectiveStartDate to effective_date", () => {
@@ -79,7 +79,7 @@ describe("Azure normalizers propagate effectiveStartDate", () => {
       unitOfMeasure: "1 GiB/Month",
       effectiveStartDate: "2026-03-20T00:00:00Z",
     });
-    expect(result.effective_date).toBe("2026-03-20T00:00:00Z");
+    expect(result.effective_date).toBe("2026-03-20T00:00:00.000Z");
   });
 
   it("falls back to a valid ISO date when effectiveStartDate is missing", () => {
@@ -107,7 +107,7 @@ describe("GCP live normalizers propagate effectiveDate", () => {
       "ABCD-1234-5678",
       "2025-09-01T00:00:00Z",
     );
-    expect(result.effective_date).toBe("2025-09-01T00:00:00Z");
+    expect(result.effective_date).toBe("2025-09-01T00:00:00.000Z");
     expect(result.attributes?.sku_id).toBe("ABCD-1234-5678");
   });
 
@@ -119,7 +119,7 @@ describe("GCP live normalizers propagate effectiveDate", () => {
       "SQL-SKU-1",
       "2025-10-15T00:00:00Z",
     );
-    expect(result.effective_date).toBe("2025-10-15T00:00:00Z");
+    expect(result.effective_date).toBe("2025-10-15T00:00:00.000Z");
   });
 
   it("normalizeGcpLiveStorage carries the effectiveDate argument through", () => {
@@ -130,7 +130,7 @@ describe("GCP live normalizers propagate effectiveDate", () => {
       "STORAGE-SKU-1",
       "2026-02-01T00:00:00Z",
     );
-    expect(result.effective_date).toBe("2026-02-01T00:00:00Z");
+    expect(result.effective_date).toBe("2026-02-01T00:00:00.000Z");
   });
 
   it("defaults to a valid ISO date when effectiveDate is omitted", () => {

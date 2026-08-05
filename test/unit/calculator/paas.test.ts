@@ -241,7 +241,8 @@ describe("calculateGcpFunctionCost", () => {
     // Invocation cost: 1 * $0.40 = $0.40
     // GB-seconds: 1_000_000 * 0.2 * (256/1024) = 50,000
     // Compute: 50,000 * $0.0000025 = $0.125
-    expect(estimate.monthly_cost).toBeCloseTo(0.4 + 0.125, 2);
+    // Total $0.525, rounded to cents by makeCostEstimate -> $0.53
+    expect(estimate.monthly_cost).toBeCloseTo(0.53, 2);
   });
 
   it("includes runtime note when runtime is set", () => {

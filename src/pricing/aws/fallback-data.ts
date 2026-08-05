@@ -1,6 +1,3 @@
-import { getRegionPriceMultipliers } from "../../data/loader.js";
-import { logger } from "../../logger.js";
-
 // ---------------------------------------------------------------------------
 // Fallback pricing data (approximate us-east-1 on-demand prices, April 2026)
 // Used when the live AWS Bulk Pricing API is unreachable.
@@ -235,18 +232,3 @@ export const SIZE_ORDER: readonly string[] = [
   "32xlarge",
   "48xlarge",
 ];
-
-// ---------------------------------------------------------------------------
-// Regional price multiplier lookup – reads from the shared data file so all
-// providers use consistent values sourced from one place.
-// ---------------------------------------------------------------------------
-
-export function regionMultiplier(region: string): number {
-  const multipliers = getRegionPriceMultipliers();
-  const mult = multipliers.aws[region.toLowerCase()];
-  if (mult === undefined) {
-    logger.warn("region-multiplier: unknown AWS region, defaulting to 1.0x", { region });
-    return 1.0;
-  }
-  return mult;
-}

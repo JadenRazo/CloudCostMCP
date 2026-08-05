@@ -1,4 +1,5 @@
 import type { ParsedResource } from "../../types/resources.js";
+import { num as asNumber } from "../extractors/helpers.js";
 import type { ArmResource } from "./arm-types.js";
 
 /** Map from ARM resource type (case-insensitive key) to internal Terraform-style type. */
@@ -170,13 +171,4 @@ function extractAttributes(
     default:
       return {};
   }
-}
-
-function asNumber(value: unknown): number | undefined {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const n = Number(value);
-    return Number.isNaN(n) ? undefined : n;
-  }
-  return undefined;
 }

@@ -1,5 +1,6 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
 import type { AwsProduct, AwsPriceWrapper, AwsPriceDimension, AwsOfferTerm } from "./types.js";
+import { resolveEffectiveDate } from "../effective-date.js";
 
 /**
  * Convert a raw AWS bulk pricing product + price term into a NormalizedPrice.
@@ -64,18 +65,42 @@ function extractFromTerms(
   return { price: 0, unit: defaultUnit };
 }
 
+interface AwsNormalizeSpec {
+  service: string;
+  defaultUnit: string;
+  resourceType: string;
+  description?: string;
+  attributes: Record<string, string>;
+}
+
 /**
- * Normalize an upstream `effectiveDate` (typically the AWS bulk JSON's
- * top-level `publicationDate`) into an ISO string. Falls back to "now" when
- * the value is absent or unparseable so downstream consumers always see a
- * valid ISO date.
+ * Shared body of the AWS normalizers: extracts price + unit from the OnDemand
+ * terms and assembles the canonical NormalizedPrice literal.
  */
-function resolveEffectiveDate(effectiveDate?: string): string {
-  if (effectiveDate) {
-    const t = new Date(effectiveDate);
-    if (!Number.isNaN(t.getTime())) return t.toISOString();
-  }
-  return new Date().toISOString();
+function normalize(
+  rawPrice: AwsPriceWrapper,
+  region: string,
+  effectiveDate: string | undefined,
+  spec: AwsNormalizeSpec,
+): NormalizedPrice {
+  const terms = rawPrice?.terms?.OnDemand ?? {};
+  const { price, unit } = extractFromTerms(terms, spec.defaultUnit);
+
+  return {
+    provider: "aws",
+    service: spec.service,
+    resource_type: spec.resourceType,
+    region,
+    unit,
+    price_per_unit: price,
+    currency: "USD",
+    description: spec.description,
+    attributes: {
+      ...spec.attributes,
+      pricing_source: "live",
+    },
+    effective_date: resolveEffectiveDate(effectiveDate),
+  };
 }
 
 export function normalizeAwsCompute(
@@ -85,17 +110,10 @@ export function normalizeAwsCompute(
   effectiveDate?: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
-  const terms = rawPrice?.terms?.OnDemand ?? {};
-  const { price, unit } = extractFromTerms(terms, "Hrs");
-
-  return {
-    provider: "aws",
+  return normalize(rawPrice, region, effectiveDate, {
     service: "ec2",
-    resource_type: attrs.instanceType ?? "unknown",
-    region,
-    unit,
-    price_per_unit: price,
-    currency: "USD",
+    defaultUnit: "Hrs",
+    resourceType: attrs.instanceType ?? "unknown",
     description: attrs.instanceType
       ? `AWS EC2 ${attrs.instanceType} (${attrs.operatingSystem ?? "Linux"})`
       : undefined,
@@ -105,10 +123,8 @@ export function normalizeAwsCompute(
       memory: attrs.memory ?? "",
       operating_system: attrs.operatingSystem ?? "Linux",
       tenancy: attrs.tenancy ?? "Shared",
-      pricing_source: "live",
     },
-    effective_date: resolveEffectiveDate(effectiveDate),
-  };
+  });
 }
 
 export function normalizeAwsDatabase(
@@ -118,17 +134,10 @@ export function normalizeAwsDatabase(
   effectiveDate?: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
-  const terms = rawPrice?.terms?.OnDemand ?? {};
-  const { price, unit } = extractFromTerms(terms, "Hrs");
-
-  return {
-    provider: "aws",
+  return normalize(rawPrice, region, effectiveDate, {
     service: "rds",
-    resource_type: attrs.instanceType ?? "unknown",
-    region,
-    unit,
-    price_per_unit: price,
-    currency: "USD",
+    defaultUnit: "Hrs",
+    resourceType: attrs.instanceType ?? "unknown",
     description: attrs.instanceType
       ? `AWS RDS ${attrs.instanceType} (${attrs.databaseEngine ?? "MySQL"})`
       : undefined,
@@ -138,10 +147,8 @@ export function normalizeAwsDatabase(
       deployment_option: attrs.deploymentOption ?? "Single-AZ",
       vcpu: attrs.vcpu ?? "",
       memory: attrs.memory ?? "",
-      pricing_source: "live",
     },
-    effective_date: resolveEffectiveDate(effectiveDate),
-  };
+  });
 }
 
 export function normalizeAwsStorage(
@@ -151,26 +158,16 @@ export function normalizeAwsStorage(
   effectiveDate?: string,
 ): NormalizedPrice {
   const attrs = rawProduct?.attributes ?? {};
-  const terms = rawPrice?.terms?.OnDemand ?? {};
-  const { price, unit } = extractFromTerms(terms, "GB-Mo");
-
   const volumeType = attrs.volumeApiName ?? attrs.volumeType ?? "gp3";
-
-  return {
-    provider: "aws",
+  return normalize(rawPrice, region, effectiveDate, {
     service: "ebs",
-    resource_type: volumeType,
-    region,
-    unit,
-    price_per_unit: price,
-    currency: "USD",
+    defaultUnit: "GB-Mo",
+    resourceType: volumeType,
     description: `AWS EBS ${volumeType} volume`,
     attributes: {
       volume_type: volumeType,
       max_iops: attrs.maxIopsvolume ?? "",
       max_throughput: attrs.maxThroughputvolume ?? "",
-      pricing_source: "live",
     },
-    effective_date: resolveEffectiveDate(effectiveDate),
-  };
+  });
 }

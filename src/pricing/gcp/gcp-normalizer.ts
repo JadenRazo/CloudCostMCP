@@ -1,4 +1,5 @@
 import type { NormalizedPrice } from "../../types/pricing.js";
+import { resolveEffectiveDate } from "../effective-date.js";
 
 /**
  * Convert GCP pricing data into the canonical NormalizedPrice shape.
@@ -7,26 +8,88 @@ import type { NormalizedPrice } from "../../types/pricing.js";
  * The `normalizeGcpLive*` functions handle data from the Cloud Billing API.
  */
 
+interface GcpNormalizeSpec {
+  service: string;
+  unit: string;
+  /** Human-readable prefix, e.g. "GCP Compute Engine". */
+  descriptionPrefix: string;
+  /** Attribute key the resource type is stored under (machine_type, tier, ...). */
+  attrKey: string;
+}
+
+interface GcpNormalizeOptions {
+  source: "bundled" | "live";
+  skuId?: string;
+  effectiveDate?: string;
+}
+
+/**
+ * Shared body of the GCP normalizers: assembles the canonical NormalizedPrice
+ * literal for both bundled and live (Cloud Billing API) data.
+ */
+function normalize(
+  resourceType: string,
+  pricePerUnit: number,
+  region: string,
+  spec: GcpNormalizeSpec,
+  opts: GcpNormalizeOptions,
+): NormalizedPrice {
+  return {
+    provider: "gcp",
+    service: spec.service,
+    resource_type: resourceType,
+    region,
+    unit: spec.unit,
+    price_per_unit: pricePerUnit,
+    currency: "USD",
+    description: `${spec.descriptionPrefix} ${resourceType}`,
+    attributes: {
+      [spec.attrKey]: resourceType,
+      ...(opts.skuId !== undefined ? { sku_id: opts.skuId } : {}),
+      pricing_source: opts.source,
+    },
+    effective_date: resolveEffectiveDate(opts.effectiveDate),
+  };
+}
+
+const COMPUTE_SPEC: GcpNormalizeSpec = {
+  service: "compute-engine",
+  unit: "h",
+  descriptionPrefix: "GCP Compute Engine",
+  attrKey: "machine_type",
+};
+
+const DATABASE_SPEC: GcpNormalizeSpec = {
+  service: "cloud-sql",
+  unit: "h",
+  descriptionPrefix: "GCP Cloud SQL",
+  attrKey: "tier",
+};
+
+const STORAGE_SPEC: GcpNormalizeSpec = {
+  service: "cloud-storage",
+  unit: "GiBy.mo",
+  descriptionPrefix: "GCP Cloud Storage",
+  attrKey: "storage_class",
+};
+
+const DISK_SPEC: GcpNormalizeSpec = {
+  service: "persistent-disk",
+  unit: "GiBy.mo",
+  descriptionPrefix: "GCP Persistent Disk",
+  attrKey: "disk_type",
+};
+
+// ---------------------------------------------------------------------------
+// Bundled (JSON file) normalizers
+// ---------------------------------------------------------------------------
+
 export function normalizeGcpCompute(
   machineType: string,
   hourlyPrice: number,
   region: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "compute-engine",
-    resource_type: machineType,
-    region,
-    unit: "h",
-    price_per_unit: hourlyPrice,
-    currency: "USD",
-    description: `GCP Compute Engine ${machineType}`,
-    attributes: {
-      machine_type: machineType,
-      pricing_source: "bundled",
-    },
-    effective_date: new Date().toISOString(),
-  };
+  return normalize(machineType, hourlyPrice, region, COMPUTE_SPEC, { source: "bundled" });
 }
 
 export function normalizeGcpDatabase(
@@ -34,21 +97,7 @@ export function normalizeGcpDatabase(
   hourlyPrice: number,
   region: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "cloud-sql",
-    resource_type: tier,
-    region,
-    unit: "h",
-    price_per_unit: hourlyPrice,
-    currency: "USD",
-    description: `GCP Cloud SQL ${tier}`,
-    attributes: {
-      tier,
-      pricing_source: "bundled",
-    },
-    effective_date: new Date().toISOString(),
-  };
+  return normalize(tier, hourlyPrice, region, DATABASE_SPEC, { source: "bundled" });
 }
 
 export function normalizeGcpStorage(
@@ -56,21 +105,7 @@ export function normalizeGcpStorage(
   pricePerGb: number,
   region: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "cloud-storage",
-    resource_type: storageClass,
-    region,
-    unit: "GiBy.mo",
-    price_per_unit: pricePerGb,
-    currency: "USD",
-    description: `GCP Cloud Storage ${storageClass}`,
-    attributes: {
-      storage_class: storageClass,
-      pricing_source: "bundled",
-    },
-    effective_date: new Date().toISOString(),
-  };
+  return normalize(storageClass, pricePerGb, region, STORAGE_SPEC, { source: "bundled" });
 }
 
 export function normalizeGcpDisk(
@@ -78,21 +113,7 @@ export function normalizeGcpDisk(
   pricePerGb: number,
   region: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "persistent-disk",
-    resource_type: diskType,
-    region,
-    unit: "GiBy.mo",
-    price_per_unit: pricePerGb,
-    currency: "USD",
-    description: `GCP Persistent Disk ${diskType}`,
-    attributes: {
-      disk_type: diskType,
-      pricing_source: "bundled",
-    },
-    effective_date: new Date().toISOString(),
-  };
+  return normalize(diskType, pricePerGb, region, DISK_SPEC, { source: "bundled" });
 }
 
 // ---------------------------------------------------------------------------
@@ -108,22 +129,11 @@ export function normalizeGcpLiveCompute(
   skuId: string,
   effectiveDate?: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "compute-engine",
-    resource_type: machineType,
-    region,
-    unit: "h",
-    price_per_unit: pricePerHour,
-    currency: "USD",
-    description: `GCP Compute Engine ${machineType}`,
-    attributes: {
-      machine_type: machineType,
-      sku_id: skuId,
-      pricing_source: "live",
-    },
-    effective_date: effectiveDate ?? new Date().toISOString(),
-  };
+  return normalize(machineType, pricePerHour, region, COMPUTE_SPEC, {
+    source: "live",
+    skuId,
+    effectiveDate,
+  });
 }
 
 export function normalizeGcpLiveDatabase(
@@ -133,22 +143,11 @@ export function normalizeGcpLiveDatabase(
   skuId: string,
   effectiveDate?: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "cloud-sql",
-    resource_type: tier,
-    region,
-    unit: "h",
-    price_per_unit: pricePerHour,
-    currency: "USD",
-    description: `GCP Cloud SQL ${tier}`,
-    attributes: {
-      tier,
-      sku_id: skuId,
-      pricing_source: "live",
-    },
-    effective_date: effectiveDate ?? new Date().toISOString(),
-  };
+  return normalize(tier, pricePerHour, region, DATABASE_SPEC, {
+    source: "live",
+    skuId,
+    effectiveDate,
+  });
 }
 
 export function normalizeGcpLiveStorage(
@@ -158,20 +157,9 @@ export function normalizeGcpLiveStorage(
   skuId: string,
   effectiveDate?: string,
 ): NormalizedPrice {
-  return {
-    provider: "gcp",
-    service: "cloud-storage",
-    resource_type: storageClass.toUpperCase(),
-    region,
-    unit: "GiBy.mo",
-    price_per_unit: pricePerGbMonth,
-    currency: "USD",
-    description: `GCP Cloud Storage ${storageClass.toUpperCase()}`,
-    attributes: {
-      storage_class: storageClass.toUpperCase(),
-      sku_id: skuId,
-      pricing_source: "live",
-    },
-    effective_date: effectiveDate ?? new Date().toISOString(),
-  };
+  return normalize(storageClass.toUpperCase(), pricePerGbMonth, region, STORAGE_SPEC, {
+    source: "live",
+    skuId,
+    effectiveDate,
+  });
 }
