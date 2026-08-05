@@ -132,11 +132,9 @@ export function calculateApiGatewayCost(
       totalMonthly = requestCost;
     }
   } else if (targetProvider === "azure") {
-    const tier = (
-      (resource.attributes.sku as string | undefined) ?? AZURE_APIM_DEFAULT_TIER
-    ).toLowerCase();
+    const tier = (resource.attributes.sku ?? AZURE_APIM_DEFAULT_TIER).toLowerCase();
 
-    const fixedCost = AZURE_APIM_TIER_MONTHLY[tier] ?? AZURE_APIM_TIER_MONTHLY["consumption"]!;
+    const fixedCost = AZURE_APIM_TIER_MONTHLY[tier] ?? AZURE_APIM_TIER_MONTHLY["consumption"];
 
     if (fixedCost > 0) {
       breakdown.push({

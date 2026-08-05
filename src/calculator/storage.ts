@@ -54,7 +54,7 @@ export async function calculateStorageCost(
 
   // Resolve storage type from attributes.
   const sourceStorageType =
-    (resource.attributes.storage_type as string | undefined) ??
+    resource.attributes.storage_type ??
     (resource.attributes.type as string | undefined) ??
     (resource.attributes.storage_class as string | undefined) ??
     (block ? "gp3" : "STANDARD");
@@ -64,7 +64,7 @@ export async function calculateStorageCost(
 
   // Resolve size.
   let sizeGb =
-    (resource.attributes.storage_size_gb as number | undefined) ??
+    resource.attributes.storage_size_gb ??
     (resource.attributes.disk_size_gb as number | undefined) ??
     (resource.attributes.size as number | undefined);
 

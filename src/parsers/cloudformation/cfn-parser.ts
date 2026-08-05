@@ -19,13 +19,13 @@ export class CloudFormationParser implements IaCParser {
     });
   }
 
-  async parse(files: FileInput[], options?: ParseOptions): Promise<ResourceInventory> {
+  parse(files: FileInput[], options?: ParseOptions): Promise<ResourceInventory> {
     const warnings: string[] = [];
 
     // Parse the first CFn template file
     const file = files.find((f) => this.extensions.some((ext) => f.path.endsWith(ext)));
     if (!file) {
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     let template: CloudFormationTemplate;
@@ -35,12 +35,12 @@ export class CloudFormationParser implements IaCParser {
       const msg = err instanceof Error ? err.message : String(err);
       warnings.push(`Failed to parse CloudFormation template ${file.path}: ${msg}`);
       logger.warn("CloudFormation parse error", { path: file.path, error: msg });
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     if (!template || typeof template !== "object" || !template.Resources) {
       warnings.push(`Invalid CloudFormation template: missing Resources section in ${file.path}`);
-      return emptyInventory(warnings);
+      return Promise.resolve(emptyInventory(warnings));
     }
 
     // Resolve parameters: defaults first, then overrides
@@ -84,7 +84,7 @@ export class CloudFormationParser implements IaCParser {
       warningCount: warnings.length,
     });
 
-    return inventory;
+    return Promise.resolve(inventory);
   }
 }
 

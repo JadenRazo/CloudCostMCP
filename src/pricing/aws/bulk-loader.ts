@@ -150,9 +150,9 @@ export class AwsBulkLoader {
     return this.fallbackStoragePrice(volumeType, region, cacheKey);
   }
 
-  async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
+  getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("aws", region);
-    return {
+    return Promise.resolve({
       provider: "aws",
       service: "elb",
       resource_type: "alb",
@@ -166,12 +166,12 @@ export class AwsBulkLoader {
         pricing_model: "fixed_plus_lcu",
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
-  async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
+  getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("aws", region);
-    return {
+    return Promise.resolve({
       provider: "aws",
       service: "vpc",
       resource_type: "nat-gateway",
@@ -184,12 +184,12 @@ export class AwsBulkLoader {
         per_gb_price: String(NAT_PER_GB * multiplier),
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
-  async getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
+  getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("aws", region);
-    return {
+    return Promise.resolve({
       provider: "aws",
       service: "eks",
       resource_type: "cluster",
@@ -200,7 +200,7 @@ export class AwsBulkLoader {
       description: "AWS EKS control plane (per cluster/hour)",
       attributes: {},
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -328,7 +328,7 @@ export class AwsBulkLoader {
             if (line.startsWith('"SKU"') || line.startsWith("SKU")) {
               const headers = parseCsvLine(line);
               for (let h = 0; h < headers.length; h++) {
-                const name = headers[h]!.trim();
+                const name = headers[h].trim();
                 if (name === "Instance Type") colInstanceType = h;
                 else if (name === "Operating System") colOS = h;
                 else if (name === "Tenancy") colTenancy = h;

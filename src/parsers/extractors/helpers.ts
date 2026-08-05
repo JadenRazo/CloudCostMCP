@@ -14,6 +14,26 @@ export function firstBlock(block: Record<string, unknown>, key: string): Record<
   return {};
 }
 
+/**
+ * Coerce an attribute value to a display string. Scalars keep their natural
+ * String() form; objects/arrays are JSON-encoded instead of collapsing to
+ * "[object Object]".
+ */
+export function coerceToString(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (
+    typeof v === "number" ||
+    typeof v === "boolean" ||
+    typeof v === "bigint" ||
+    typeof v === "symbol" ||
+    typeof v === "function" ||
+    typeof v === "undefined"
+  ) {
+    return String(v);
+  }
+  return JSON.stringify(v);
+}
+
 export function str(v: unknown): string | undefined {
   return typeof v === "string" && v ? v : undefined;
 }

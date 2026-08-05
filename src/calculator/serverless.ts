@@ -76,7 +76,7 @@ export function calculateLambdaCost(
 
   // Compute charges (GB-seconds)
   const gbSecondsPerMonth = invocationsPerMonth * durationSeconds * memoryGb;
-  const gbSecondPrice = LAMBDA_GB_SECOND_PRICE[architecture] ?? LAMBDA_GB_SECOND_PRICE["x86_64"]!;
+  const gbSecondPrice = LAMBDA_GB_SECOND_PRICE[architecture] ?? LAMBDA_GB_SECOND_PRICE["x86_64"];
   const computeCost = gbSecondsPerMonth * gbSecondPrice;
 
   breakdown.push({
@@ -142,8 +142,7 @@ export function calculateDynamoDbCost(
 
   const readCapacity = (resource.attributes.read_capacity as number | undefined) ?? 5;
   const writeCapacity = (resource.attributes.write_capacity as number | undefined) ?? 5;
-  const storageGb =
-    (resource.attributes.storage_size_gb as number | undefined) ?? DEFAULT_DYNAMO_STORAGE_GB;
+  const storageGb = resource.attributes.storage_size_gb ?? DEFAULT_DYNAMO_STORAGE_GB;
 
   let totalMonthly = 0;
 

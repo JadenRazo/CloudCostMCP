@@ -97,9 +97,9 @@ export async function calculateComputeCost(
 
   // Determine source instance type attribute regardless of provider.
   const sourceInstanceType =
-    (resource.attributes.instance_type as string | undefined) ??
-    (resource.attributes.vm_size as string | undefined) ??
-    (resource.attributes.machine_type as string | undefined) ??
+    resource.attributes.instance_type ??
+    resource.attributes.vm_size ??
+    resource.attributes.machine_type ??
     "";
 
   // Map instance type to target provider.
@@ -141,11 +141,7 @@ export async function calculateComputeCost(
   const computePrice = effectiveInstance
     ? await pricingEngine
         .getProvider(targetProvider)
-        .getComputePrice(
-          effectiveInstance,
-          targetRegion,
-          resource.attributes.os as string | undefined,
-        )
+        .getComputePrice(effectiveInstance, targetRegion, resource.attributes.os)
     : null;
 
   let computeMonthlyCost = 0;
@@ -190,7 +186,7 @@ export async function calculateComputeCost(
             const liveSpot = await azureProvider.getSpotPrice(
               effectiveInstance,
               targetRegion,
-              resource.attributes.os as string | undefined,
+              resource.attributes.os,
             );
             if (liveSpot && liveSpot.price_per_unit > 0 && hourlyPrice > 0) {
               const savingsPct = Math.max(
@@ -222,7 +218,7 @@ export async function calculateComputeCost(
             const liveFactor = await awsProvider.getSpotFactor(
               effectiveInstance,
               targetRegion,
-              resource.attributes.os as string | undefined,
+              resource.attributes.os,
             );
             if (liveFactor !== null && liveFactor > 0 && liveFactor < 1) {
               const savingsPct = Math.round((1 - liveFactor) * 100);
@@ -273,12 +269,8 @@ export async function calculateComputeCost(
   const rootDisk = resource.attributes.root_block_device as
     | { volume_type?: string; volume_size?: number }
     | undefined;
-  const storageType =
-    (rootDisk?.volume_type as string | undefined) ??
-    (resource.attributes.storage_type as string | undefined);
-  const storageSizeGb =
-    (rootDisk?.volume_size as number | undefined) ??
-    (resource.attributes.storage_size_gb as number | undefined);
+  const storageType = rootDisk?.volume_type ?? resource.attributes.storage_type;
+  const storageSizeGb = rootDisk?.volume_size ?? resource.attributes.storage_size_gb;
 
   if (storageType && storageSizeGb && storageSizeGb > 0) {
     const mappedStorageType =

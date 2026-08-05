@@ -37,17 +37,17 @@ export async function calculateDatabaseCost(
   // Resolve source DB instance class across provider attribute conventions.
   const sourceInstanceClass =
     (resource.attributes.instance_class as string | undefined) ??
-    (resource.attributes.instance_type as string | undefined) ??
-    (resource.attributes.vm_size as string | undefined) ??
-    (resource.attributes.tier as string | undefined) ??
+    resource.attributes.instance_type ??
+    resource.attributes.vm_size ??
+    resource.attributes.tier ??
     "";
 
   const isMultiAz = Boolean(resource.attributes.multi_az);
   const allocatedStorageGb =
     (resource.attributes.allocated_storage as number | undefined) ??
-    (resource.attributes.storage_size_gb as number | undefined) ??
+    resource.attributes.storage_size_gb ??
     0;
-  const engine = (resource.attributes.engine as string | undefined) ?? "MySQL";
+  const engine = resource.attributes.engine ?? "MySQL";
 
   // Map instance class to target provider equivalent.
   // Strip the "db." prefix for AWS classes before feeding into the generic
@@ -150,7 +150,7 @@ export async function calculateDatabaseCost(
   let storageMonthlyCost = 0;
   if (allocatedStorageGb > 0) {
     // Use gp3 as the default EBS-style storage type for DB storage pricing.
-    const storageType = (resource.attributes.storage_type as string | undefined) ?? "gp3";
+    const storageType = resource.attributes.storage_type ?? "gp3";
 
     const storagePrice = await pricingEngine
       .getProvider(targetProvider)

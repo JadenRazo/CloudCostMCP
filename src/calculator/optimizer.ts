@@ -42,9 +42,9 @@ const HIGH_UTILISATION_INDICATORS = [
 
 function isLikelyOversized(resource: ParsedResource): boolean {
   const instanceType =
-    (resource.attributes.instance_type as string | undefined) ??
-    (resource.attributes.vm_size as string | undefined) ??
-    (resource.attributes.machine_type as string | undefined) ??
+    resource.attributes.instance_type ??
+    resource.attributes.vm_size ??
+    resource.attributes.machine_type ??
     "";
 
   const isLarge = LARGE_INSTANCE_SUFFIXES.some((suffix) =>

@@ -12,7 +12,7 @@ function loadFileConfig(): Partial<CloudCostConfig> {
   const configPath = join(getConfigDir(), "config.json");
   if (!existsSync(configPath)) return {};
   try {
-    return JSON.parse(readFileSync(configPath, "utf-8"));
+    return JSON.parse(readFileSync(configPath, "utf-8")) as Partial<CloudCostConfig>;
   } catch (err) {
     // A malformed config file silently falling back to defaults is a
     // debugging trap — say so loudly (stderr; stdout carries JSON-RPC).
@@ -56,7 +56,7 @@ function loadEnvConfig(): Partial<CloudCostConfig> {
         ? rawIncludeTransfer.toLowerCase() !== "false" && rawIncludeTransfer !== "0"
         : DEFAULT_CONFIG.pricing.include_data_transfer;
     const validModels = ["on-demand", "spot", "reserved-1yr", "reserved-3yr"] as const;
-    const envModel = env.CLOUDCOST_PRICING_MODEL as string | undefined;
+    const envModel = env.CLOUDCOST_PRICING_MODEL;
     const pricingModel =
       envModel && (validModels as readonly string[]).includes(envModel)
         ? (envModel as (typeof validModels)[number])

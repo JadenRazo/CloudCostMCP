@@ -1,5 +1,4 @@
 import type { CloudProvider } from "../types/resources.js";
-import type { ResourceEquivalent } from "../types/mapping.js";
 import { getResourceEquivalents } from "../data/loader.js";
 
 /**
@@ -44,7 +43,7 @@ export function findAllEquivalents(
   const providers: CloudProvider[] = ["aws", "azure", "gcp"];
 
   for (const provider of providers) {
-    const value = (row as ResourceEquivalent)[provider];
+    const value = row[provider];
     if (value) {
       result[provider] = value;
     }

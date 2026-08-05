@@ -222,9 +222,9 @@ export class AzureRetailClient {
     return this.fallbackStoragePrice(diskType, region, cacheKey);
   }
 
-  async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
+  getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("azure", region);
-    return {
+    return Promise.resolve({
       provider: "azure",
       service: "load-balancer",
       resource_type: "standard",
@@ -238,12 +238,12 @@ export class AzureRetailClient {
         pricing_model: "fixed_plus_rules",
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
-  async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
+  getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("azure", region);
-    return {
+    return Promise.resolve({
       provider: "azure",
       service: "nat-gateway",
       resource_type: "nat-gateway",
@@ -256,12 +256,12 @@ export class AzureRetailClient {
         per_gb_price: String(NAT_PER_GB * multiplier),
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
-  async getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
+  getKubernetesPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("azure", region);
-    return {
+    return Promise.resolve({
       provider: "azure",
       service: "aks",
       resource_type: "cluster",
@@ -272,7 +272,7 @@ export class AzureRetailClient {
       description: "Azure Kubernetes Service (uptime SLA tier, per cluster/hour)",
       attributes: {},
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
   /**

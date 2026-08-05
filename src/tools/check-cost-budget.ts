@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CloudProvider } from "../types/resources.js";
 import type { CloudCostConfig } from "../types/config.js";
 import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { parseTerraform } from "../parsers/index.js";
@@ -185,7 +184,7 @@ export async function checkCostBudget(
       error: "provider_unresolved",
     };
   }
-  const targetProvider = resolvedProvider as CloudProvider;
+  const targetProvider = resolvedProvider;
   const targetRegion =
     params.region ?? mapRegion(inventory.region, inventory.provider, targetProvider);
 

@@ -41,7 +41,7 @@ export class GcpBundledLoader {
   // Public API
   // -------------------------------------------------------------------------
 
-  async getComputePrice(machineType: string, region: string): Promise<NormalizedPrice | null> {
+  getComputePrice(machineType: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpComputePricing();
       const regionPrices = pricing[region];
@@ -51,7 +51,7 @@ export class GcpBundledLoader {
           region,
           machineType,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
       const price = regionPrices[machineType];
@@ -60,21 +60,21 @@ export class GcpBundledLoader {
           region,
           machineType,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
-      return normalizeGcpCompute(machineType, price, region);
+      return Promise.resolve(normalizeGcpCompute(machineType, price, region));
     } catch (err) {
       logger.error("GCP compute pricing load error", {
         machineType,
         region,
         err: err instanceof Error ? err.message : String(err),
       });
-      return null;
+      return Promise.resolve(null);
     }
   }
 
-  async getDatabasePrice(tier: string, region: string): Promise<NormalizedPrice | null> {
+  getDatabasePrice(tier: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpSqlPricing();
       const regionPrices = pricing[region];
@@ -84,7 +84,7 @@ export class GcpBundledLoader {
           region,
           tier,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
       // "storage_per_gb" and "ha_multiplier" are metadata keys, not tiers
@@ -94,21 +94,21 @@ export class GcpBundledLoader {
           region,
           tier,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
-      return normalizeGcpDatabase(tier, price, region);
+      return Promise.resolve(normalizeGcpDatabase(tier, price, region));
     } catch (err) {
       logger.error("GCP SQL pricing load error", {
         tier,
         region,
         err: err instanceof Error ? err.message : String(err),
       });
-      return null;
+      return Promise.resolve(null);
     }
   }
 
-  async getStoragePrice(storageClass: string, region: string): Promise<NormalizedPrice | null> {
+  getStoragePrice(storageClass: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpStoragePricing();
       const regionPrices = pricing[region];
@@ -118,7 +118,7 @@ export class GcpBundledLoader {
           region,
           storageClass,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
       const classKey = storageClass.toUpperCase() as keyof typeof regionPrices;
@@ -128,21 +128,21 @@ export class GcpBundledLoader {
           region,
           storageClass,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
-      return normalizeGcpStorage(storageClass.toUpperCase(), price, region);
+      return Promise.resolve(normalizeGcpStorage(storageClass.toUpperCase(), price, region));
     } catch (err) {
       logger.error("GCP Storage pricing load error", {
         storageClass,
         region,
         err: err instanceof Error ? err.message : String(err),
       });
-      return null;
+      return Promise.resolve(null);
     }
   }
 
-  async getDiskPrice(diskType: string, region: string): Promise<NormalizedPrice | null> {
+  getDiskPrice(diskType: string, region: string): Promise<NormalizedPrice | null> {
     try {
       const pricing = getGcpDiskPricing();
       const regionPrices = pricing[region];
@@ -152,7 +152,7 @@ export class GcpBundledLoader {
           region,
           diskType,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
       const diskKey = diskType as keyof typeof regionPrices;
@@ -162,23 +162,23 @@ export class GcpBundledLoader {
           region,
           diskType,
         });
-        return null;
+        return Promise.resolve(null);
       }
 
-      return normalizeGcpDisk(diskType, price, region);
+      return Promise.resolve(normalizeGcpDisk(diskType, price, region));
     } catch (err) {
       logger.error("GCP Disk pricing load error", {
         diskType,
         region,
         err: err instanceof Error ? err.message : String(err),
       });
-      return null;
+      return Promise.resolve(null);
     }
   }
 
-  async getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
+  getLoadBalancerPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("gcp", region);
-    return {
+    return Promise.resolve({
       provider: "gcp",
       service: "cloud-load-balancing",
       resource_type: "forwarding-rule",
@@ -191,12 +191,12 @@ export class GcpBundledLoader {
         per_gb_price: String(LB_PER_GB * multiplier),
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
-  async getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
+  getNatGatewayPrice(region: string): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("gcp", region);
-    return {
+    return Promise.resolve({
       provider: "gcp",
       service: "cloud-nat",
       resource_type: "nat-gateway",
@@ -209,17 +209,17 @@ export class GcpBundledLoader {
         per_gb_price: String(NAT_PER_GB * multiplier),
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 
-  async getKubernetesPrice(
+  getKubernetesPrice(
     region: string,
     mode: "standard" | "autopilot" = "standard",
   ): Promise<NormalizedPrice | null> {
     const multiplier = regionMultiplier("gcp", region);
     const baseHourly = mode === "autopilot" ? GKE_AUTOPILOT_VCPU_HOURLY : GKE_STANDARD_HOURLY;
 
-    return {
+    return Promise.resolve({
       provider: "gcp",
       service: "gke",
       resource_type: "cluster",
@@ -240,6 +240,6 @@ export class GcpBundledLoader {
         }),
       },
       effective_date: new Date().toISOString(),
-    };
+    });
   }
 }

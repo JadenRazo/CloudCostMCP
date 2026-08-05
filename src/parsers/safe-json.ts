@@ -15,7 +15,7 @@ const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 export function safeJsonParse<T = unknown>(text: string): T {
   let droppedKeys = 0;
-  const parsed = JSON.parse(text, (key, value) => {
+  const parsed = JSON.parse(text, (key, value: unknown) => {
     if (FORBIDDEN_KEYS.has(key)) {
       droppedKeys++;
       return undefined;
@@ -51,7 +51,7 @@ export function stripForbiddenKeys<T>(value: T): T {
 function stripForbiddenKeysInner<T>(value: T, counter: { dropped: number }): T {
   if (value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) {
-    return value.map((v) => stripForbiddenKeysInner(v, counter)) as unknown as T;
+    return (value as unknown[]).map((v) => stripForbiddenKeysInner(v, counter)) as unknown as T;
   }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {

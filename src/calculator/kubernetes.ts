@@ -57,15 +57,13 @@ export async function calculateKubernetesCost(
   }
 
   // Optional: node group cost if node_count is embedded in cluster attributes.
-  const nodeCount =
-    (resource.attributes.node_count as number | undefined) ??
-    (resource.attributes.min_node_count as number | undefined);
+  const nodeCount = resource.attributes.node_count ?? resource.attributes.min_node_count;
 
   if (nodeCount && nodeCount > 0) {
     const nodeInstanceType =
-      (resource.attributes.instance_type as string | undefined) ??
-      (resource.attributes.vm_size as string | undefined) ??
-      (resource.attributes.machine_type as string | undefined);
+      resource.attributes.instance_type ??
+      resource.attributes.vm_size ??
+      resource.attributes.machine_type;
 
     if (nodeInstanceType) {
       // Construct a synthetic compute resource for a single node to price it.

@@ -52,7 +52,7 @@ export function calculateAppServicePlanCost(
   const breakdown: CostLineItem[] = [];
 
   // Resolve SKU — new provider uses sku_name; old uses sku_tier + sku_size
-  const skuName = (resource.attributes.sku as string | undefined) ?? "";
+  const skuName = resource.attributes.sku ?? "";
   const skuTier = ((resource.attributes.sku_tier as string | undefined) ?? "").toLowerCase();
   const skuSize = ((resource.attributes.sku_size as string | undefined) ?? "").toLowerCase();
 
@@ -181,7 +181,7 @@ export function calculateCosmosDbCost(
   }
 
   // Storage estimate
-  const storageGb = (resource.attributes.storage_size_gb as number | undefined) ?? 1;
+  const storageGb = resource.attributes.storage_size_gb ?? 1;
   const storageCost = storageGb * COSMOS_STORAGE_PER_GB;
   if (storageCost > 0) {
     breakdown.push({
@@ -425,8 +425,7 @@ export function calculateBigQueryCost(
 
   const queryTbPerMonth =
     (resource.attributes.monthly_query_tb as number | undefined) ?? DEFAULT_BIGQUERY_QUERY_TB;
-  const storageGb =
-    (resource.attributes.storage_size_gb as number | undefined) ?? DEFAULT_BIGQUERY_STORAGE_GB;
+  const storageGb = resource.attributes.storage_size_gb ?? DEFAULT_BIGQUERY_STORAGE_GB;
 
   const queryCost = queryTbPerMonth * BIGQUERY_QUERY_PER_TB;
   const storageCost = storageGb * BIGQUERY_STORAGE_PER_GB;
@@ -455,7 +454,7 @@ export function calculateBigQueryCost(
     );
   }
 
-  if (resource.attributes.location) {
+  if (typeof resource.attributes.location === "string" && resource.attributes.location) {
     notes.push(`BigQuery location: ${resource.attributes.location}`);
   }
 
@@ -530,7 +529,7 @@ export function calculateGcpFunctionCost(
     );
   }
 
-  if (resource.attributes.runtime) {
+  if (typeof resource.attributes.runtime === "string" && resource.attributes.runtime) {
     notes.push(`Cloud Function runtime: ${resource.attributes.runtime}`);
   }
 

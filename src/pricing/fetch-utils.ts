@@ -172,7 +172,8 @@ export async function fetchWithRetry(
     }
   }
 
-  throw lastError ?? new Error(`fetchWithRetry: all ${maxRetries} retries failed for ${url}`);
+  if (lastError instanceof Error) throw lastError;
+  throw new Error(`fetchWithRetry: all ${maxRetries} retries failed for ${url}`);
 }
 
 function sleep(ms: number): Promise<void> {
