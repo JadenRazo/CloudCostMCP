@@ -1,16 +1,16 @@
-import { dirname } from "node:path";
+import { dirname, isAbsolute, normalize, sep } from "node:path";
 import type { CloudProvider, ResourceInventory, ParsedResource } from "../types/index.js";
 import { parseHclToJson } from "./hcl-parser.js";
 import { resolveVariables } from "./variable-resolver.js";
 import { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
-import { resolveModules } from "./module-resolver.js";
+import { resolveModules, mergeHclJsons } from "./module-resolver.js";
 import { logger } from "../logger.js";
 
 export { parseHclToJson } from "./hcl-parser.js";
 export { detectProvider } from "./provider-detector.js";
 export { resolveVariables, substituteVariables } from "./variable-resolver.js";
 export { extractResources, detectRegionFromProviders } from "./resource-extractor.js";
-export { resolveModules } from "./module-resolver.js";
+export { resolveModules, mergeHclJsons } from "./module-resolver.js";
 export type { IaCParser, FileInput, ParseOptions } from "./iac-parser.js";
 export { TerraformParser } from "./terraform-parser.js";
 export { CloudFormationParser } from "./cloudformation/cfn-parser.js";
@@ -75,7 +75,10 @@ function inferDominantProvider(resources: ParsedResource[]): CloudProvider {
  * @param tfvarsContent     Optional raw contents of a .tfvars override file.
  * @param basePath          Absolute directory path used to resolve local module
  *                          sources. When omitted the directory of the first
- *                          file path is used as a best-effort fallback.
+ *                          file path is used as a best-effort fallback — but
+ *                          only when that path is relative and does not escape
+ *                          upward; untrusted absolute paths fall back to
+ *                          process.cwd() (see deriveModuleBasePath).
  * @param resolveModulesEnabled  When true (default) module blocks are expanded.
  *                          Pass false to skip expansion and emit warnings only.
  */
@@ -146,9 +149,15 @@ export async function parseTerraform(
   if (resolveModulesEnabled) {
     // Determine the base directory for resolving relative module paths.
     // Use the explicit basePath if provided, otherwise derive it from the
-    // first successfully parsed file path as a reasonable fallback.
+    // first successfully parsed file path — but only when that path is
+    // relative and stays inside the working directory. File paths arrive
+    // from the MCP client and are otherwise untrusted: an absolute path
+    // like "/etc/x.tf" combined with a module block would let a malicious
+    // client direct the resolver to read *.tf files under arbitrary
+    // host directories.
     const moduleBasePath =
-      basePath ?? (parsedJsons.length > 0 ? dirname(parsedJsons[0].path) : process.cwd());
+      basePath ??
+      (parsedJsons.length > 0 ? deriveModuleBasePath(parsedJsons[0].path) : process.cwd());
 
     try {
       const moduleResources = await resolveModules(combined, moduleBasePath, variables, warnings);
@@ -190,78 +199,32 @@ export async function parseTerraform(
 }
 
 // ---------------------------------------------------------------------------
-// Merge helper
+// Module base-path derivation
 // ---------------------------------------------------------------------------
 
 /**
- * Shallow-merge multiple HCL JSON objects so that variable and provider block
- * information from separate files (e.g. variables.tf and main.tf) is visible
- * in one place during resolution. Block-level arrays are concatenated rather
- * than overwritten, and the `resource` section is merged at the type level.
+ * Derive a module-resolution base directory from a client-supplied file path.
+ *
+ * MCP clients control `files[].path` entirely, so the path is untrusted.
+ * Only the dirname of a *relative* path (no leading separator, no Windows
+ * drive letter or UNC prefix, and no `..` escape after normalisation) is
+ * used; anything else falls back to `process.cwd()`, which is also the
+ * boundary that `resolveModules` confines all module reads to.
  */
-function mergeHclJsons(jsons: Record<string, unknown>[]): Record<string, unknown> {
-  const merged: Record<string, unknown> = {};
+export function deriveModuleBasePath(filePath: string): string {
+  const normalized = normalize(filePath);
 
-  for (const json of jsons) {
-    for (const [key, value] of Object.entries(json)) {
-      if (!(key in merged)) {
-        merged[key] = deepClone(value);
-        continue;
-      }
-
-      const existing = merged[key];
-
-      if (
-        value !== null &&
-        typeof value === "object" &&
-        !Array.isArray(value) &&
-        existing !== null &&
-        typeof existing === "object" &&
-        !Array.isArray(existing)
-      ) {
-        // Recursively merge objects (handles provider, resource, variable blocks)
-        merged[key] = mergeObjects(
-          existing as Record<string, unknown>,
-          value as Record<string, unknown>,
-        );
-      } else if (Array.isArray(existing) && Array.isArray(value)) {
-        merged[key] = [...existing, ...value];
-      } else {
-        // Scalar or incompatible types: last-writer wins
-        merged[key] = deepClone(value);
-      }
-    }
+  const isWindowsDrive = /^[A-Za-z]:/.test(normalized);
+  const isWindowsUnc = normalized.startsWith("\\\\") || normalized.startsWith("//");
+  if (isAbsolute(normalized) || isWindowsDrive || isWindowsUnc) {
+    return process.cwd();
   }
 
-  return merged;
-}
-
-function mergeObjects(
-  a: Record<string, unknown>,
-  b: Record<string, unknown>,
-): Record<string, unknown> {
-  const result = { ...a };
-  for (const [key, bVal] of Object.entries(b)) {
-    const aVal = result[key];
-    if (
-      aVal !== null &&
-      typeof aVal === "object" &&
-      !Array.isArray(aVal) &&
-      bVal !== null &&
-      typeof bVal === "object" &&
-      !Array.isArray(bVal)
-    ) {
-      result[key] = mergeObjects(aVal as Record<string, unknown>, bVal as Record<string, unknown>);
-    } else if (Array.isArray(aVal) && Array.isArray(bVal)) {
-      result[key] = [...aVal, ...bVal];
-    } else {
-      result[key] = deepClone(bVal);
-    }
+  const dir = dirname(normalized);
+  const escapesUpward = dir === ".." || dir.startsWith(`..${sep}`) || dir.startsWith("../");
+  if (escapesUpward) {
+    return process.cwd();
   }
-  return result;
-}
 
-function deepClone<T>(value: T): T {
-  if (value === null || typeof value !== "object") return value;
-  return structuredClone(value);
+  return dir;
 }

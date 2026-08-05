@@ -7,8 +7,8 @@ import type { CostEstimate } from "../types/pricing.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
-import { SUPPORTED_CURRENCIES } from "../currency.js";
-import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { shortStringSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 import { sanitizeForMessage } from "../util/sanitize.js";
 
 // ---------------------------------------------------------------------------
@@ -16,22 +16,11 @@ import { sanitizeForMessage } from "../util/sanitize.js";
 // ---------------------------------------------------------------------------
 
 export const detectAnomaliesSchema = z.object({
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries"),
-  tfvars: tfvarsSchema.optional().describe("Variable overrides"),
-  provider: z.enum(["aws", "azure", "gcp"]).describe("Target cloud provider"),
-  region: z.string().optional().describe("Target region"),
-  currency: z
-    .enum(SUPPORTED_CURRENCIES)
-    .optional()
-    .default("USD")
-    .describe("Output currency for cost estimates. Defaults to USD."),
+  files: iacFilesSchema,
+  tfvars: tfvarsField,
+  provider: providerEnum.describe("Target cloud provider"),
+  region: shortStringSchema.optional().describe("Target region"),
+  currency: currencyField,
   budget_monthly: z.number().optional().describe("Monthly budget threshold in USD"),
   budget_per_resource: z.number().optional().describe("Per-resource cost threshold in USD"),
   price_change_threshold: z

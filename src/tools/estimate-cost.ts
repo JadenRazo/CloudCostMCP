@@ -5,35 +5,24 @@ import type { PricingEngine } from "../pricing/pricing-engine.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
-import { SUPPORTED_CURRENCIES, convertBreakdownCurrency } from "../currency.js";
-import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { convertBreakdownCurrency } from "../currency.js";
+import { shortStringSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const estimateCostSchema = z.object({
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content (HCL)"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries"),
-  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
-  provider: z.enum(["aws", "azure", "gcp"]).describe("Target cloud provider to estimate costs for"),
-  region: z
-    .string()
+  files: iacFilesSchema,
+  tfvars: tfvarsField,
+  provider: providerEnum.describe("Target cloud provider to estimate costs for"),
+  region: shortStringSchema
     .optional()
     .describe(
       "Target region for pricing lookup. Defaults to the source region mapped to the target provider.",
     ),
-  currency: z
-    .enum(SUPPORTED_CURRENCIES)
-    .optional()
-    .default("USD")
-    .describe("Output currency for cost estimates. Defaults to USD."),
+  currency: currencyField,
 });
 
 // ---------------------------------------------------------------------------

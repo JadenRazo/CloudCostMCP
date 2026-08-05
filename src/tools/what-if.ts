@@ -6,22 +6,15 @@ import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
 import { logger } from "../logger.js";
-import { filePathSchema, fileContentSchema, shortStringSchema } from "../schemas/bounded.js";
+import { shortStringSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, providerEnum } from "../schemas/fragments.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const whatIfSchema = z.object({
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content (HCL)"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries")
-    .describe("Terraform HCL files to analyse"),
+  files: iacFilesSchema.describe("Terraform HCL files to analyse"),
   changes: z
     .array(
       z.object({
@@ -38,16 +31,13 @@ export const whatIfSchema = z.object({
     )
     .max(200, "changes array exceeds 200 entries")
     .describe("List of attribute changes to simulate"),
-  provider: z
-    .enum(["aws", "azure", "gcp"])
+  provider: providerEnum
     .optional()
     .describe("Target cloud provider. Defaults to auto-detecting from the files"),
-  region: z
-    .string()
+  region: shortStringSchema
     .optional()
     .describe("Target region for pricing. Defaults to the region detected from provider blocks"),
-  tfvars: z
-    .string()
+  tfvars: tfvarsSchema
     .optional()
     .describe("Contents of a terraform.tfvars file for variable resolution"),
 });

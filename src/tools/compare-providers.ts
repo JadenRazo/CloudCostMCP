@@ -9,37 +9,26 @@ import { CostEngine } from "../calculator/cost-engine.js";
 import { generateMarkdownReport } from "../reporting/markdown-report.js";
 import { generateJsonReport } from "../reporting/json-report.js";
 import { generateCsvReport } from "../reporting/csv-report.js";
-import { SUPPORTED_CURRENCIES, convertBreakdownCurrency, convertCurrency } from "../currency.js";
+import { convertBreakdownCurrency, convertCurrency } from "../currency.js";
 import { generateFocusReport } from "../reporting/focus-report.js";
-import { filePathSchema, fileContentSchema, tfvarsSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
 export const compareProvidersSchema = z.object({
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content (HCL)"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries"),
-  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
+  files: iacFilesSchema,
+  tfvars: tfvarsField,
   format: z
     .enum(["markdown", "json", "csv", "focus"])
     .default("markdown")
     .describe("Output report format"),
   providers: z
-    .array(z.enum(["aws", "azure", "gcp"]))
+    .array(providerEnum)
     .default(["aws", "azure", "gcp"])
     .describe("Cloud providers to include in the comparison"),
-  currency: z
-    .enum(SUPPORTED_CURRENCIES)
-    .optional()
-    .default("USD")
-    .describe("Output currency for cost estimates. Defaults to USD."),
+  currency: currencyField,
 });
 
 // ---------------------------------------------------------------------------

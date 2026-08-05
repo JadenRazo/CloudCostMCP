@@ -24,32 +24,42 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Node.js 20
+    - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: "24.15.0"
 
     - name: Install cloudcost-mcp
       shell: bash
-      run: npm install -g @jadenrazo/cloudcost-mcp
+      # Pinned to an exact version so the action does not silently pick up a
+      # new (potentially breaking or compromised) release on every run.
+      run: npm install -g @jadenrazo/cloudcost-mcp@1.0.1
 
+    # All ${{ inputs.* }} and other attacker-influenceable values are passed
+    # to bash via env: vars and referenced as "$VAR" — never interpolated
+    # directly into run: scripts, which would allow shell injection through
+    # crafted input values or branch names.
     - name: Validate inputs
       shell: bash
+      env:
+        FORMAT: ${{ inputs.format }}
+        CURRENCY: ${{ inputs.currency }}
+        PROVIDERS: ${{ inputs.providers }}
       run: |
         # Whitelist: format
-        case "${{ inputs.format }}" in
+        case "$FORMAT" in
           markdown|json|csv|focus) ;;
-          *) echo "Error: invalid format '${{ inputs.format }}'. Allowed: markdown, json, csv, focus" >&2; exit 1 ;;
+          *) echo "Error: invalid format '$FORMAT'. Allowed: markdown, json, csv, focus" >&2; exit 1 ;;
         esac
 
         # Whitelist: currency
-        case "${{ inputs.currency }}" in
+        case "$CURRENCY" in
           USD|EUR|GBP|JPY|CAD|AUD|INR|BRL) ;;
-          *) echo "Error: invalid currency '${{ inputs.currency }}'. Allowed: USD, EUR, GBP, JPY, CAD, AUD, INR, BRL" >&2; exit 1 ;;
+          *) echo "Error: invalid currency '$CURRENCY'. Allowed: USD, EUR, GBP, JPY, CAD, AUD, INR, BRL" >&2; exit 1 ;;
         esac
 
         # Whitelist: providers — each comma-separated token must be aws, azure, or gcp
-        IFS=',' read -ra _PROVIDERS <<< "${{ inputs.providers }}"
+        IFS=',' read -ra _PROVIDERS <<< "$PROVIDERS"
         for _P in "${_PROVIDERS[@]}"; do
           _P="${_P// /}"  # strip any accidental whitespace
           case "$_P" in
@@ -61,13 +71,16 @@ runs:
     - name: Detect Terraform directory
       id: detect-dir
       shell: bash
+      env:
+        TERRAFORM_DIR_INPUT: ${{ inputs.terraform_dir }}
+        BASE_REF: ${{ github.base_ref }}
       run: |
-        if [ -n "${{ inputs.terraform_dir }}" ]; then
-          echo "terraform_dir=${{ inputs.terraform_dir }}" >> "$GITHUB_OUTPUT"
+        if [ -n "$TERRAFORM_DIR_INPUT" ]; then
+          echo "terraform_dir=$TERRAFORM_DIR_INPUT" >> "$GITHUB_OUTPUT"
           echo "has_tf=true" >> "$GITHUB_OUTPUT"
         else
           # Find directories that contain changed .tf files in this PR
-          CHANGED_TF=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.tf' 2>/dev/null || true)
+          CHANGED_TF=$(git diff --name-only "origin/${BASE_REF}...HEAD" -- '*.tf' 2>/dev/null || true)
           if [ -z "$CHANGED_TF" ]; then
             echo "has_tf=false" >> "$GITHUB_OUTPUT"
           else
@@ -89,16 +102,28 @@ runs:
       id: cost-estimate
       if: steps.detect-dir.outputs.has_tf == 'true'
       shell: bash
+      env:
+        TF_DIR: ${{ steps.detect-dir.outputs.terraform_dir }}
+        FORMAT: ${{ inputs.format }}
+        PROVIDERS: ${{ inputs.providers }}
+        CURRENCY: ${{ inputs.currency }}
       run: |
-        TF_DIR="${{ steps.detect-dir.outputs.terraform_dir }}"
-        REPORT=$(cloudcost compare "$TF_DIR" \
-          --format "${{ inputs.format }}" \
-          --providers "${{ inputs.providers }}" \
-          --currency "${{ inputs.currency }}" 2>&1) || true
+        # Unique per-run temp file under the runner's private temp dir —
+        # avoids clobbering/symlink games on a fixed world-writable /tmp path.
+        REPORT_FILE=$(mktemp "$RUNNER_TEMP/cloudcost-report-XXXXXX.txt")
 
-        # Write to a temp file to safely pass multiline content between steps
-        echo "$REPORT" > /tmp/cloudcost-report.txt
-        echo "report_file=/tmp/cloudcost-report.txt" >> "$GITHUB_OUTPUT"
+        # A CLI failure must fail this step loudly instead of posting an
+        # empty or error-laden report as if it were a real estimate.
+        if ! cloudcost compare "$TF_DIR" \
+          --format "$FORMAT" \
+          --providers "$PROVIDERS" \
+          --currency "$CURRENCY" > "$REPORT_FILE" 2>&1; then
+          echo "Error: 'cloudcost compare' failed. Output:" >&2
+          cat "$REPORT_FILE" >&2
+          exit 1
+        fi
+
+        echo "report_file=$REPORT_FILE" >> "$GITHUB_OUTPUT"
 
     - name: Post PR comment
       if: steps.detect-dir.outputs.has_tf == 'true' && github.event_name == 'pull_request'
@@ -107,8 +132,9 @@ runs:
         GH_TOKEN: ${{ inputs.github_token }}
         REPO: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPORT_FILE: ${{ steps.cost-estimate.outputs.report_file }}
       run: |
-        REPORT_CONTENT=$(cat /tmp/cloudcost-report.txt)
+        REPORT_CONTENT=$(cat "$REPORT_FILE")
 
         # Build the comment body; prefix with a heading then append the report
         COMMENT_BODY="## CloudCost Terraform Cost Estimate

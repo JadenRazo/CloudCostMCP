@@ -6,13 +6,9 @@ import { parseTerraformState } from "../parsers/terraform/state-parser.js";
 import { parseTerraform } from "../parsers/index.js";
 import { mapRegion } from "../mapping/region-mapper.js";
 import { CostEngine } from "../calculator/cost-engine.js";
-import { SUPPORTED_CURRENCIES, convertBreakdownCurrency } from "../currency.js";
-import {
-  filePathSchema,
-  fileContentSchema,
-  tfvarsSchema,
-  stateJsonSchema,
-} from "../schemas/bounded.js";
+import { convertBreakdownCurrency } from "../currency.js";
+import { stateJsonSchema, shortStringSchema } from "../schemas/bounded.js";
+import { iacFilesSchema, tfvarsField, providerEnum, currencyField } from "../schemas/fragments.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -20,32 +16,19 @@ import {
 
 export const compareActualSchema = z.object({
   state_json: stateJsonSchema.describe("Contents of terraform.tfstate file (JSON)"),
-  files: z
-    .array(
-      z.object({
-        path: filePathSchema.describe("File path"),
-        content: fileContentSchema.describe("File content (HCL)"),
-      }),
-    )
-    .max(2000, "files array exceeds 2000 entries")
+  files: iacFilesSchema
     .optional()
     .describe("Optional Terraform files to compare planned costs against actual"),
-  tfvars: tfvarsSchema.optional().describe("Contents of terraform.tfvars file"),
-  provider: z
-    .enum(["aws", "azure", "gcp"])
+  tfvars: tfvarsField,
+  provider: providerEnum
     .optional()
     .describe("Target cloud provider override. Defaults to auto-detecting from the state."),
-  region: z
-    .string()
+  region: shortStringSchema
     .optional()
     .describe(
       "Target region override for pricing. Defaults to the region detected from the state.",
     ),
-  currency: z
-    .enum(SUPPORTED_CURRENCIES)
-    .optional()
-    .default("USD")
-    .describe("Output currency for cost estimates. Defaults to USD."),
+  currency: currencyField,
 });
 
 // ---------------------------------------------------------------------------
