@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-08-05
+## [1.2.0] - 2026-08-07
+
+> Released as 1.2.0, not 1.1.0. The `v1.1.0` tag was already taken by an earlier
+> 2026-04-16 release that was superseded by the `v1.0.1` hotfix and never
+> published to npm; npm therefore goes `1.0.1` → `1.2.0`.
 
 ### Added
 

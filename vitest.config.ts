@@ -14,7 +14,7 @@ export default defineConfig({
       thresholds: {
         statements: 75,
         // Actual branch coverage floor at the time the CI gate was turned on
-        // (v1.1.0): 71.03%. Raise back toward 75 as branch coverage improves.
+        // (v1.2.0): 71.03%. Raise back toward 75 as branch coverage improves.
         branches: 71,
         functions: 80,
         lines: 75,
