@@ -1,6 +1,6 @@
 {
   "name": "@jadenrazo/cloudcost-mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MCP server for multi-cloud cost analysis of Terraform, CloudFormation, Pulumi, and Bicep/ARM codebases",
   "type": "module",
   "license": "MIT",

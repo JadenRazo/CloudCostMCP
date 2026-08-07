@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-08-07
+
+### Fixed
+
+- **The `cloudcost` CLI could not start.** `dist/cli.js` shipped with two
+  `#!/usr/bin/env node` lines — one from `src/cli.ts` and one from the
+  `banner.js` that `tsup.config.ts` injects into every bundle. Node strips only
+  a line-1 shebang, so the second parsed as code and the binary died with
+  `SyntaxError: Invalid or unexpected token`. The shebang is now declared in
+  exactly one place (the tsup banner). This affected every published release up
+  to and including 1.2.0, so 1.2.0's `--currency` flag was unreachable in
+  practice. The MCP server entrypoint (`cloudcost-mcp`) was never affected —
+  `src/index.ts` carried no shebang of its own.
+
+### Tests
+
+- `test/unit/cli/shebang.test.ts` guards the artifact users actually run: no
+  source entrypoint may declare a shebang, each built bin must contain exactly
+  one on line 1, and `dist/cli.js` must start under Node. The existing CLI
+  suites all execute `src/cli.ts` through the TypeScript loader, which is why a
+  build-output defect went unnoticed across six releases.
+
 ## [1.2.0] - 2026-08-07
 
 > Released as 1.2.0, not 1.1.0. The `v1.1.0` tag was already taken by an earlier
