@@ -1,6 +1,10 @@
-#!/usr/bin/env node
 /**
  * CloudCost MCP CLI
+ *
+ * NOTE: do not add a `#!/usr/bin/env node` line here. tsup injects one into
+ * every bundle via `banner.js` in tsup.config.ts; a second copy in this source
+ * file lands on line 2 of dist/cli.js, where Node does not strip it, and the
+ * binary dies with `SyntaxError: Invalid or unexpected token`.
  *
  * Standalone command-line interface for the CloudCost MCP server tools.
  *
