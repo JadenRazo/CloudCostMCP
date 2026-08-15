@@ -41,11 +41,27 @@ jobs:
 
       - name: Run pricing refresh (write mode)
         id: refresh
-        # A provider-level failure exits non-zero but still writes the
-        # providers that succeeded — continue so those changes reach a PR,
-        # then surface the failure via the issue + job-failure steps below.
-        continue-on-error: true
-        run: npx tsx scripts/refresh-pricing.ts --write
+        # A provider-level failure exits non-zero but still writes the providers
+        # that succeeded, so the job has to keep going for those changes to reach
+        # a PR.
+        #
+        # This used to be `continue-on-error: true`, which does keep the job
+        # going — but it also rewrites the step's conclusion to `success`. The
+        # run page then showed a green tick against a step whose upstream had
+        # been returning 404 for four months, and the real verdict survived only
+        # in `steps.refresh.outcome`, which the step meant to act on it read
+        # incorrectly. Capturing the code explicitly keeps the exit status as
+        # data and puts an annotation on the run.
+        run: |
+          set +e
+          npx tsx scripts/refresh-pricing.ts --write
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" != "0" ]; then
+            echo "::warning::pricing refresh exited $code — at least one provider did not refresh"
+          fi
+          exit 0
 
       - name: Build and test against refreshed data
         run: npm run build && npm test
@@ -89,27 +105,47 @@ jobs:
           delete-branch: true
 
       - name: File issue on refresh failure
-        if: steps.refresh.outcome == 'failure' || failure()
+        if: ${{ !cancelled() && (steps.refresh.outputs.exit != '0' || failure()) }}
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REFRESH_EXIT: ${{ steps.refresh.outputs.exit }}
         run: |
+          set -euo pipefail
           title="Pricing refresh failed ($(date -u +%F))"
-          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # --force makes this idempotent and, more to the point, makes it work
+          # at all. `gh issue create --label automation` fails outright when the
+          # label does not exist — which it did not — so every alarm issue this
+          # workflow has ever filed landed through the untagged fallback below,
+          # unlabelled and unfindable.
+          gh label create automation \
+            --color 0E8A16 \
+            --description "Filed by a scheduled workflow" \
+            --force
+
+          body="The weekly pricing refresh workflow did not complete cleanly."
+          body="$body"$'\n\n'"Refresh script exit code: \`${REFRESH_EXIT:-(step did not run)}\`"
+          body="$body"$'\n'"Run logs: $RUN_URL"
+          body="$body"$'\n\n'"One or more providers could not be refreshed, so their bundled data is older than its metadata may suggest."
+
           existing=$(gh issue list --state open --search "\"Pricing refresh failed\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Pricing refresh failed again: $run_url"
+            gh issue comment "$existing" --body "$body"
           else
-            gh issue create \
-              --title "$title" \
-              --label "automation" \
-              --body "The weekly pricing refresh workflow failed. One or more providers could not be refreshed and their bundled data may be stale. See the run logs: $run_url" \
-              || gh issue create \
-                --title "$title" \
-                --body "The weekly pricing refresh workflow failed. One or more providers could not be refreshed and their bundled data may be stale. See the run logs: $run_url"
+            gh issue create --title "$title" --label automation --body "$body"
           fi
 
       - name: Fail job if refresh failed
-        if: steps.refresh.outcome == 'failure'
+        # `!cancelled() &&` is load-bearing. This condition used to be a bare
+        # `steps.refresh.outcome == 'failure'`, and a step `if:` with no status
+        # function gets an implicit success() prepended — so the one step whose
+        # entire job is to fail loudly was itself skipped the moment anything
+        # earlier in the job failed. Verified skipped in run 31388831580, the
+        # most recent of twenty-six consecutive failed scheduled runs.
+        if: ${{ !cancelled() && steps.refresh.outputs.exit != '0' }}
+        env:
+          REFRESH_EXIT: ${{ steps.refresh.outputs.exit }}
         run: |
-          echo "Pricing refresh reported a provider failure — see the 'Run pricing refresh' step logs." >> "$GITHUB_STEP_SUMMARY"
+          echo "Pricing refresh exited ${REFRESH_EXIT:-(step did not run)} — see the 'Run pricing refresh' step logs." >> "$GITHUB_STEP_SUMMARY"
           exit 1

@@ -41,6 +41,18 @@ jobs:
 
       - run: npm run build
 
+      # The package ships its pricing tables inside the tarball, so publishing
+      # is the moment those numbers reach users. Nothing checked their age
+      # before: v1.2.1 went out on 2026-08-07 carrying GCP data last updated on
+      # 2026-04-15 — 114 days old at publish time — and every install since has
+      # been costing GCP resources off it.
+      #
+      # Deliberately blocking. A release is exactly where a stale-data warning
+      # is cheapest to act on and most expensive to ignore, and the remedy is to
+      # refresh the data rather than to raise the threshold.
+      - name: Refuse to publish stale pricing data
+        run: npx tsx scripts/check-freshness.ts
+
       - run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

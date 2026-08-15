@@ -79,32 +79,19 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - name: Fail when any data/*/metadata.json last_updated is older than 21 days
-        run: |
-          node - <<'SCRIPT'
-          const { readFileSync } = require("node:fs");
-          const MAX_AGE_DAYS = 21;
-          const MS_PER_DAY = 86_400_000;
-          let failed = false;
-          for (const provider of ["aws", "azure", "gcp"]) {
-            const path = `data/${provider}-pricing/metadata.json`;
-            const meta = JSON.parse(readFileSync(path, "utf-8"));
-            const asOf = new Date(meta.last_updated);
-            if (Number.isNaN(asOf.getTime())) {
-              console.error(`${path}: unparseable last_updated "${meta.last_updated}"`);
-              failed = true;
-              continue;
-            }
-            const ageDays = Math.floor((Date.now() - asOf.getTime()) / MS_PER_DAY);
-            const status = ageDays > MAX_AGE_DAYS ? "STALE" : "ok";
-            console.log(`${path}: last_updated=${meta.last_updated} age=${ageDays}d ${status}`);
-            if (ageDays > MAX_AGE_DAYS) failed = true;
-          }
-          if (failed) {
-            console.error(`Bundled pricing metadata exceeds ${MAX_AGE_DAYS} days — run 'npm run refresh-pricing' (see .github/workflows/refresh-pricing.yml).`);
-            process.exit(1);
-          }
-          SCRIPT
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: 'npm'
+      - run: npm ci
+      # This was a `node - <<'SCRIPT'` heredoc inline here, carrying its own
+      # private copy of the 21-day threshold. A heredoc in YAML is invisible to
+      # the type checker, the linter, the test suite and the coverage gate, and
+      # cannot be run locally without copying it out of the file. It is now
+      # scripts/check-freshness.ts, and the threshold comes from
+      # src/data/freshness.ts alongside the two the product itself uses.
+      - name: Check bundled pricing data is not stale
+        run: npx tsx scripts/check-freshness.ts
 
   integration-smoke:
     # Exercises the live AWS/Azure/GCP pricing APIs. Only runs on manual

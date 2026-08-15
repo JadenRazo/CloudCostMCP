@@ -390,8 +390,17 @@ describe("GCP compute-engine.json", () => {
     }
   });
 
-  it("us-central1 e2-micro price is 0.0084 per hour", () => {
-    expect(getGcpComputePricing()["us-central1"]["e2-micro"]).toBe(0.0084);
+  // Deliberately a magnitude check, not an equality one. This asserted
+  // `.toBe(0.0084)` on a file whose entire purpose is to be regenerated, and
+  // refresh-pricing.yml runs `npm run build && npm test` against the refreshed
+  // data before it opens its pull request — so the first GCP refresh that moved
+  // this number by a fraction of a cent would have killed the refresh job
+  // several steps before it could ever produce a PR. A guard against a bad
+  // refresh should catch a wrong number, not a different one.
+  it("us-central1 e2-micro is priced in the right ballpark", () => {
+    const price = getGcpComputePricing()["us-central1"]["e2-micro"];
+    expect(price).toBeGreaterThan(0.004);
+    expect(price).toBeLessThan(0.02);
   });
 });
 
