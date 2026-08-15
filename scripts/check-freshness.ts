@@ -99,7 +99,14 @@ function main(): void {
     const asOf = lastUpdated !== null ? new Date(lastUpdated) : null;
 
     if (asOf === null || Number.isNaN(asOf.getTime())) {
-      rows.push({ provider, file, last_updated: lastUpdated, age_days: null, policy, status: "UNREADABLE" });
+      rows.push({
+        provider,
+        file,
+        last_updated: lastUpdated,
+        age_days: null,
+        policy,
+        status: "UNREADABLE",
+      });
       continue;
     }
 

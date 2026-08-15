@@ -60,7 +60,10 @@ describe("non-live pricing is surfaced to the caller", () => {
 
     expect(breakdown.warnings.length).toBeGreaterThan(0);
     const warning = breakdown.warnings.find((w) => w.includes("api-server"));
-    expect(warning, "a bundled/fallback estimate must produce a warning naming the resource").toBeDefined();
+    expect(
+      warning,
+      "a bundled/fallback estimate must produce a warning naming the resource",
+    ).toBeDefined();
     expect(warning).toMatch(/not live pricing/);
   });
 
