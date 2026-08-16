@@ -1,13 +1,29 @@
 name: CI
+
+# Every job in this workflow is a pure function of the commit.
+#
+# That is the whole rule, and it is mechanically applicable: if a job can go red
+# without anyone changing a line of code, it does not belong here. It belongs in
+# health.yml.
+#
+# This file used to break that rule three ways - a weekly `schedule` trigger, a
+# `pricing-freshness` job that reads the calendar, and an `integration-smoke` job
+# that depends on third-party API uptime - and the cost was concrete. The most
+# recent CI run on main was the scheduled one from 2026-08-10, and it failed. So
+# the CI badge on the profile README read "build: failing" while every single
+# push run was green. The badge was reporting the calendar and being read as a
+# statement about the code.
+#
+# Once base-rate red exceeds "sometimes", a maintainer rationally stops treating
+# red as information. Keeping this file deterministic is what makes it safe to
+# require as a status check, and what makes the badge mean something again.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
-  schedule:
-    # Weekly smoke test against live provider pricing APIs (Mondays 12:00 UTC)
-    - cron: '0 12 * * 1'
 
 permissions:
   contents: read
@@ -27,11 +43,36 @@ jobs:
           node-version: 24.15.0
           cache: 'npm'
       - run: npm ci
-      - name: audit production dependencies (blocking)
-        run: npm audit --audit-level=high --omit=dev
-      - name: audit including devDependencies (informational)
-        continue-on-error: true
-        run: npm audit --audit-level=high
+      # Annotation, not a gate. `npm audit` is not deterministic: the dependency
+      # tree is pinned but the advisory database changes daily, so a blocking
+      # audit here fails pull requests over CVEs published by strangers. That is
+      # what kept this job red through June and July on ~10 transitive `hono`
+      # advisories, none of which any commit in this repo introduced.
+      #
+      # The signal is not dropped, it is placed where it can act:
+      #   ci.yml      annotation  - a PR that ADDS a vulnerable dep is still
+      #                             visible at review time
+      #   publish.yml blocking    - nothing vulnerable ever ships
+      #   health.yml  blocking    - a new CVE still gets an owner and a deadline,
+      #                             within a day
+      #
+      # Honest cost: a CVE disclosed between releases no longer blocks an
+      # unrelated PR. That is the intended effect of splitting the signal.
+      - name: audit dependencies (annotation only)
+        run: |
+          set +e
+          out=$(npm audit --audit-level=high --omit=dev 2>&1); prod=$?
+          all=$(npm audit --audit-level=high 2>&1); dev=$?
+          set -e
+          if [ "$prod" != "0" ]; then
+            echo "::warning::npm audit reports high/critical advisories in PRODUCTION dependencies. This does not fail CI, but it blocks publish.yml and is checked daily by health.yml."
+            echo "$out"
+          elif [ "$dev" != "0" ]; then
+            echo "::notice::npm audit reports high/critical advisories in devDependencies only."
+            echo "$all"
+          else
+            echo "npm audit: no high or critical advisories."
+          fi
 
   test:
     runs-on: ubuntu-latest
@@ -69,46 +110,3 @@ jobs:
         with:
           name: dist
           path: dist/
-
-  pricing-freshness:
-    # Guards against the bundled pricing data silently drifting stale. Runs
-    # only on the weekly schedule (and manual dispatch) so ordinary PRs and
-    # pushes never fail from calendar drift alone.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.15.0
-          cache: 'npm'
-      - run: npm ci
-      # This was a `node - <<'SCRIPT'` heredoc inline here, carrying its own
-      # private copy of the 21-day threshold. A heredoc in YAML is invisible to
-      # the type checker, the linter, the test suite and the coverage gate, and
-      # cannot be run locally without copying it out of the file. It is now
-      # scripts/check-freshness.ts, and the threshold comes from
-      # src/data/freshness.ts alongside the two the product itself uses.
-      - name: Check bundled pricing data is not stale
-        run: npx tsx scripts/check-freshness.ts
-
-  integration-smoke:
-    # Exercises the live AWS/Azure/GCP pricing APIs. Only runs on manual
-    # dispatch or the weekly schedule — skipped on regular PR/push traffic
-    # to avoid coupling CI to third-party API availability.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.15.0
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build
-      - name: Run pricing smoke tests
-        env:
-          RUN_INTEGRATION: '1'
-        run: npx vitest run test/integration/*.smoke.test.ts
