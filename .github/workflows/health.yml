@@ -1,0 +1,189 @@
+name: Health
+
+# Everything that can go red without anyone changing a line of code.
+#
+# These checks used to live in ci.yml behind
+# `if: github.event_name == 'schedule'`, which kept them off pull requests but
+# left their verdict recorded against ci.yml. The most recent CI run on main was
+# therefore the scheduled one, it failed, and the README's CI badge read
+# "build: failing" while every push run was green. One LED was wired to three
+# different questions.
+#
+# Split out, each signal says what it means:
+#   ci.yml      is this commit good?              (pure function of the commit)
+#   health.yml  is the world still as we assume?  (calendar, registries, APIs)
+#   publish.yml is this safe to ship?             (strictest of all)
+#
+# Deliberately NOT a required status check, and deliberately NOT given a badge.
+# A badge has no delivery mechanism, and a second chronically-red one accelerates
+# exactly the blindness this whole change exists to undo. This workflow talks
+# through a single tracking issue it keeps current instead.
+
+on:
+  schedule:
+    # Daily, 12:07 UTC. Cron here is always UTC regardless of any TZ setting.
+    # Offset off the hour so it is not queued behind the top-of-hour spike.
+    - cron: '7 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      # Every check below captures its own exit code rather than using
+      # continue-on-error. continue-on-error rewrites a step's conclusion to
+      # `success`, which is how the refresh workflow spent four months showing a
+      # green tick against a step whose upstream had been returning 404.
+
+      - name: Bundled pricing data is not stale
+        id: freshness
+        run: |
+          set +e
+          npx tsx scripts/check-freshness.ts 2>&1 | tee freshness.txt
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Live provider pricing APIs still respond
+        id: smoke
+        env:
+          RUN_INTEGRATION: '1'
+        run: |
+          set +e
+          npx vitest run test/integration/*.smoke.test.ts 2>&1 | tail -60 | tee smoke.txt
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: No high or critical advisories in production dependencies
+        id: advisories
+        run: |
+          set +e
+          npm audit --audit-level=high --omit=dev 2>&1 | tee advisories.txt
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # The refresh loop's own liveness, asked of the API rather than inferred
+      # from a committed date. `last_updated` is data vintage; whether the
+      # automation ran is a separate question and conflating them is what let a
+      # dead loop look like fresh data.
+      - name: The pricing refresh loop is still running
+        id: loop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          last=$(gh run list --workflow refresh-pricing.yml --limit 1 \
+                   --json createdAt,conclusion --jq '.[0] | "\(.createdAt) \(.conclusion)"' || echo "")
+          echo "last refresh run: ${last:-none}"
+          if [ -z "$last" ]; then
+            echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          when=${last%% *}
+          age=$(( ( $(date -u +%s) - $(date -u -d "$when" +%s) ) / 86400 ))
+          echo "age: ${age}d"
+          # It runs weekly; 10 days means at least one firing was missed, which
+          # is also how GitHub's 60-day-inactivity cron auto-disable presents.
+          if [ "$age" -gt 10 ]; then echo "code=1" >> "$GITHUB_OUTPUT"; else echo "code=0" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Report
+        # `always() &&` is load-bearing: a step `if:` with no status function
+        # gets an implicit success() prepended, which is exactly how the refresh
+        # workflow's alarm step came to be skipped whenever it was needed.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FRESHNESS: ${{ steps.freshness.outputs.code }}
+          SMOKE: ${{ steps.smoke.outputs.code }}
+          ADVISORIES: ${{ steps.advisories.outputs.code }}
+          LOOP: ${{ steps.loop.outputs.code }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          verdict() { [ "${1:-2}" = "0" ] && echo "ok" || echo "FAILING"; }
+
+          unhealthy=0
+          for c in "$FRESHNESS" "$SMOKE" "$ADVISORIES" "$LOOP"; do
+            [ "${c:-2}" = "0" ] || unhealthy=1
+          done
+
+          {
+            echo "This issue is rewritten in place on every run and closed automatically"
+            echo "once everything is green, so it is always a current statement rather than"
+            echo "a pile of stale notifications."
+            echo
+            echo "| Check | Status | What it means |"
+            echo "|---|---|---|"
+            echo "| Pricing data freshness | $(verdict "$FRESHNESS") | The numbers we ship are recent enough to quote |"
+            echo "| Live provider APIs | $(verdict "$SMOKE") | The upstreams we read prices from still answer |"
+            echo "| Production advisories | $(verdict "$ADVISORIES") | Nothing shipped has a known high/critical CVE |"
+            echo "| Refresh loop liveness | $(verdict "$LOOP") | The weekly refresh is actually firing |"
+            echo
+            echo "Last checked: $(date -u '+%Y-%m-%d %H:%M UTC') - [run log]($RUN_URL)"
+            echo
+            for f in freshness.txt smoke.txt advisories.txt; do
+              if [ -f "$f" ]; then
+                echo "<details><summary>$f</summary>"; echo; echo '```'
+                tail -40 "$f"; echo '```'; echo; echo "</details>"; echo
+              fi
+            done
+          } > body.md
+
+          # --force makes this idempotent, and makes it work at all: `gh issue
+          # create --label` fails outright against a label that does not exist,
+          # which is why every alarm this repo has ever filed landed unlabelled.
+          gh label create health \
+            --color D93F0B \
+            --description "Automated: something outside this commit is wrong" \
+            --force
+
+          existing=$(gh issue list --label health --state open --limit 1 --json number --jq '.[0].number // empty')
+
+          if [ "$unhealthy" = "1" ]; then
+            if [ -n "$existing" ]; then
+              gh issue edit "$existing" --body-file body.md
+              echo "updated issue #$existing"
+            else
+              gh issue create \
+                --title "health: something outside the code is failing" \
+                --label health \
+                --assignee JadenRazo \
+                --body-file body.md
+            fi
+          elif [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Resolved: all health checks green as of $(date -u '+%Y-%m-%d %H:%M UTC'). [run log]($RUN_URL)"
+            gh issue close "$existing"
+            echo "closed issue #$existing"
+          else
+            echo "all checks green, nothing to report"
+          fi
+
+      - name: Fail the run if anything is unhealthy
+        if: always()
+        env:
+          FRESHNESS: ${{ steps.freshness.outputs.code }}
+          SMOKE: ${{ steps.smoke.outputs.code }}
+          ADVISORIES: ${{ steps.advisories.outputs.code }}
+          LOOP: ${{ steps.loop.outputs.code }}
+        run: |
+          set -euo pipefail
+          rc=0
+          [ "${FRESHNESS:-2}" = "0" ]  || { echo "::error::bundled pricing data is stale"; rc=1; }
+          [ "${SMOKE:-2}" = "0" ]      || { echo "::error::a live provider pricing API did not respond as expected"; rc=1; }
+          [ "${ADVISORIES:-2}" = "0" ] || { echo "::error::high or critical advisory in production dependencies"; rc=1; }
+          [ "${LOOP:-2}" = "0" ]       || { echo "::error::the weekly pricing refresh has not run recently"; rc=1; }
+          exit $rc

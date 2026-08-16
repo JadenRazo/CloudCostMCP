@@ -300,9 +300,9 @@ export interface PricingMetadataBlock {
   staleness: PricingStaleness;
 }
 
-const FRESH_MAX_AGE_DAYS = 14;
-const AGING_MAX_AGE_DAYS = 45;
-const MS_PER_DAY = 86_400_000;
+// Declared in src/data/freshness.ts so CI's gate and this module cannot drift
+// apart. They previously held separate copies of the same fact.
+import { FRESH_MAX_AGE_DAYS, AGING_MAX_AGE_DAYS, MS_PER_DAY } from "./freshness.js";
 
 /**
  * Summarise the bundled pricing data vintage for a provider from

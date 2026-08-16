@@ -29,6 +29,7 @@ import {
   calculateGcpDataTransferCost,
   DEFAULT_EGRESS_GB,
 } from "./data-transfer.js";
+import { getPricingMetadata } from "../data/loader.js";
 import { calculateContainerRegistryCost } from "./container-registry.js";
 import { calculateSecretsCost } from "./secrets.js";
 import { calculateDnsCost } from "./dns.js";
@@ -533,10 +534,23 @@ export class CostEngine {
       const svc = serviceLabel(resource.type);
       byService[svc] = (byService[svc] ?? 0) + estimate.monthly_cost;
 
-      // Surface warnings for fallback pricing and missing data.
-      if (estimate.pricing_source === "fallback") {
+      // Surface warnings for non-live pricing and missing data.
+      //
+      // "bundled" used to be missing from this condition, and it is the source
+      // every GCP estimate carries: the live GCP path returns null on a 403 and
+      // GcpProvider silently serves the shipped data instead. So a GCP number
+      // priced from a four-month-old file arrived with an empty `warnings`
+      // array, while README's "the response includes a warnings entry" said
+      // otherwise. AWS and Azure degradation was visible; GCP's was structurally
+      // invisible. Both non-live sources belong here.
+      if (estimate.pricing_source === "fallback" || estimate.pricing_source === "bundled") {
+        const meta = getPricingMetadata(estimate.provider);
+        const vintage =
+          meta.as_of !== null
+            ? ` (as of ${meta.as_of}${meta.age_days !== null ? `, ${meta.age_days} days old` : ""}; ${meta.staleness})`
+            : ` (vintage unknown, treated as stale)`;
         warnings.push(
-          `${estimate.resource_name} (${estimate.resource_type}): using fallback/bundled pricing data`,
+          `${estimate.resource_name} (${estimate.resource_type}): priced from ${estimate.pricing_source} data, not live pricing${vintage}`,
         );
       }
       if (estimate.monthly_cost === 0 && estimate.confidence === "low") {
