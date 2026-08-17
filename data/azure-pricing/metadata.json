@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-05",
+  "last_updated": "2026-08-17",
   "source": "https://prices.azure.com/api/retail/prices",
   "sku_count": 70,
   "refresh_script_version": "2.0.0",
