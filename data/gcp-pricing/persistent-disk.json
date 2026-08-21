@@ -1,18 +1,224 @@
 {
-  "us-central1": { "pd-standard": 0.040, "pd-ssd": 0.170, "pd-balanced": 0.100, "pd-extreme": 0.125 },
-  "us-east1": { "pd-standard": 0.040, "pd-ssd": 0.170, "pd-balanced": 0.100, "pd-extreme": 0.125 },
-  "us-east4": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "us-west1": { "pd-standard": 0.040, "pd-ssd": 0.170, "pd-balanced": 0.100, "pd-extreme": 0.125 },
-  "us-west4": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "europe-west1": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "europe-west2": { "pd-standard": 0.048, "pd-ssd": 0.204, "pd-balanced": 0.120, "pd-extreme": 0.150 },
-  "europe-west3": { "pd-standard": 0.048, "pd-ssd": 0.204, "pd-balanced": 0.120, "pd-extreme": 0.150 },
-  "europe-west4": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "europe-north1": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "asia-southeast1": { "pd-standard": 0.048, "pd-ssd": 0.204, "pd-balanced": 0.120, "pd-extreme": 0.150 },
-  "asia-northeast1": { "pd-standard": 0.048, "pd-ssd": 0.204, "pd-balanced": 0.120, "pd-extreme": 0.150 },
-  "asia-south1": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "australia-southeast1": { "pd-standard": 0.048, "pd-ssd": 0.204, "pd-balanced": 0.120, "pd-extreme": 0.150 },
-  "northamerica-northeast1": { "pd-standard": 0.044, "pd-ssd": 0.187, "pd-balanced": 0.110, "pd-extreme": 0.138 },
-  "southamerica-east1": { "pd-standard": 0.058, "pd-ssd": 0.245, "pd-balanced": 0.144, "pd-extreme": 0.180 }
+  "us-central1": {
+    "pd-standard": 0.04,
+    "pd-ssd": 0.17,
+    "pd-balanced": 0.1,
+    "pd-extreme": 0.125
+  },
+  "us-east1": {
+    "pd-standard": 0.04,
+    "pd-ssd": 0.17,
+    "pd-balanced": 0.1,
+    "pd-extreme": 0.125
+  },
+  "us-east4": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "us-east5": {
+    "pd-standard": 0.04,
+    "pd-ssd": 0.17,
+    "pd-balanced": 0.1,
+    "pd-extreme": 0.125
+  },
+  "us-west1": {
+    "pd-standard": 0.04,
+    "pd-ssd": 0.17,
+    "pd-balanced": 0.1,
+    "pd-extreme": 0.125
+  },
+  "us-west2": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "us-west3": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "us-west4": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "us-south1": {
+    "pd-standard": 0.0472,
+    "pd-ssd": 0.2006,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "europe-west1": {
+    "pd-standard": 0.04,
+    "pd-ssd": 0.17,
+    "pd-balanced": 0.1,
+    "pd-extreme": 0.125
+  },
+  "europe-west2": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "europe-west3": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "europe-west4": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "europe-west6": {
+    "pd-standard": 0.052,
+    "pd-ssd": 0.221,
+    "pd-balanced": 0.13,
+    "pd-extreme": 0.163
+  },
+  "europe-west8": {
+    "pd-standard": 0.0464,
+    "pd-ssd": 0.1972,
+    "pd-balanced": 0.116,
+    "pd-extreme": 0.145
+  },
+  "europe-west9": {
+    "pd-standard": 0.0464,
+    "pd-ssd": 0.1972,
+    "pd-balanced": 0.116,
+    "pd-extreme": 0.145
+  },
+  "europe-north1": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "europe-central2": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.13,
+    "pd-extreme": 0.163
+  },
+  "asia-southeast1": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "asia-southeast2": {
+    "pd-standard": 0.052,
+    "pd-ssd": 0.221,
+    "pd-balanced": 0.13,
+    "pd-extreme": 0.163
+  },
+  "asia-east1": {
+    "pd-standard": 0.04,
+    "pd-ssd": 0.17,
+    "pd-balanced": 0.1,
+    "pd-extreme": 0.125
+  },
+  "asia-east2": {
+    "pd-standard": 0.0498,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "asia-northeast1": {
+    "pd-standard": 0.052,
+    "pd-ssd": 0.221,
+    "pd-balanced": 0.13,
+    "pd-extreme": 0.163
+  },
+  "asia-northeast2": {
+    "pd-standard": 0.052,
+    "pd-ssd": 0.221,
+    "pd-balanced": 0.13,
+    "pd-extreme": 0.163
+  },
+  "asia-northeast3": {
+    "pd-standard": 0.052,
+    "pd-ssd": 0.221,
+    "pd-balanced": 0.13,
+    "pd-extreme": 0.163
+  },
+  "asia-south1": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "asia-south2": {
+    "pd-standard": 0.048,
+    "pd-ssd": 0.204,
+    "pd-balanced": 0.12,
+    "pd-extreme": 0.15
+  },
+  "australia-southeast1": {
+    "pd-standard": 0.054,
+    "pd-ssd": 0.23,
+    "pd-balanced": 0.135,
+    "pd-extreme": 0.169
+  },
+  "australia-southeast2": {
+    "pd-standard": 0.054,
+    "pd-ssd": 0.23,
+    "pd-balanced": 0.135,
+    "pd-extreme": 0.169
+  },
+  "southamerica-east1": {
+    "pd-standard": 0.06,
+    "pd-ssd": 0.255,
+    "pd-balanced": 0.15,
+    "pd-extreme": 0.188
+  },
+  "southamerica-west1": {
+    "pd-standard": 0.0572,
+    "pd-ssd": 0.2431,
+    "pd-balanced": 0.143,
+    "pd-extreme": 0.179
+  },
+  "northamerica-northeast1": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "northamerica-northeast2": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "me-west1": {
+    "pd-standard": 0.044,
+    "pd-ssd": 0.187,
+    "pd-balanced": 0.11,
+    "pd-extreme": 0.138
+  },
+  "me-central1": {
+    "pd-standard": 0.0486,
+    "pd-ssd": 0.2066,
+    "pd-balanced": 0.1215,
+    "pd-extreme": 0.1537
+  },
+  "me-central2": {
+    "pd-standard": 0.064,
+    "pd-ssd": 0.272,
+    "pd-balanced": 0.16,
+    "pd-extreme": 0.2
+  },
+  "africa-south1": {
+    "pd-standard": 0.0523,
+    "pd-ssd": 0.1866,
+    "pd-balanced": 0.1098,
+    "pd-extreme": 0.1372
+  }
 }

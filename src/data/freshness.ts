@@ -28,6 +28,28 @@ export const AGING_MAX_AGE_DAYS = 45;
  */
 export const GATE_MAX_AGE_DAYS = 21;
 
+/**
+ * The age at which a *curated* dataset fails the gate.
+ *
+ * Curated data has no refresh loop to be alive, so `last_verified` says nothing
+ * about it — the only signal is when a human last touched it. It is held to a
+ * looser threshold than the automated loop because a quarterly curation pass is
+ * the declared policy, not a symptom.
+ */
+export const CURATED_MAX_AGE_DAYS = 90;
+
+/**
+ * How a dataset is kept current, declared in each metadata.json.
+ *
+ * The distinction is load-bearing: for an automated provider the question is
+ * "is the loop alive?" (`last_verified`), and for a curated one it is "when did
+ * someone last check?" (`last_updated`). Applying one threshold to both is how
+ * a dead GCP fetcher and an overdue hand-curation produced the same message for
+ * four months. "unspecified" is the pre-3.0.0 shape and is held to the strict
+ * automated threshold on `last_updated`, which is what it used to mean.
+ */
+export type RefreshPolicy = "automated" | "curated" | "unspecified";
+
 export const MS_PER_DAY = 86_400_000;
 
 /** Providers with bundled pricing data under data/<provider>-pricing/. */

@@ -78,8 +78,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
+      # A missing `prettier --write` on one file cancelled the Node 20 leg of
+      # run 31913155329 and destroyed its signal: the run reported "the strategy
+      # configuration was canceled because test._22 failed" and nobody learned
+      # whether Node 20 passed. The legs are independent; run them that way.
+      fail-fast: false
       matrix:
-        node-version: [20, 22]
+        # 24.15.0 is the version publish.yml, health.yml and the composite
+        # action all run. Testing only 20 and 22 meant the version that actually
+        # ships was never the version under test.
+        node-version: [20, 22, 24.15.0]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -88,13 +96,23 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run lint
-      - run: npx prettier --check src test
+      # `npm run format:check` is what `npm run check` runs locally. Invoking
+      # prettier directly here let the two drift, so a contributor could pass
+      # the documented local gate and still fail CI on formatting.
+      - run: npm run format:check
       # test:coverage enforces the vitest.config.ts coverage thresholds, so
       # the gate actually fails CI when coverage regresses below the floor.
       - run: npm run test:coverage
       - run: npm run build
 
+  # Only builds the uploadable artifact on main. On pull requests the matrix has
+  # already run `npm run build` three times, so this job re-did a proven build on
+  # a fourth Node version for an artifact nothing consumes - and, starting last
+  # after `needs: test`, it was the job most exposed to `cancel-in-progress`.
+  # Run 31124080029 went red with every job green and this one cancelled at 15
+  # minutes: a false failure on a release branch that later merged clean.
   build-artifact:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: test

@@ -1,5 +1,12 @@
-# Example workflow — copy this file to your repository's .github/workflows/ directory
-# and adjust the inputs to match your project layout.
+# Example workflow — copy this file to your repository's .github/workflows/
+# directory and adjust the inputs to match your project layout.
+#
+# It lives in examples/ rather than .github/workflows/ because GitHub does not
+# read the sentence above: while it sat in the workflows directory it was a live
+# workflow, registered as "Terraform Cost Estimate" and executed on every pull
+# request to any base branch, cost-estimating this repository with a published
+# build of itself. A file that documents a workflow and a file that is one are
+# not the same file.
 
 name: Terraform Cost Estimate
 

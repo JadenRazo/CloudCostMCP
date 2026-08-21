@@ -10,7 +10,7 @@
  * Data sources:
  *   - AWS:   Bulk Pricing CSV per-region (streamed, filtered to fallback SKUs)
  *   - Azure: Retail Prices REST API (per-SKU filtered queries)
- *   - GCP:   Public pricing JSON from gstatic.com
+ *   - GCP:   gcosts pricing.yml (weekly snapshot of the Cloud Billing Catalog)
  *
  * On any fetch failure for a given SKU, the existing fallback value is
  * preserved. The script never blanks out entries. Per-SKU misses degrade
@@ -23,8 +23,11 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { spawnSync } from "child_process";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { parse as parseYaml } from "yaml";
+
 import { parseCsvLine } from "../src/pricing/aws/csv-parser.js";
 import { fetchWithRetry } from "../src/pricing/fetch-utils.js";
+import { GCP_PRICING_SOURCE_URL } from "../src/data/pricing-sources.js";
 import {
   EC2_BASE_PRICES,
   RDS_BASE_PRICES,
@@ -45,7 +48,7 @@ const AWS_FALLBACK_PATH = resolve(PROJECT_ROOT, "src/pricing/aws/fallback-data.t
 const AZURE_FALLBACK_PATH = resolve(PROJECT_ROOT, "src/pricing/azure/fallback-data.ts");
 
 const WRITE_MODE = process.argv.includes("--write");
-const REFRESH_SCRIPT_VERSION = "2.0.0";
+const REFRESH_SCRIPT_VERSION = "3.0.0";
 
 /**
  * Provider-level refresh failures collected during the run. A non-empty list
@@ -88,90 +91,297 @@ function printDiff(label: string, entries: DiffEntry[]): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// GCP pricing — fetches from the public gstatic endpoint
-// ---------------------------------------------------------------------------
-
-const GCP_PRICING_URL = "https://www.gstatic.com/cloud-site-ux/pricing/data/gcp-compute.json";
-
-interface GcpSkuData {
-  regions: Record<string, { price: Array<{ val: number; nanos: number; currency: string }> }>;
+/**
+ * Refuse to certify a provider whose upstream returned (almost) nothing.
+ *
+ * AWS and Azure used to log a WARNING and carry on: their fetch helpers return
+ * an empty map on failure, every SKU then falls through to "no live data", and
+ * the metadata was stamped with today's date regardless. A dead AWS upstream
+ * would have rotted exactly the way GCP's did — except silently, with no failed
+ * run and no issue filed. GCP was only ever loud because its fetcher happened
+ * to return early, before the stamp.
+ *
+ * Returns true when coverage is good enough to write.
+ */
+function assertLiveCoverage(label: string, live: number, total: number, source: string): boolean {
+  const floor = Math.ceil(total * 0.8);
+  if (total === 0 || live >= floor) return true;
+  const message =
+    `only ${live} of ${total} SKUs returned live data (floor ${floor}) — the upstream is ` +
+    `unreachable or its response shape changed`;
+  console.error(`  ERROR: ${label} refresh failed — ${message}`);
+  refreshFailures.push(`${label}: ${message} (URL: ${source})`);
+  return false;
 }
+
+// ---------------------------------------------------------------------------
+// GCP pricing — sourced from the gcosts dataset
+//
+// Google retired every key-free bulk pricing source. The gstatic asset this
+// script used to read (cloud-site-ux/pricing/data/gcp-compute.json) has
+// returned 404 since before the first scheduled run on 2026-04-20, and
+// cloudbilling.googleapis.com/v1 answers unregistered callers with 403. The
+// result was four months of weekly failures against a GCP dataset frozen at its
+// 2026-04-15 vintage, shipped to every npm consumer.
+//
+// gcosts (Cyclenerd/google-cloud-pricing-cost-calculator, Apache-2.0) publishes
+// a pricing.yml regenerated weekly from the official Cloud Billing Catalog API.
+// Two properties matter here beyond "it responds":
+//
+//   - It ships assembled per-instance hourly rates. The old
+//     `vcpus * corePrice + memGb * memPrice` reconstruction is gone, and with it
+//     a class of derivation error that no test could have caught.
+//   - It carries an `about.generated` stamp, so the vintage we record is the
+//     data's own rather than the date we happened to run. That distinction is
+//     what makes `last_updated` mean something again.
+// ---------------------------------------------------------------------------
+
+const GCP_PRICING_URL = GCP_PRICING_SOURCE_URL;
+
+const GCP_SOURCE_LABEL =
+  "gcosts pricing.yml (Cyclenerd/google-cloud-pricing-cost-calculator, Apache-2.0), " +
+  "generated from the Google Cloud Billing Catalog API";
+
+/** Bundled persistent-disk type -> gcosts `compute.storage` key. */
+const GCP_DISK_TYPES: Record<string, string> = {
+  "pd-standard": "hdd",
+  "pd-ssd": "ssd",
+  "pd-balanced": "balanced",
+  "pd-extreme": "extreme",
+};
+
+/** Bundled Cloud Storage class -> gcosts `storage.bucket` key. */
+const GCP_STORAGE_CLASSES: Record<string, string> = {
+  STANDARD: "standard",
+  NEARLINE: "nearline",
+  COLDLINE: "coldline",
+  ARCHIVE: "archiv",
+};
+
+/**
+ * Datasets under data/gcp-pricing/ that gcosts does not cover and that no
+ * automation refreshes. Declared here so they are reported rather than silently
+ * re-certified as fresh by the automated stamp — which is what used to happen.
+ */
+const GCP_CURATED_DATASETS = ["cloud-sql.json"] as const;
 
 const MACHINE_TYPES: Record<string, Record<string, [number, number]>> = {
   e2: {
-    "e2-micro": [0.25, 1], "e2-small": [0.5, 2], "e2-medium": [1, 4],
-    "e2-standard-2": [2, 8], "e2-standard-4": [4, 16], "e2-standard-8": [8, 32],
+    "e2-micro": [0.25, 1],
+    "e2-small": [0.5, 2],
+    "e2-medium": [1, 4],
+    "e2-standard-2": [2, 8],
+    "e2-standard-4": [4, 16],
+    "e2-standard-8": [8, 32],
     "e2-standard-16": [16, 64],
-    "e2-highcpu-2": [2, 2], "e2-highcpu-4": [4, 4], "e2-highcpu-8": [8, 8],
-    "e2-highmem-2": [2, 16], "e2-highmem-4": [4, 32], "e2-highmem-8": [8, 64],
+    "e2-highcpu-2": [2, 2],
+    "e2-highcpu-4": [4, 4],
+    "e2-highcpu-8": [8, 8],
+    "e2-highmem-2": [2, 16],
+    "e2-highmem-4": [4, 32],
+    "e2-highmem-8": [8, 64],
   },
   n2: {
-    "n2-standard-2": [2, 8], "n2-standard-4": [4, 16], "n2-standard-8": [8, 32],
-    "n2-standard-16": [16, 64], "n2-standard-32": [32, 128],
-    "n2-highcpu-2": [2, 2], "n2-highcpu-4": [4, 4], "n2-highcpu-8": [8, 8],
-    "n2-highmem-2": [2, 16], "n2-highmem-4": [4, 32], "n2-highmem-8": [8, 64],
+    "n2-standard-2": [2, 8],
+    "n2-standard-4": [4, 16],
+    "n2-standard-8": [8, 32],
+    "n2-standard-16": [16, 64],
+    "n2-standard-32": [32, 128],
+    "n2-highcpu-2": [2, 2],
+    "n2-highcpu-4": [4, 4],
+    "n2-highcpu-8": [8, 8],
+    "n2-highmem-2": [2, 16],
+    "n2-highmem-4": [4, 32],
+    "n2-highmem-8": [8, 64],
   },
   n2d: {
-    "n2d-standard-2": [2, 8], "n2d-standard-4": [4, 16], "n2d-standard-8": [8, 32],
+    "n2d-standard-2": [2, 8],
+    "n2d-standard-4": [4, 16],
+    "n2d-standard-8": [8, 32],
     "n2d-standard-16": [16, 64],
-    "n2d-highcpu-2": [2, 2], "n2d-highcpu-4": [4, 4],
-    "n2d-highmem-2": [2, 16], "n2d-highmem-4": [4, 32],
+    "n2d-highcpu-2": [2, 2],
+    "n2d-highcpu-4": [4, 4],
+    "n2d-highmem-2": [2, 16],
+    "n2d-highmem-4": [4, 32],
   },
   c2: {
-    "c2-standard-4": [4, 16], "c2-standard-8": [8, 32], "c2-standard-16": [16, 64],
-    "c2-standard-30": [30, 120], "c2-standard-60": [60, 240],
+    "c2-standard-4": [4, 16],
+    "c2-standard-8": [8, 32],
+    "c2-standard-16": [16, 64],
+    "c2-standard-30": [30, 120],
+    "c2-standard-60": [60, 240],
+  },
+  c2d: {
+    "c2d-standard-4": [4, 16],
+    "c2d-standard-8": [8, 32],
+  },
+  // GPU instances. The source prices these whole (accelerator included), which
+  // is why they can be listed here at all: the old per-core/per-GB
+  // reconstruction had no way to express an attached A100.
+  a2: {
+    "a2-highgpu-1g": [12, 85],
+    "a2-highgpu-2g": [24, 170],
+    "a2-highgpu-4g": [48, 340],
+    "a2-highgpu-8g": [96, 680],
+    "a2-megagpu-16g": [96, 1360],
+    "a2-ultragpu-1g": [12, 170],
+    "a2-ultragpu-2g": [24, 340],
+    "a2-ultragpu-4g": [48, 680],
+    "a2-ultragpu-8g": [96, 1360],
   },
   c3: {
-    "c3-standard-4": [4, 16], "c3-standard-8": [8, 32], "c3-standard-22": [22, 88],
-    "c3-highcpu-4": [4, 4], "c3-highcpu-8": [8, 8], "c3-highcpu-22": [22, 22],
-    "c3-highmem-4": [4, 32], "c3-highmem-8": [8, 64], "c3-highmem-22": [22, 176],
+    "c3-standard-4": [4, 16],
+    "c3-standard-8": [8, 32],
+    "c3-standard-22": [22, 88],
+    "c3-highcpu-4": [4, 4],
+    "c3-highcpu-8": [8, 8],
+    "c3-highcpu-22": [22, 22],
+    "c3-highmem-4": [4, 32],
+    "c3-highmem-8": [8, 64],
+    "c3-highmem-22": [22, 176],
   },
   c4: {
-    "c4-standard-4": [4, 16], "c4-standard-8": [8, 32], "c4-standard-16": [16, 64],
-    "c4-highcpu-4": [4, 4], "c4-highcpu-8": [8, 8],
-    "c4-highmem-4": [4, 32], "c4-highmem-8": [8, 64],
+    "c4-standard-4": [4, 16],
+    "c4-standard-8": [8, 32],
+    "c4-standard-16": [16, 64],
+    "c4-highcpu-4": [4, 4],
+    "c4-highcpu-8": [8, 8],
+    "c4-highmem-4": [4, 32],
+    "c4-highmem-8": [8, 64],
   },
   n4: {
-    "n4-standard-2": [2, 8], "n4-standard-4": [4, 16], "n4-standard-8": [8, 32],
-    "n4-standard-16": [16, 64], "n4-standard-32": [32, 128],
-    "n4-highcpu-2": [2, 2], "n4-highcpu-4": [4, 4], "n4-highcpu-8": [8, 8],
-    "n4-highmem-2": [2, 16], "n4-highmem-4": [4, 32], "n4-highmem-8": [8, 64],
+    "n4-standard-2": [2, 8],
+    "n4-standard-4": [4, 16],
+    "n4-standard-8": [8, 32],
+    "n4-standard-16": [16, 64],
+    "n4-standard-32": [32, 128],
+    "n4-highcpu-2": [2, 2],
+    "n4-highcpu-4": [4, 4],
+    "n4-highcpu-8": [8, 8],
+    "n4-highmem-2": [2, 16],
+    "n4-highmem-4": [4, 32],
+    "n4-highmem-8": [8, 64],
   },
   t2d: {
-    "t2d-standard-1": [1, 4], "t2d-standard-2": [2, 8], "t2d-standard-4": [4, 16],
-    "t2d-standard-8": [8, 32], "t2d-standard-16": [16, 64],
+    "t2d-standard-1": [1, 4],
+    "t2d-standard-2": [2, 8],
+    "t2d-standard-4": [4, 16],
+    "t2d-standard-8": [8, 32],
+    "t2d-standard-16": [16, 64],
   },
 };
 
-const GCP_REGIONS = [
-  "us-central1", "us-east1", "us-east4", "us-west1", "us-west4",
-  "europe-west1", "europe-west2", "europe-west3", "europe-west4", "europe-north1",
-  "asia-southeast1", "asia-east1", "asia-northeast1", "asia-south1",
-  "australia-southeast1", "southamerica-east1", "northamerica-northeast1",
-];
+interface GcostsEntry {
+  cost?: Record<string, { hour?: number; month?: number }>;
+}
 
-function getStandardPrice(familyGroup: Record<string, GcpSkuData>, region: string): number | null {
-  for (const [skuName, skuData] of Object.entries(familyGroup)) {
-    if (skuName.toLowerCase().includes("custom") || skuName.toLowerCase().includes("sole")) continue;
-    const rdata = skuData.regions?.[region];
-    if (rdata?.price?.[0]) {
-      const p = rdata.price[0];
-      return (p.val ?? 0) + (p.nanos ?? 0) / 1e9;
-    }
+interface GcostsDoc {
+  about?: { generated?: string; timestamp?: number };
+  compute?: {
+    instance?: Record<string, GcostsEntry>;
+    storage?: Record<string, GcostsEntry>;
+  };
+  storage?: { bucket?: Record<string, GcostsEntry> };
+}
+
+/**
+ * The regions the product already knows about. Using this list rather than a
+ * hardcoded one means real prices replace the estimated multipliers in
+ * data/region-price-multipliers.json wherever gcosts has them.
+ */
+function gcpRegions(): string[] {
+  const raw = readFileSync(resolve(PROJECT_ROOT, "data/region-price-multipliers.json"), "utf-8");
+  const parsed = JSON.parse(raw) as { gcp?: Record<string, number> };
+  return Object.keys(parsed.gcp ?? {});
+}
+
+function gcostsPrice(
+  entry: GcostsEntry | undefined,
+  region: string,
+  field: "hour" | "month",
+): number | null {
+  const value = entry?.cost?.[region]?.[field];
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Bundled files carry 4dp. Rounding here keeps existing regions byte-identical. */
+function round4(n: number): number {
+  return Math.round(n * 10000) / 10000;
+}
+
+/**
+ * The dataset's own generation date as YYYY-MM-DD. Returns null when the stamp
+ * is missing or unparseable — an unknown vintage is never silently replaced
+ * with today's date, because that is precisely the lie that hid this outage.
+ */
+function gcostsVintage(doc: GcostsDoc): string | null {
+  const ts = doc.about?.timestamp;
+  if (typeof ts === "number" && Number.isFinite(ts) && ts > 0) {
+    return new Date(ts * 1000).toISOString().split("T")[0];
+  }
+  const generated = doc.about?.generated;
+  if (typeof generated === "string") {
+    const parsed = new Date(generated);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
   }
   return null;
 }
 
-async function refreshGcpComputePricing(): Promise<void> {
-  console.log("Fetching GCP compute pricing from gstatic.com...");
-  let data: {
-    gcp: { compute: { gce: { vms_on_demand: Record<string, Record<string, GcpSkuData>> } } };
-  };
+/**
+ * Rebuild one `{region: {sku: price}}` file from a gcosts section.
+ *
+ * Existing values are preserved for any region/SKU the source does not cover,
+ * so a partial upstream never blanks out a table.
+ */
+function buildGcpTable(
+  fileName: string,
+  regions: string[],
+  skuMap: Record<string, string>,
+  section: Record<string, GcostsEntry> | undefined,
+  field: "hour" | "month",
+): {
+  table: Record<string, Record<string, number>>;
+  matched: number;
+  added: number;
+  changed: number;
+} {
+  const filePath = resolve(GCP_DATA_DIR, fileName);
+  const existing = JSON.parse(readFileSync(filePath, "utf-8")) as Record<
+    string,
+    Record<string, number>
+  >;
+
+  const table: Record<string, Record<string, number>> = {};
+  let matched = 0;
+  let added = 0;
+  let changed = 0;
+
+  for (const region of regions) {
+    const row: Record<string, number> = { ...(existing[region] ?? {}) };
+    for (const [bundledName, sourceKey] of Object.entries(skuMap)) {
+      const price = gcostsPrice(section?.[sourceKey], region, field);
+      if (price === null) continue;
+      const rounded = round4(price);
+      const before = row[bundledName];
+      if (before === undefined) added++;
+      else if (before !== rounded) changed++;
+      row[bundledName] = rounded;
+      matched++;
+    }
+    if (Object.keys(row).length > 0) table[region] = row;
+  }
+
+  return { table, matched, added, changed };
+}
+
+async function refreshGcpPricing(): Promise<void> {
+  console.log("Fetching GCP pricing from the gcosts dataset...");
+
+  let doc: GcostsDoc;
   try {
     const resp = await fetchWithRetry(GCP_PRICING_URL);
     if (!resp.ok) throw new Error(`GCP pricing fetch failed: ${resp.status}`);
-    data = (await resp.json()) as typeof data;
+    doc = parseYaml(await resp.text()) as GcostsDoc;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`  ERROR: GCP pricing refresh failed — existing data is now stale: ${message}`);
@@ -179,56 +389,102 @@ async function refreshGcpComputePricing(): Promise<void> {
     return;
   }
 
-  const vms = data.gcp.compute.gce.vms_on_demand;
-  const cores = vms["cores:_per_core"] ?? {};
-  const memory = vms["memory:_per_gb"] ?? {};
+  const vintage = gcostsVintage(doc);
+  if (vintage === null) {
+    const message = "gcosts dataset carries no usable about.generated/about.timestamp";
+    console.error(`  ERROR: ${message}`);
+    refreshFailures.push(`GCP: ${message} (URL: ${GCP_PRICING_URL})`);
+    return;
+  }
 
-  const existingPath = resolve(GCP_DATA_DIR, "compute-engine.json");
-  const existing: Record<string, Record<string, number>> = JSON.parse(
-    readFileSync(existingPath, "utf-8"),
+  const regions = gcpRegions();
+  const machineTypes: Record<string, string> = {};
+  for (const family of Object.values(MACHINE_TYPES)) {
+    for (const mtype of Object.keys(family)) machineTypes[mtype] = mtype;
+  }
+
+  const compute = buildGcpTable(
+    "compute-engine.json",
+    regions,
+    machineTypes,
+    doc.compute?.instance,
+    "hour",
+  );
+  const disk = buildGcpTable(
+    "persistent-disk.json",
+    regions,
+    GCP_DISK_TYPES,
+    doc.compute?.storage,
+    "month",
+  );
+  const storage = buildGcpTable(
+    "cloud-storage.json",
+    regions,
+    GCP_STORAGE_CLASSES,
+    doc.storage?.bucket,
+    "month",
   );
 
-  const result: Record<string, Record<string, number>> = {};
-  let newTypes = 0;
-  let priceChanges = 0;
-
-  for (const region of GCP_REGIONS) {
-    result[region] = {};
-    if (existing[region]) Object.assign(result[region], existing[region]);
-
-    for (const [family, types] of Object.entries(MACHINE_TYPES)) {
-      const corePrice = getStandardPrice(
-        (cores[family] as unknown as Record<string, GcpSkuData>) ?? {},
-        region,
-      );
-      const memPrice = getStandardPrice(
-        (memory[family] as unknown as Record<string, GcpSkuData>) ?? {},
-        region,
-      );
-      if (corePrice == null || memPrice == null) continue;
-
-      for (const [mtype, [vcpus, memGb]] of Object.entries(types)) {
-        const hourly = Math.round((vcpus * corePrice + memGb * memPrice) * 10000) / 10000;
-        const oldPrice = result[region][mtype];
-        if (oldPrice === undefined) newTypes++;
-        else if (oldPrice !== hourly) priceChanges++;
-        result[region][mtype] = hourly;
-      }
-    }
+  // Sanity floors. A fetch that succeeds but parses to nothing is the failure
+  // mode a liveness check cannot see: `last_verified` would stay fresh while the
+  // data rotted. Refuse to write, and be loud, rather than certify an empty
+  // parse as a successful refresh.
+  const floors: Array<[string, number, number]> = [
+    ["compute-engine.json", compute.matched, 500],
+    ["persistent-disk.json", disk.matched, 40],
+    ["cloud-storage.json", storage.matched, 40],
+  ];
+  const breached = floors.filter(([, matched, floor]) => matched < floor);
+  if (breached.length > 0) {
+    const detail = breached.map(([f, m, floor]) => `${f}: ${m} < ${floor}`).join("; ");
+    const message = `gcosts parsed but yielded too few prices (${detail}) — upstream shape likely changed`;
+    console.error(`  ERROR: ${message}`);
+    refreshFailures.push(`GCP: ${message} (URL: ${GCP_PRICING_URL})`);
+    return;
   }
 
-  if (WRITE_MODE) {
-    writeFileSync(existingPath, JSON.stringify(result, null, 2) + "\n");
-    const metaPath = resolve(GCP_DATA_DIR, "metadata.json");
-    const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
-    meta.last_updated = new Date().toISOString().split("T")[0];
-    meta.refresh_script_version = REFRESH_SCRIPT_VERSION;
-    meta.sku_count = Object.values(result).reduce((n, r) => n + Object.keys(r).length, 0);
-    writeFileSync(metaPath, JSON.stringify(meta, null, 2) + "\n");
-    console.log(`  Updated compute-engine.json: ${priceChanges} price changes, ${newTypes} new types`);
-  } else {
-    console.log(`  [report-only] Would update: ${priceChanges} price changes, ${newTypes} new types`);
+  console.log(`  gcosts vintage: ${vintage} (${regions.length} regions requested)`);
+  console.log(
+    `  compute-engine.json:  ${compute.matched} prices, ${compute.added} new, ${compute.changed} changed, ` +
+      `${Object.keys(compute.table).length} regions`,
+  );
+  console.log(
+    `  persistent-disk.json: ${disk.matched} prices, ${disk.added} new, ${disk.changed} changed, ` +
+      `${Object.keys(disk.table).length} regions`,
+  );
+  console.log(
+    `  cloud-storage.json:   ${storage.matched} prices, ${storage.added} new, ${storage.changed} changed, ` +
+      `${Object.keys(storage.table).length} regions`,
+  );
+  for (const curated of GCP_CURATED_DATASETS) {
+    console.log(`  ${curated}: not covered by the source — hand-curated, left untouched`);
   }
+
+  if (!WRITE_MODE) {
+    console.log("  [report-only] Would write compute-engine, persistent-disk, cloud-storage.");
+    return;
+  }
+
+  const skuCount =
+    Object.values(compute.table).reduce((n, r) => n + Object.keys(r).length, 0) +
+    Object.values(disk.table).reduce((n, r) => n + Object.keys(r).length, 0) +
+    Object.values(storage.table).reduce((n, r) => n + Object.keys(r).length, 0);
+
+  for (const [name, built] of [
+    ["compute-engine.json", compute],
+    ["persistent-disk.json", disk],
+    ["cloud-storage.json", storage],
+  ] as const) {
+    writeFileSync(resolve(GCP_DATA_DIR, name), JSON.stringify(built.table, null, 2) + "\n");
+  }
+
+  writeProviderMetadata(GCP_DATA_DIR, {
+    source: GCP_SOURCE_LABEL,
+    sku_count: skuCount,
+    last_updated: vintage,
+    curated_datasets: [...GCP_CURATED_DATASETS],
+  });
+  console.log(`  Wrote 3 GCP data files and data/gcp-pricing/metadata.json`);
 }
 
 // ---------------------------------------------------------------------------
@@ -327,7 +583,9 @@ async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
       }
     }
   } catch (err) {
-    console.log(`  WARNING: AWS EC2 CSV stream failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.log(
+      `  WARNING: AWS EC2 CSV stream failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -406,7 +664,9 @@ async function fetchAwsRdsPrices(region: string): Promise<Map<string, number>> {
       }
     }
   } catch (err) {
-    console.log(`  WARNING: AWS RDS CSV stream failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.log(
+      `  WARNING: AWS RDS CSV stream failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -472,6 +732,23 @@ async function refreshAwsFallback(): Promise<void> {
   printDiff("AWS EC2", ec2Diff);
   printDiff("AWS RDS", rdsDiff);
 
+  const ec2Ok = assertLiveCoverage(
+    "AWS EC2",
+    ec2Diff.filter((e) => e.reason !== "no live data").length,
+    ec2Diff.length,
+    `${AWS_BULK_BASE}/AmazonEC2`,
+  );
+  const rdsOk = assertLiveCoverage(
+    "AWS RDS",
+    rdsDiff.filter((e) => e.reason !== "no live data").length,
+    rdsDiff.length,
+    `${AWS_BULK_BASE}/AmazonRDS`,
+  );
+  if (!ec2Ok || !rdsOk) {
+    console.error("  AWS metadata not stamped — refusing to certify unverified data as fresh.");
+    return;
+  }
+
   if (!WRITE_MODE) {
     console.log("  [report-only] AWS fallback table not written (pass --write to persist).");
     return;
@@ -480,7 +757,9 @@ async function refreshAwsFallback(): Promise<void> {
   rewriteAwsFallbackFile(nextEc2, nextRds, nextEbs);
   writeProviderMetadata(AWS_DATA_DIR, {
     source: AWS_BULK_BASE,
-    sku_count: Object.keys(nextEc2).length + Object.keys(nextRds).length + Object.keys(nextEbs).length,
+    sku_count:
+      Object.keys(nextEc2).length + Object.keys(nextRds).length + Object.keys(nextEbs).length,
+    curated_datasets: ["EBS_BASE_PRICES (src/pricing/aws/fallback-data.ts)"],
   });
   console.log("  Wrote src/pricing/aws/fallback-data.ts and data/aws-pricing/metadata.json");
 }
@@ -516,11 +795,11 @@ function rewriteAwsFallbackFile(
   // it still parses and exports the expected named bindings. If the regex
   // rewrite produced malformed TypeScript, restore the original and exit
   // non-zero so a bad refresh never gets committed.
-  validateRewrittenModule(
-    AWS_FALLBACK_PATH,
-    original,
-    ["EC2_BASE_PRICES", "RDS_BASE_PRICES", "EBS_BASE_PRICES"],
-  );
+  validateRewrittenModule(AWS_FALLBACK_PATH, original, [
+    "EC2_BASE_PRICES",
+    "RDS_BASE_PRICES",
+    "EBS_BASE_PRICES",
+  ]);
 }
 
 function formatConstBlock(name: string, map: Record<string, number>): string {
@@ -627,6 +906,18 @@ async function refreshAzureFallback(): Promise<void> {
 
   printDiff("Azure VMs", vmDiff);
 
+  if (
+    !assertLiveCoverage(
+      "Azure VMs",
+      vmDiff.filter((e) => e.reason !== "no live data").length,
+      vmDiff.length,
+      AZURE_API,
+    )
+  ) {
+    console.error("  Azure metadata not stamped — refusing to certify unverified data as fresh.");
+    return;
+  }
+
   if (!WRITE_MODE) {
     console.log("  [report-only] Azure fallback table not written (pass --write to persist).");
     return;
@@ -635,7 +926,12 @@ async function refreshAzureFallback(): Promise<void> {
   rewriteAzureFallbackFile(nextVm, nextDisk, nextDb);
   writeProviderMetadata(AZURE_DATA_DIR, {
     source: AZURE_API,
-    sku_count: Object.keys(nextVm).length + Object.keys(nextDisk).length + Object.keys(nextDb).length,
+    sku_count:
+      Object.keys(nextVm).length + Object.keys(nextDisk).length + Object.keys(nextDb).length,
+    curated_datasets: [
+      "DISK_BASE_PRICES (src/pricing/azure/fallback-data.ts)",
+      "DB_BASE_PRICES (src/pricing/azure/fallback-data.ts)",
+    ],
   });
   console.log("  Wrote src/pricing/azure/fallback-data.ts and data/azure-pricing/metadata.json");
 }
@@ -661,11 +957,11 @@ function rewriteAzureFallbackFile(
     );
   writeFileSync(AZURE_FALLBACK_PATH, nextSrc);
 
-  validateRewrittenModule(
-    AZURE_FALLBACK_PATH,
-    original,
-    ["VM_BASE_PRICES", "DISK_BASE_PRICES", "DB_BASE_PRICES"],
-  );
+  validateRewrittenModule(AZURE_FALLBACK_PATH, original, [
+    "VM_BASE_PRICES",
+    "DISK_BASE_PRICES",
+    "DB_BASE_PRICES",
+  ]);
 }
 
 /**
@@ -715,17 +1011,43 @@ function validateRewrittenModule(
 // Provider metadata writer
 // ---------------------------------------------------------------------------
 
+/**
+ * Write a provider's metadata.json.
+ *
+ * Two dates, because one was doing the work of two and doing it badly:
+ *
+ *   last_updated  — the vintage of the numbers. For AWS and Azure the refresh
+ *                   re-reads every SKU from the live API, so "today" genuinely
+ *                   means "confirmed against upstream today". For GCP the source
+ *                   is a weekly snapshot that carries its own generation stamp,
+ *                   so we record that stamp instead of pretending we checked.
+ *   last_verified — the last time the refresh loop completed for this provider.
+ *
+ * `curated_datasets` names files in the directory that no automation touches.
+ * They used to be silently re-certified as fresh by this stamp; naming them
+ * makes the gap visible to check-freshness.ts instead.
+ */
 function writeProviderMetadata(
   dir: string,
-  extra: { source: string; sku_count: number },
+  extra: {
+    source: string;
+    sku_count: number;
+    last_updated?: string;
+    curated_datasets?: string[];
+  },
 ): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const today = new Date().toISOString().split("T")[0];
+  const curated = extra.curated_datasets ?? [];
   const meta = {
-    last_updated: new Date().toISOString().split("T")[0],
+    last_updated: extra.last_updated ?? today,
+    last_verified: today,
+    refresh_policy: "automated",
     source: extra.source,
     sku_count: extra.sku_count,
     refresh_script_version: REFRESH_SCRIPT_VERSION,
     currency: "USD",
+    ...(curated.length > 0 ? { curated_datasets: curated } : {}),
     notes: "Written by scripts/refresh-pricing.ts --write",
   };
   writeFileSync(resolve(dir, "metadata.json"), JSON.stringify(meta, null, 2) + "\n");
@@ -739,7 +1061,7 @@ async function main() {
   console.log(`=== CloudCostMCP Pricing Refresh — ${new Date().toISOString().split("T")[0]} ===`);
   console.log(`Mode: ${WRITE_MODE ? "WRITE" : "report-only"}\n`);
 
-  await refreshGcpComputePricing();
+  await refreshGcpPricing();
   await refreshAwsFallback();
   await refreshAzureFallback();
 

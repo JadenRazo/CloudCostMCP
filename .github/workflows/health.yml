@@ -94,11 +94,38 @@ jobs:
             echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
           fi
           when=${last%% *}
-          age=$(( ( $(date -u +%s) - $(date -u -d "$when" +%s) ) / 86400 ))
-          echo "age: ${age}d"
+          verdict=${last##* }
+
+          # `date -d` on a value we did not construct, under `set -e`, kills the
+          # step before it can write `code`, and the gate then reports "the
+          # refresh has not run recently" for what is really a parse error.
+          # Report the ambiguity instead of mislabelling it.
+          if ! epoch=$(date -u -d "$when" +%s 2>/dev/null); then
+            echo "could not parse run timestamp: $when"
+            echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          age=$(( ( $(date -u +%s) - epoch ) / 86400 ))
+          echo "age: ${age}d, conclusion: ${verdict}"
+
           # It runs weekly; 10 days means at least one firing was missed, which
           # is also how GitHub's 60-day-inactivity cron auto-disable presents.
-          if [ "$age" -gt 10 ]; then echo "code=1" >> "$GITHUB_OUTPUT"; else echo "code=0" >> "$GITHUB_OUTPUT"; fi
+          if [ "$age" -gt 10 ]; then
+            echo "the refresh has not fired in ${age}d"
+            echo "code=1" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Firing is not succeeding. This check used to request `conclusion`
+          # and then drop it on the floor, keeping only createdAt — so sixteen
+          # consecutive failed refreshes all scored a healthy 0 while GCP data
+          # sat four months stale. A loop that runs on time and fails every time
+          # is not a living loop.
+          case "$verdict" in
+            success)  echo "code=0" >> "$GITHUB_OUTPUT" ;;
+            "")       echo "still in flight; treating as alive"; echo "code=0" >> "$GITHUB_OUTPUT" ;;
+            null)     echo "still in flight; treating as alive"; echo "code=0" >> "$GITHUB_OUTPUT" ;;
+            *)        echo "last refresh concluded '${verdict}', not success"
+                      echo "code=1" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Report
         # `always() &&` is load-bearing: a step `if:` with no status function
@@ -185,5 +212,5 @@ jobs:
           [ "${FRESHNESS:-2}" = "0" ]  || { echo "::error::bundled pricing data is stale"; rc=1; }
           [ "${SMOKE:-2}" = "0" ]      || { echo "::error::a live provider pricing API did not respond as expected"; rc=1; }
           [ "${ADVISORIES:-2}" = "0" ] || { echo "::error::high or critical advisory in production dependencies"; rc=1; }
-          [ "${LOOP:-2}" = "0" ]       || { echo "::error::the weekly pricing refresh has not run recently"; rc=1; }
+          [ "${LOOP:-2}" = "0" ]       || { echo "::error::the weekly pricing refresh has not run recently, or its last run failed"; rc=1; }
           exit $rc

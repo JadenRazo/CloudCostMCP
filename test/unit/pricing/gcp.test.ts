@@ -133,13 +133,120 @@ describe("GcpBundledLoader", () => {
     expect(lower!.price_per_unit).toBe(upper!.price_per_unit);
   });
 
-  it("returns higher price for asia-southeast1 STANDARD storage", async () => {
+  // asia-southeast1 is in the same $0.020 Standard tier as us-central1; the old
+  // bundled table said otherwise only because it multiplied us-central1 by a
+  // regional factor instead of reading real per-region prices. southamerica-east1
+  // is a genuine higher tier.
+  it("returns higher price for southamerica-east1 STANDARD storage", async () => {
     const usResult = await loader.getStoragePrice("STANDARD", "us-central1");
-    const apResult = await loader.getStoragePrice("STANDARD", "asia-southeast1");
+    const saResult = await loader.getStoragePrice("STANDARD", "southamerica-east1");
 
     expect(usResult).not.toBeNull();
-    expect(apResult).not.toBeNull();
-    expect(apResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
+    expect(saResult).not.toBeNull();
+    expect(saResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
+  });
+
+  it("returns null for an unknown machine type", async () => {
+    const result = await loader.getComputePrice("z99-quantum-8", "us-central1");
+    expect(result).toBeNull();
+  });
+
+  it("returns null for an unknown region", async () => {
+    const result = await loader.getComputePrice("e2-micro", "us-fictional-9");
+    expect(result).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Cloud SQL
+  // -------------------------------------------------------------------------
+
+  it("returns price for db-custom-2-7680 in us-central1", async () => {
+    const result = await loader.getDatabasePrice("db-custom-2-7680", "us-central1");
+
+    expect(result).not.toBeNull();
+    expect(result!.provider).toBe("gcp");
+    expect(result!.service).toBe("cloud-sql");
+    expect(result!.resource_type).toBe("db-custom-2-7680");
+    expect(result!.unit).toBe("h");
+    // Bundled data: db-custom-2-7680 us-central1 = 0.1030
+    expect(result!.price_per_unit).toBeCloseTo(0.103, 4);
+  });
+
+  it("returns price for db-custom-4-15360 in europe-west1", async () => {
+    const result = await loader.getDatabasePrice("db-custom-4-15360", "europe-west1");
+
+    expect(result).not.toBeNull();
+    expect(result!.price_per_unit).toBeCloseTo(0.2266, 4);
+  });
+
+  it("does not expose storage_per_gb as a database tier", async () => {
+    const result = await loader.getDatabasePrice("storage_per_gb", "us-central1");
+    expect(result).toBeNull();
+  });
+
+  it("does not expose ha_multiplier as a database tier", async () => {
+    const result = await loader.getDatabasePrice("ha_multiplier", "us-central1");
+    expect(result).toBeNull();
+  });
+
+  it("returns null for unknown SQL tier", async () => {
+    const result = await loader.getDatabasePrice("db-turbo-9999", "us-central1");
+    expect(result).toBeNull();
+  });
+
+  it("returns null for unknown region", async () => {
+    const result = await loader.getDatabasePrice("db-custom-2-7680", "mars-west1");
+    expect(result).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Cloud Storage
+  // -------------------------------------------------------------------------
+
+  it("returns price for STANDARD class in us-central1", async () => {
+    const result = await loader.getStoragePrice("STANDARD", "us-central1");
+
+    expect(result).not.toBeNull();
+    expect(result!.provider).toBe("gcp");
+    expect(result!.service).toBe("cloud-storage");
+    expect(result!.resource_type).toBe("STANDARD");
+    expect(result!.unit).toBe("GiBy.mo");
+    // Bundled data: STANDARD us-central1 = 0.020
+    expect(result!.price_per_unit).toBeCloseTo(0.02, 4);
+  });
+
+  it("returns price for NEARLINE class", async () => {
+    const result = await loader.getStoragePrice("NEARLINE", "us-central1");
+
+    expect(result).not.toBeNull();
+    expect(result!.price_per_unit).toBeCloseTo(0.01, 4);
+  });
+
+  it("returns price for COLDLINE class", async () => {
+    const result = await loader.getStoragePrice("COLDLINE", "us-central1");
+
+    expect(result).not.toBeNull();
+    expect(result!.price_per_unit).toBeCloseTo(0.004, 4);
+  });
+
+  it("normalises storage class name to uppercase", async () => {
+    const upper = await loader.getStoragePrice("STANDARD", "us-central1");
+    const lower = await loader.getStoragePrice("standard", "us-central1");
+
+    expect(upper).not.toBeNull();
+    expect(lower).not.toBeNull();
+    expect(lower!.price_per_unit).toBe(upper!.price_per_unit);
+  });
+
+  // Duplicate of the case above; asia-southeast1 shares us-central1's $0.020
+  // Standard tier, so the comparison needs a region that genuinely differs.
+  it("returns higher price for southamerica-east1 STANDARD storage (duplicate case)", async () => {
+    const usResult = await loader.getStoragePrice("STANDARD", "us-central1");
+    const saResult = await loader.getStoragePrice("STANDARD", "southamerica-east1");
+
+    expect(usResult).not.toBeNull();
+    expect(saResult).not.toBeNull();
+    expect(saResult!.price_per_unit).toBeGreaterThan(usResult!.price_per_unit);
   });
 
   it("returns null for unknown storage class", async () => {

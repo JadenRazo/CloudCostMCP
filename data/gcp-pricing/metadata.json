@@ -1,8 +1,13 @@
 {
-  "last_updated": "2026-04-15",
-  "source": "Google Cloud Pricing Calculator",
+  "last_updated": "2026-08-20",
+  "last_verified": "2026-08-21",
+  "refresh_policy": "automated",
+  "source": "gcosts pricing.yml (Cyclenerd/google-cloud-pricing-cost-calculator, Apache-2.0), generated from the Google Cloud Billing Catalog API",
+  "sku_count": 3251,
+  "refresh_script_version": "3.0.0",
   "currency": "USD",
-  "notes": "Bundled pricing data for offline/zero-auth usage",
-  "refresh_script_version": "2.0.0",
-  "sku_count": 1197
+  "curated_datasets": [
+    "cloud-sql.json"
+  ],
+  "notes": "Written by scripts/refresh-pricing.ts --write"
 }

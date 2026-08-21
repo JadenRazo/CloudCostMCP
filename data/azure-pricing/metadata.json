@@ -1,8 +1,14 @@
 {
-  "last_updated": "2026-08-05",
+  "last_updated": "2026-08-21",
+  "last_verified": "2026-08-21",
+  "refresh_policy": "automated",
   "source": "https://prices.azure.com/api/retail/prices",
   "sku_count": 70,
-  "refresh_script_version": "2.0.0",
+  "refresh_script_version": "3.0.0",
   "currency": "USD",
+  "curated_datasets": [
+    "DISK_BASE_PRICES (src/pricing/azure/fallback-data.ts)",
+    "DB_BASE_PRICES (src/pricing/azure/fallback-data.ts)"
+  ],
   "notes": "Written by scripts/refresh-pricing.ts --write"
 }

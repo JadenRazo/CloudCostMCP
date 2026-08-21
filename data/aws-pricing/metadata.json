@@ -1,8 +1,13 @@
 {
-  "last_updated": "2026-08-05",
+  "last_updated": "2026-08-21",
+  "last_verified": "2026-08-21",
+  "refresh_policy": "automated",
   "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws",
   "sku_count": 142,
-  "refresh_script_version": "2.0.0",
+  "refresh_script_version": "3.0.0",
   "currency": "USD",
+  "curated_datasets": [
+    "EBS_BASE_PRICES (src/pricing/aws/fallback-data.ts)"
+  ],
   "notes": "Written by scripts/refresh-pricing.ts --write"
 }

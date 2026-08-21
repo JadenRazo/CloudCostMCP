@@ -7,7 +7,6 @@ import { AwsSpotClient } from "./aws/spot-client.js";
 import { AwsReservedClient, type RiRate } from "./aws/reserved-client.js";
 import { AzureRetailClient } from "./azure/retail-client.js";
 import { GcpBundledLoader } from "./gcp/bundled-loader.js";
-import { CloudBillingClient } from "./gcp/cloud-billing-client.js";
 import { logger } from "../logger.js";
 
 // ---------------------------------------------------------------------------
@@ -199,74 +198,61 @@ class AzureProvider implements PricingProvider {
   }
 }
 
+/**
+ * GCP pricing is bundled-only, and that is now a deliberate property rather
+ * than an accident.
+ *
+ * This provider used to try the Cloud Billing Catalog API first and fall back
+ * to bundled data. That live path could not succeed: the API answers
+ * unregistered callers with `403 PERMISSION_DENIED`, and CloudCost ships no
+ * credentials by design. Every uncached GCP lookup paid a guaranteed-failing
+ * round trip and then served the bundled number anyway.
+ *
+ * Removing it also removes a landmine. `extractComputePrice` returned the
+ * per-vCPU "Instance Core" SKU as the whole-instance price — its own comment
+ * called it "a proxy" — and live was preferred over bundled. An `e2-standard-2`
+ * would have priced at roughly $0.021/hr against a true $0.067/hr. The 403 was
+ * the only thing standing between users and a silent ~3x under-estimate on
+ * every machine type, and the smoke test's `0 < price < 10` assertion would
+ * have passed it green.
+ *
+ * Bundled GCP data is refreshed weekly by scripts/refresh-pricing.ts from the
+ * gcosts snapshot of the Cloud Billing Catalog. Every response carries
+ * `pricing_source: "bundled"` and its vintage.
+ */
 class GcpProvider implements PricingProvider {
   private loader: GcpBundledLoader;
-  private liveClient: CloudBillingClient;
 
-  constructor(cache: PricingCache, ttlSeconds?: number) {
+  constructor(_cache: PricingCache, _ttlSeconds?: number) {
     this.loader = new GcpBundledLoader();
-    this.liveClient = new CloudBillingClient(cache, ttlSeconds);
   }
 
-  async getComputePrice(
+  getComputePrice(
     instanceType: string,
     region: string,
     _os?: string,
   ): Promise<NormalizedPrice | null> {
-    try {
-      const live = await this.liveClient.fetchComputeSkus(instanceType, region);
-      if (live) return live;
-    } catch (err) {
-      logger.warn("GCP live compute pricing failed, falling back to bundled", {
-        instanceType,
-        region,
-        err: err instanceof Error ? err.message : String(err),
-      });
-    }
     return this.loader.getComputePrice(instanceType, region);
   }
 
-  async getDatabasePrice(
+  getDatabasePrice(
     instanceType: string,
     region: string,
     _engine?: string,
   ): Promise<NormalizedPrice | null> {
-    try {
-      const live = await this.liveClient.fetchDatabaseSkus(instanceType, region);
-      if (live) return live;
-    } catch (err) {
-      logger.warn("GCP live database pricing failed, falling back to bundled", {
-        instanceType,
-        region,
-        err: err instanceof Error ? err.message : String(err),
-      });
-    }
     return this.loader.getDatabasePrice(instanceType, region);
   }
 
-  async getStoragePrice(
+  getStoragePrice(
     storageType: string,
     region: string,
     _sizeGb?: number,
   ): Promise<NormalizedPrice | null> {
-    // Persistent disk types (pd-*) are not in the Cloud Storage service;
-    // they come from the Compute Engine service and are not individually
-    // catalogued at the instance level, so fall back to bundled data.
+    // Persistent disk types (pd-*) live in the Compute Engine service, not
+    // Cloud Storage, and are held in a separate bundled table.
     if (storageType.startsWith("pd-")) {
       return this.loader.getDiskPrice(storageType, region);
     }
-
-    try {
-      const live = await this.liveClient.fetchStorageSkus(storageType, region);
-      if (live) return live;
-    } catch (err) {
-      logger.warn("GCP live storage pricing failed, falling back to bundled", {
-        storageType,
-        region,
-        err: err instanceof Error ? err.message : String(err),
-      });
-    }
-
     return this.loader.getStoragePrice(storageType, region);
   }
 

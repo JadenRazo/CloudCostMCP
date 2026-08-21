@@ -261,7 +261,17 @@ export function getRegionPriceMultipliers(): RegionPriceMultipliers {
 // ---------------------------------------------------------------------------
 
 export interface FallbackMetadata {
+  /** Vintage of the numbers themselves. */
   last_updated: string;
+  /**
+   * Last time the refresh loop completed for this provider. Optional: metadata
+   * written before refresh-pricing 3.0.0 carries only `last_updated`.
+   */
+  last_verified?: string;
+  /** "automated" | "curated" — how this bundle is kept current. */
+  refresh_policy?: string;
+  /** Datasets in this bundle that no automation refreshes. */
+  curated_datasets?: string[];
   source?: string;
   sku_count?: number;
   refresh_script_version?: string;
@@ -320,16 +330,31 @@ export function getPricingMetadata(
     return { source, as_of: null, age_days: null, staleness: "stale" };
   }
 
-  const asOf = new Date(meta.last_updated);
-  if (Number.isNaN(asOf.getTime())) {
+  // Two dates can disagree, and we report the less flattering one.
+  //
+  // `last_updated` is the vintage of the numbers; `last_verified` is when the
+  // refresh loop last confirmed them. For GCP those differ by design — the
+  // source is a weekly snapshot, so its data is a day or two older than the run
+  // that ingested it. Reporting `last_verified` alone would let us claim
+  // freshness for data we only relayed. Taking the older of the two keeps this
+  // function's stated contract: never claim freshness we cannot prove.
+  const candidates = [meta.last_updated, meta.last_verified]
+    .filter((d): d is string => typeof d === "string")
+    .map((d) => ({ raw: d, at: new Date(d) }))
+    .filter((d) => !Number.isNaN(d.at.getTime()));
+
+  if (candidates.length === 0) {
     return { source, as_of: meta.last_updated, age_days: null, staleness: "stale" };
   }
+
+  const oldest = candidates.reduce((a, b) => (a.at.getTime() <= b.at.getTime() ? a : b));
+  const asOf = oldest.at;
 
   const ageDays = Math.max(0, Math.floor((now.getTime() - asOf.getTime()) / MS_PER_DAY));
   const staleness: PricingStaleness =
     ageDays < FRESH_MAX_AGE_DAYS ? "fresh" : ageDays < AGING_MAX_AGE_DAYS ? "aging" : "stale";
 
-  return { source, as_of: meta.last_updated, age_days: ageDays, staleness };
+  return { source, as_of: oldest.raw, age_days: ageDays, staleness };
 }
 
 // ---------------------------------------------------------------------------
