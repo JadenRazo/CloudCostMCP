@@ -28,11 +28,13 @@ const NAT_PER_GB = 0.045;
 
 // GKE control plane
 // Standard cluster: $0.10/hr
-// Autopilot: $0.0445/vCPU/hr fallback estimate — only used when the live
-// Cloud Billing catalog lookup fails. Autopilot is actually billed per-pod
-// across vCPU, memory, and ephemeral storage; the live path in
-// `CloudBillingClient.fetchAutopilotPodRates` resolves those rates and is
-// preferred. This constant is the last-resort per-vCPU/hr fallback.
+// Autopilot: $0.0445/vCPU/hr estimate. Autopilot is actually billed per-pod
+// across vCPU, memory and ephemeral storage, so this is an approximation.
+//
+// It used to be described as a fallback behind a live Cloud Billing catalog
+// lookup. That was never true in practice: PricingEngine's getKubernetesPrice
+// always routed here, and the live client it named could not authenticate
+// anyway. The client has been removed, so this is simply the Autopilot number.
 const GKE_STANDARD_HOURLY = 0.1;
 const GKE_AUTOPILOT_VCPU_HOURLY = 0.0445;
 

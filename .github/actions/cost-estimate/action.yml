@@ -33,7 +33,12 @@ runs:
       shell: bash
       # Pinned to an exact version so the action does not silently pick up a
       # new (potentially breaking or compromised) release on every run.
-      run: npm install -g @jadenrazo/cloudcost-mcp@1.0.1
+      #
+      # Bump this deliberately with each release. It sat on 1.0.1 while the repo
+      # shipped 1.2.1, so the action was estimating costs with a build four
+      # months and two releases behind - including one that could not start at
+      # all (the duplicate-shebang bug fixed in 1.2.1).
+      run: npm install -g @jadenrazo/cloudcost-mcp@1.2.1
 
     # All ${{ inputs.* }} and other attacker-influenceable values are passed
     # to bash via env: vars and referenced as "$VAR" — never interpolated

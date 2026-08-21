@@ -34,7 +34,7 @@ CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) ser
 
 - Parses Terraform HCL files, CloudFormation templates, Pulumi stack exports, and Bicep/ARM templates with automatic format detection
 - Extracts resource inventories with variable resolution, including referenced modules and OpenTofu `.tofu` files
-- Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API; GCP via live Cloud Billing Catalog API with bundled fallback
+- Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API; GCP from a weekly-refreshed bundled snapshot (Google no longer serves pricing to unauthenticated callers)
 - Maps equivalent resources across AWS, Azure, and GCP (compute, database, storage, networking, Kubernetes, container registries, secrets management, DNS)
 - Generates cost estimates with per-resource breakdowns (monthly and yearly) across multiple currencies
 - Compares costs across all three providers side-by-side in markdown, JSON, CSV, or FOCUS format
@@ -310,7 +310,7 @@ Fast cost-safety guardrail designed for AI agents. Returns `allow` / `warn` / `b
 
 ## How Pricing Works
 
-CloudCost uses a tiered approach to get the most accurate pricing available without requiring any API keys or credentials.
+CloudCost uses a tiered approach to get the most accurate pricing available without requiring any API keys or credentials. That constraint is real and it has a cost: where a provider has closed off anonymous access, CloudCost ships a snapshot instead of pretending to query live. See the GCP section below.
 
 ### AWS
 
@@ -328,11 +328,13 @@ CloudCost uses a tiered approach to get the most accurate pricing available with
 
 ### GCP
 
-1. **Live Cloud Billing Catalog API** (primary). Queries the GCP Cloud Billing Catalog API (`cloudbilling.googleapis.com`) using unauthenticated public endpoints. Results are cached for 24 hours.
+**GCP has no live path, and this is a limitation rather than a design choice.** Google has retired every key-free bulk pricing source it used to publish, and `cloudbilling.googleapis.com` answers unregistered callers with `403 PERMISSION_DENIED`. Since CloudCost ships no credentials, GCP prices come from bundled data.
 
-2. **Bundled pricing data** (fallback). If the live API is unreachable, falls back to curated pricing data in `data/gcp-pricing/` that ships with the package. Covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types across all major regions.
+1. **Bundled pricing data** (only path). Served from `data/gcp-pricing/`, which ships with the package. Covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes and Persistent Disk types across 37 regions. Every GCP price is tagged `pricing_source: "bundled"` and carries its vintage in `pricing_metadata`.
 
-3. **Infrastructure services**. Load balancer, Cloud NAT, and GKE pricing use fixed public rates.
+2. **How it stays current.** `.github/workflows/refresh-pricing.yml` rebuilds the Compute Engine, Persistent Disk and Cloud Storage tables weekly from [gcosts](https://github.com/Cyclenerd/google-cloud-pricing-cost-calculator) (Apache-2.0), a weekly regeneration of the Cloud Billing Catalog. The recorded `last_updated` is that snapshot's own generation date, not the date our job ran. Cloud SQL is not covered by that source and remains hand-curated; `check-freshness.ts` reports it separately.
+
+3. **Infrastructure services**. Load balancer, Cloud NAT, and GKE pricing use fixed public rates. GKE Autopilot is an approximation: it is billed per-pod across vCPU, memory and ephemeral storage, and the bundled figure is a per-vCPU/hour estimate.
 
 ### Pricing Source Transparency
 
@@ -517,8 +519,8 @@ Instance type mapping covers 70+ AWS instance types (including Graviton/ARM fami
 ## Limitations
 
 - **On-demand pricing only** by default. Prices reflect pay-as-you-go rates. The `optimize_cost` tool recommends reserved instances; AWS Savings Plans are not yet supported (tracked in [docs/roadmap.md](./docs/roadmap.md)). Pass `pricing_model: "spot"` in `what_if` scenarios to model spot/preemptible pricing.
-- **GCP live pricing** is fetched from the Cloud Billing Catalog API with automatic fallback to bundled data when the API is unreachable. Bundled prices may lag slightly behind actual rates.
-- **Fallback-data signaling.** When a live pricing API is unreachable and `estimate_cost` / `compare_providers` / `get_pricing` serve data from bundled or fallback tables, the response includes a `warnings` entry ("using fallback/bundled pricing data for …") so callers can flag stale estimates. Bundled data is refreshed weekly via CI.
+- **GCP pricing is always bundled.** There is no live GCP path: `cloudbilling.googleapis.com` rejects unauthenticated callers and CloudCost ships no credentials. The bundled tables are rebuilt weekly (see *How Pricing Works > GCP*), and every GCP figure reports its own vintage, but they are a snapshot rather than a live quote.
+- **Fallback-data signaling.** When a live pricing API is unreachable and `estimate_cost` / `compare_providers` / `get_pricing` serve data from bundled or fallback tables, the response includes a `warnings` entry ("using fallback/bundled pricing data for …") so callers can flag stale estimates. AWS and Azure bundled tables are re-verified weekly via CI; the GCP tables are rebuilt weekly from an upstream snapshot. Datasets no automation covers (GCP Cloud SQL, AWS EBS, Azure disk and database tables) are listed under `curated_datasets` in each `data/*-pricing/metadata.json` and reported by `scripts/check-freshness.ts`.
 - **Synthetic egress line item.** Unless `CLOUDCOST_INCLUDE_DATA_TRANSFER=false`, every breakdown includes an assumed 100 GB/month of internet egress per provider+region. `total_monthly` includes it (unchanged behavior); its share is reported separately as `estimated_egress_monthly` with an explanatory warning so the composition is visible.
 - **Static FX rates.** Non-USD output is converted with a bundled rate table, not a live feed. Every converted response carries `exchange_rate: { rate, rate_as_of }` so consumers know which snapshot produced the figures.
 - **First request latency**. The initial EC2 pricing lookup for a new AWS region may take 30-120 seconds as the CSV file is streamed. Subsequent lookups for the same region are instant (cached for 24 hours).

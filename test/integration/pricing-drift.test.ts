@@ -28,7 +28,7 @@ import { dirname, resolve } from "node:path";
 import { PricingCache } from "../../src/pricing/cache.js";
 import { AwsBulkLoader } from "../../src/pricing/aws/bulk-loader.js";
 import { AzureRetailClient } from "../../src/pricing/azure/retail-client.js";
-import { CloudBillingClient } from "../../src/pricing/gcp/cloud-billing-client.js";
+import { GcpBundledLoader } from "../../src/pricing/gcp/bundled-loader.js";
 
 const RUN = process.env.RUN_INTEGRATION === "1";
 
@@ -148,19 +148,26 @@ describe.skipIf(!RUN)("pricing drift — Azure", () => {
   }
 });
 
-describe.skipIf(!RUN)("pricing drift — GCP", () => {
-  const cache = new PricingCache(dbPath);
-  const client = new CloudBillingClient(cache);
+// GCP has no live path: the Cloud Billing Catalog API refuses unregistered
+// callers, so the shipped bundled table IS the GCP source of truth. Drifting it
+// against the golden ranges is therefore the more useful check of the two — it
+// catches a bad weekly refresh landing in the package, which a live-API probe
+// never could.
+describe.skipIf(!RUN)("pricing drift — GCP (bundled)", () => {
+  const loader = new GcpBundledLoader();
 
   for (const [sku, regions] of Object.entries(golden.gcp)) {
     for (const [region, range] of Object.entries(regions)) {
       it(`gcp ${sku} in ${region} stays inside golden range`, async () => {
-        let result;
-        if (GCP_STORAGE_SKUS.has(sku)) {
-          result = await client.fetchStorageSkus(sku, region);
-        } else {
-          result = await client.fetchComputeSkus(sku, region);
-        }
+        // pd-* are persistent disks, which live in their own bundled table -
+        // getStoragePrice only knows Cloud Storage classes. Routing them there
+        // returned null, and assertInRange soft-skips a null as a "catalog
+        // miss", so these two cases silently asserted nothing.
+        const result = sku.startsWith("pd-")
+          ? await loader.getDiskPrice(sku, region)
+          : GCP_STORAGE_SKUS.has(sku)
+            ? await loader.getStoragePrice(sku, region)
+            : await loader.getComputePrice(sku, region);
         assertInRange("gcp", sku, region, range, result?.price_per_unit);
       }, 120_000);
     }
@@ -175,13 +182,13 @@ describe.skipIf(!RUN)("pricing drift — cross-provider sanity", () => {
   const cache = new PricingCache(dbPath);
   const aws = new AwsBulkLoader(cache);
   const azure = new AzureRetailClient(cache);
-  const gcp = new CloudBillingClient(cache);
+  const gcp = new GcpBundledLoader();
 
   it("comparable on-demand compute prices stay within 3x across providers", async () => {
     const awsPrice = (await aws.getComputePrice("t3.medium", "us-east-1", "Linux"))?.price_per_unit;
     const azurePrice = (await azure.getComputePrice("Standard_D2s_v5", "eastus", "linux"))
       ?.price_per_unit;
-    const gcpPrice = (await gcp.fetchComputeSkus("e2-standard-2", "us-central1"))?.price_per_unit;
+    const gcpPrice = (await gcp.getComputePrice("e2-standard-2", "us-central1"))?.price_per_unit;
 
     const prices = [
       { name: "aws/t3.medium", value: awsPrice },

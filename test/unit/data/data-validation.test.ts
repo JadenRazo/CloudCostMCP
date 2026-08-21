@@ -440,9 +440,23 @@ describe("GCP cloud-storage.json", () => {
     }
   });
 
-  it("asia-southeast1 STANDARD is more expensive than us-central1", () => {
+  // Was "asia-southeast1 is more expensive than us-central1". It is not, and
+  // never was: Singapore sits in the same $0.020 Standard tier as Iowa. The old
+  // bundled table only disagreed because it derived regional prices by applying
+  // data/region-price-multipliers.json rather than reading them, so every region
+  // looked pricier than us-central1 by construction. The real table has seven
+  // distinct Standard tiers, so assert the property the test was reaching for -
+  // that regional variation is present and read from the source - rather than
+  // one pair that happened to hold under the multiplier.
+  it("STANDARD storage varies by region", () => {
     const pricing = getGcpStoragePricing();
-    expect(pricing["asia-southeast1"].STANDARD).toBeGreaterThan(pricing["us-central1"].STANDARD);
+    const distinct = new Set(Object.values(pricing).map((t) => t.STANDARD));
+    expect(distinct.size).toBeGreaterThan(1);
+  });
+
+  it("southamerica-east1 STANDARD is more expensive than us-central1", () => {
+    const pricing = getGcpStoragePricing();
+    expect(pricing["southamerica-east1"].STANDARD).toBeGreaterThan(pricing["us-central1"].STANDARD);
   });
 });
 

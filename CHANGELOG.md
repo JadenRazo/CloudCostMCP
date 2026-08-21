@@ -6,6 +6,99 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Fixed
+
+- **GCP pricing had not refreshed since 2026-04-15.** `scripts/refresh-pricing.ts`
+  read `gstatic.com/cloud-site-ux/pricing/data/gcp-compute.json`, an undocumented
+  Google asset that has returned 404 since before the first scheduled run on
+  2026-04-20. All 16 scheduled refreshes failed; the GCP fetcher never once
+  succeeded. Bundled GCP data is now rebuilt weekly from the
+  [gcosts](https://github.com/Cyclenerd/google-cloud-pricing-cost-calculator)
+  snapshot of the Cloud Billing Catalog (Apache-2.0), which also extends
+  coverage from 17 regions to 37.
+
+- **GCP compute prices were reconstructed, and the reconstruction was wrong for
+  newer families.** The old refresh derived every instance price as
+  `vcpus * coreRate + memGb * memRate`. That collapsed c3 and c4 to identical
+  prices in all 102 region/shape pairs, which they are not. The new source ships
+  assembled per-instance rates, so the derivation is gone. 944 of 1,197 existing
+  values are unchanged; the 253 that moved are corrections in the c2d, c3, c4 and
+  n4 families. `c2d-standard-4` and `c2d-standard-8` shipped in the data file but
+  were absent from the refresh allow-list, so nothing had ever refreshed them.
+
+- **Cloud Storage regional prices were multiplier-derived, not real.**
+  `asia-southeast1` was recorded as pricier than `us-central1`; both are in the
+  same $0.020 Standard tier. Two tests asserted the incorrect ordering and now
+  assert against a region that genuinely differs.
+
+- **The live GCP path could not work, and would have been harmful if it had.**
+  `CloudBillingClient` queried `cloudbilling.googleapis.com`, which answers
+  unregistered callers with `403 PERMISSION_DENIED`, so every uncached GCP lookup
+  paid a guaranteed-failing round trip before serving bundled data. Worse, its
+  compute path returned the per-vCPU "Instance Core" SKU as the whole-instance
+  price: an `e2-standard-2` would have priced at roughly $0.021/hr against a true
+  $0.067/hr, and live was preferred over bundled. The 403 was the only thing
+  preventing a silent ~3x under-estimate on every machine type. The client is
+  removed and `GcpProvider` is bundled-only.
+
+- **The GCP smoke test was built to skip on the only failure it could see.**
+  `fetchComputeSkus` returns `null` on any error, and the test read `null` as an
+  "upstream catalog miss" and called `ctx.skip()`. A hard 403 was reported as a
+  green skip, which is why the daily health check scored "live provider APIs: ok"
+  throughout the outage. It now probes the source the refresh actually depends
+  on, imported rather than retyped, and a non-2xx fails.
+
+- **The health check asked whether the refresh ran, not whether it worked.**
+  `health.yml` requested the last run's `conclusion` and used only `createdAt`,
+  so sixteen consecutive failures scored a healthy `LOOP=0`. It now evaluates the
+  conclusion, and an unparseable timestamp reports as unknown instead of being
+  mislabelled as "has not run recently".
+
+- **AWS and Azure could have rotted the same way, silently.** Their fetch helpers
+  return empty maps on failure, every SKU falls through to "no live data", and
+  the metadata was stamped with today's date regardless - no failed run, no issue.
+  Both now refuse to stamp when live coverage falls below 80% of known SKUs. GCP
+  was only ever loud because its fetcher happened to return before the stamp.
+
+- **The weekly refresh PR deadlocked every Monday.** `create-pull-request` was
+  passed no `token:`, so it force-pushed as `github-actions[bot]`; under this
+  repo's `first_time_contributors` approval policy those runs park at
+  `action_required` with zero jobs allocated. PR #38 sat that way for six days.
+  The workflow now mints a scoped GitHub App token when one is configured, and
+  falls back to the previous behaviour when it is not.
+
+### Changed
+
+- **`metadata.json` carries two dates and a policy.** `last_updated` is the
+  vintage of the numbers, `last_verified` is when the refresh loop last completed,
+  and `refresh_policy` is `automated` or `curated`. One date was doing the work of
+  two: for GCP it was real vintage, for AWS/Azure an unconditional heartbeat, and
+  one 21-day threshold was applied to both. `curated_datasets` now names the
+  tables no automation refreshes (GCP Cloud SQL, AWS EBS, Azure disk/database),
+  which the automated stamp used to silently re-certify as fresh.
+  `pricing_metadata` reports the older of the two dates, never the flattering one.
+
+- **`refresh_policy` is finally written.** `check-freshness.ts` has read the field
+  since it was created but nothing set it, so every row printed
+  `refresh=unspecified` and the gate could not tell a dead loop from overdue
+  curation.
+
+- **CI.** `fail-fast: false` on the test matrix (a formatting nit in one file
+  cancelled the Node 20 leg and destroyed its signal); Node 24.15.0 added to the
+  matrix, since that is the version that actually ships; `npm run format:check`
+  instead of a direct prettier call, so CI and the documented local gate cannot
+  drift; `build-artifact` restricted to `main`, where it is not duplicating a
+  build the matrix already ran three times.
+
+- **`cost-estimate-example.yml` moved to `examples/`.** Its first line said it was
+  a file to copy; GitHub registered and ran it on every pull request anyway. The
+  composite action's self-install pin moved from 1.0.1 to 1.2.1.
+
+- **README.** Corrected the claims that GCP pricing is fetched live from the Cloud
+  Billing Catalog API using "unauthenticated public endpoints", and that bundled
+  data is refreshed weekly - true for AWS and Azure, false for GCP for 128 days.
+
+
 ## [1.2.1] - 2026-08-07
 
 ### Fixed

@@ -1,18 +1,224 @@
 {
-  "us-central1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "us-east1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "us-east4": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "us-west1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "us-west4": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "europe-west1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "europe-west2": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "europe-west3": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "europe-west4": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "europe-north1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "asia-southeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "asia-northeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "asia-south1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "australia-southeast1": { "STANDARD": 0.023, "NEARLINE": 0.013, "COLDLINE": 0.006, "ARCHIVE": 0.0015 },
-  "northamerica-northeast1": { "STANDARD": 0.020, "NEARLINE": 0.010, "COLDLINE": 0.004, "ARCHIVE": 0.0012 },
-  "southamerica-east1": { "STANDARD": 0.035, "NEARLINE": 0.020, "COLDLINE": 0.007, "ARCHIVE": 0.0025 }
+  "us-central1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "us-east1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "us-east4": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "us-east5": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "us-west1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "us-west2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "us-west3": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "us-west4": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "us-south1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "europe-west1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "europe-west2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "europe-west3": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "europe-west4": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "europe-west6": {
+    "STANDARD": 0.025,
+    "NEARLINE": 0.014,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "europe-west8": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "europe-west9": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "europe-north1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "europe-central2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "asia-southeast1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.005,
+    "ARCHIVE": 0.0015
+  },
+  "asia-southeast2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "asia-east1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.005,
+    "ARCHIVE": 0.0015
+  },
+  "asia-east2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "asia-northeast1": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "asia-northeast2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "asia-northeast3": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "asia-south1": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "asia-south2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "australia-southeast1": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "australia-southeast2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.016,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "southamerica-east1": {
+    "STANDARD": 0.035,
+    "NEARLINE": 0.02,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.003
+  },
+  "southamerica-west1": {
+    "STANDARD": 0.03,
+    "NEARLINE": 0.018,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0027
+  },
+  "northamerica-northeast1": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "northamerica-northeast2": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.007,
+    "ARCHIVE": 0.0025
+  },
+  "me-west1": {
+    "STANDARD": 0.021,
+    "NEARLINE": 0.0125,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  },
+  "me-central1": {
+    "STANDARD": 0.023,
+    "NEARLINE": 0.013,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0025
+  },
+  "me-central2": {
+    "STANDARD": 0.03,
+    "NEARLINE": 0.018,
+    "COLDLINE": 0.006,
+    "ARCHIVE": 0.0027
+  },
+  "africa-south1": {
+    "STANDARD": 0.02,
+    "NEARLINE": 0.01,
+    "COLDLINE": 0.004,
+    "ARCHIVE": 0.0012
+  }
 }
