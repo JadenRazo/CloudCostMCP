@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { PricingCache } from "../../../src/pricing/cache.js";
 import { AwsBulkLoader } from "../../../src/pricing/aws/bulk-loader.js";
 import { RDS_BASE_PRICES } from "../../../src/pricing/aws/fallback-data.js";
+import { resetCircuit } from "../../../src/pricing/fetch-utils.js";
 import { tempDbPath } from "../../helpers/factories.js";
 
 describe("AwsBulkLoader", () => {
@@ -86,6 +87,29 @@ describe("AwsBulkLoader", () => {
     const second = await loader.getComputePrice("t3.medium", "us-east-1");
     expect(second).not.toBeNull();
     expect(second!.price_per_unit).toBeCloseTo(0.0416, 4);
+  });
+
+  it("keeps the lowest matching live price when AWS publishes duplicate Linux rows", async () => {
+    const csv = [
+      '"Publication Date","2026-08-30T00:00:00Z"',
+      '"SKU","Product Family","Instance Type","Operating System","Tenancy","TermType","Capacity Status","PricePerUnit","Unit"',
+      '"base","Compute Instance","t3.micro","Linux","Shared","OnDemand","Used","0.0104","Hrs"',
+      '"dedicated","Compute Instance","t3.micro","Linux","Dedicated","OnDemand","Used","0.2000","Hrs"',
+      '"unused","Compute Instance","t3.micro","Linux","Shared","OnDemand","Unused","0.3000","Hrs"',
+      '"licensed","Compute Instance","t3.micro","Linux","Shared","OnDemand","Used","0.0780","Hrs"',
+    ].join("\n");
+    resetCircuit("https://pricing.us-east-1.amazonaws.com");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(csv));
+
+    try {
+      const result = await loader.getComputePrice("t3.micro", "us-east-1", "Linux");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(result?.price_per_unit).toBe(0.0104);
+      expect(result?.effective_date).toBe("2026-08-30T00:00:00.000Z");
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   // -------------------------------------------------------------------------

@@ -68,7 +68,7 @@ npx vitest run test/unit/calculator/compute.test.ts
 
 ## Integration tests against live provider APIs
 
-These are gated behind `RUN_INTEGRATION=1` so they don't run in normal `npm test`. They run weekly in CI:
+These are gated behind `RUN_INTEGRATION=1` so they don't run in normal `npm test`. Provider smoke checks and the pricing-golden drift suite run daily in the Health workflow:
 
 ```bash
 RUN_INTEGRATION=1 npm test

@@ -273,11 +273,6 @@ export class AwsBulkLoader {
       // Stream the response body through a TextDecoder so we work with strings
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
 
-      // Open a single SQLite transaction for all cache.set() calls during this
-      // CSV stream. AWS EC2 CSVs contain 1000+ rows; batching yields ~100x
-      // write throughput compared to individual auto-commit transactions.
-      this.cache.beginBatch();
-
       // Column indices discovered from the header row
       let colInstanceType = -1;
       let colOS = -1;
@@ -290,10 +285,61 @@ export class AwsBulkLoader {
 
       let headerFound = false;
       let leftover = "";
-      let cachedCount = 0;
+      const lowestPriceByKey = new Map<string, NormalizedPrice>();
       // Parsed from the CSV metadata rows (e.g. "Publication Date","2026-04-01T00:00:00Z").
       // Falls back to "now" if the metadata row is absent or unparseable.
       let effectiveDate = new Date().toISOString();
+
+      const considerPriceLine = (line: string): void => {
+        // Quick pre-filter before expensive CSV parsing
+        if (!line.includes("OnDemand") || !line.includes("Compute Instance")) {
+          return;
+        }
+
+        const fields = parseCsvLine(line);
+
+        if (colProductFamily !== -1 && fields[colProductFamily] !== "Compute Instance") return;
+        if (colTenancy !== -1 && fields[colTenancy] !== "Shared") return;
+        if (colTermType !== -1 && fields[colTermType] !== "OnDemand") return;
+        if (colCapacityStatus !== -1 && fields[colCapacityStatus] !== "Used") return;
+
+        const instanceType = fields[colInstanceType] ?? "";
+        const os = fields[colOS] ?? "";
+        const rawPrice = fields[colPrice] ?? "";
+        const unit = colUnit !== -1 ? (fields[colUnit] ?? "Hrs") : "Hrs";
+
+        if (!instanceType || !os || !rawPrice) return;
+
+        const priceValue = parseFloat(rawPrice);
+        if (!isFinite(priceValue) || priceValue <= 0) return;
+
+        const csvCacheKey = `aws/ec2/${region}/${instanceType.toLowerCase()}/${os.toLowerCase()}`;
+        const current = lowestPriceByKey.get(csvCacheKey);
+
+        // AWS publishes several Linux rows for one instance type, including
+        // licensed/preinstalled variants. The public on-demand base rate is the
+        // lowest matching Shared/Used row; keeping the last row made results
+        // depend on upstream CSV ordering and inflated common SKUs by up to 7.5x.
+        if (current && current.price_per_unit <= priceValue) return;
+
+        lowestPriceByKey.set(csvCacheKey, {
+          provider: "aws",
+          service: "ec2",
+          resource_type: instanceType,
+          region,
+          unit,
+          price_per_unit: priceValue,
+          currency: "USD",
+          description: `AWS EC2 ${instanceType} (${os}) on-demand`,
+          attributes: {
+            instance_type: instanceType,
+            operating_system: os,
+            tenancy: "Shared",
+            pricing_source: "live",
+          },
+          effective_date: effectiveDate,
+        });
+      };
 
       // Process the stream chunk-by-chunk, splitting on newlines
       while (true) {
@@ -347,7 +393,6 @@ export class AwsBulkLoader {
                   colOS,
                   colPrice,
                 });
-                this.cache.rollbackBatch();
                 return false;
               }
 
@@ -356,122 +401,29 @@ export class AwsBulkLoader {
             continue; // metadata row – skip
           }
 
-          // Quick pre-filter before expensive CSV parsing
-          if (!line.includes("OnDemand") || !line.includes("Compute Instance")) {
-            continue;
-          }
-
-          const fields = parseCsvLine(line);
-
-          // Apply filters for the rows we care about
-          if (colProductFamily !== -1) {
-            const pf = fields[colProductFamily] ?? "";
-            if (pf !== "Compute Instance") continue;
-          }
-          if (colTenancy !== -1) {
-            const tenancy = fields[colTenancy] ?? "";
-            if (tenancy !== "Shared") continue;
-          }
-          if (colTermType !== -1) {
-            const termType = fields[colTermType] ?? "";
-            if (termType !== "OnDemand") continue;
-          }
-          if (colCapacityStatus !== -1) {
-            const cap = fields[colCapacityStatus] ?? "";
-            if (cap !== "Used") continue;
-          }
-
-          const instanceType = fields[colInstanceType] ?? "";
-          const os = fields[colOS] ?? "";
-          const rawPrice = fields[colPrice] ?? "";
-          const unit = colUnit !== -1 ? (fields[colUnit] ?? "Hrs") : "Hrs";
-
-          if (!instanceType || !os || !rawPrice) continue;
-
-          const priceValue = parseFloat(rawPrice);
-          if (!isFinite(priceValue) || priceValue <= 0) continue;
-
-          const csvCacheKey = `aws/ec2/${region}/${instanceType.toLowerCase()}/${os.toLowerCase()}`;
-
-          const normalized: NormalizedPrice = {
-            provider: "aws",
-            service: "ec2",
-            resource_type: instanceType,
-            region,
-            unit,
-            price_per_unit: priceValue,
-            currency: "USD",
-            description: `AWS EC2 ${instanceType} (${os}) on-demand`,
-            attributes: {
-              instance_type: instanceType,
-              operating_system: os,
-              tenancy: "Shared",
-              pricing_source: "live",
-            },
-            effective_date: effectiveDate,
-          };
-
-          this.cache.set(csvCacheKey, normalized, "aws", "ec2", region, this.ttlSeconds);
-          cachedCount++;
+          considerPriceLine(line);
         }
       }
 
       // Handle any remaining partial line
       if (leftover.trim() && headerFound) {
-        const line = leftover.trimEnd();
-        if (line.includes("OnDemand") && line.includes("Compute Instance")) {
-          const fields = parseCsvLine(line);
-          const instanceType = fields[colInstanceType] ?? "";
-          const os = fields[colOS] ?? "";
-          const rawPrice = fields[colPrice] ?? "";
-          const unit = colUnit !== -1 ? (fields[colUnit] ?? "Hrs") : "Hrs";
-          const priceValue = parseFloat(rawPrice);
-
-          if (instanceType && os && isFinite(priceValue) && priceValue > 0) {
-            const csvCacheKey = `aws/ec2/${region}/${instanceType.toLowerCase()}/${os.toLowerCase()}`;
-            this.cache.set(
-              csvCacheKey,
-              {
-                provider: "aws",
-                service: "ec2",
-                resource_type: instanceType,
-                region,
-                unit,
-                price_per_unit: priceValue,
-                currency: "USD",
-                description: `AWS EC2 ${instanceType} (${os}) on-demand`,
-                attributes: {
-                  instance_type: instanceType,
-                  operating_system: os,
-                  tenancy: "Shared",
-                  pricing_source: "live",
-                },
-                effective_date: effectiveDate,
-              } satisfies NormalizedPrice,
-              "aws",
-              "ec2",
-              region,
-              this.ttlSeconds,
-            );
-            cachedCount++;
-          }
-        }
+        considerPriceLine(leftover.trimEnd());
       }
 
-      // Commit or discard the batch transaction
+      const cachedCount = lowestPriceByKey.size;
       if (cachedCount > 0) {
+        // Parse the network response completely before opening the transaction,
+        // then persist one canonical value per cache key atomically.
+        this.cache.beginBatch();
+        for (const [csvCacheKey, normalized] of lowestPriceByKey) {
+          this.cache.set(csvCacheKey, normalized, "aws", "ec2", region, this.ttlSeconds);
+        }
         this.cache.endBatch();
-      } else {
-        // Nothing written — roll back the empty transaction cleanly
-        this.cache.rollbackBatch();
       }
 
       logger.debug("AWS EC2 CSV streaming complete", { region, cachedCount });
       return cachedCount > 0;
     } catch (err) {
-      // Roll back any partial batch on error to avoid partial cache state
-      this.cache.rollbackBatch();
-
       if ((err as Error)?.name === "AbortError") {
         logger.debug("AWS EC2 CSV streaming timed out", { region });
       } else {

@@ -8,6 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- **Live AWS EC2 pricing selected order-dependent duplicate rows.** The bulk
+  catalog contains several Shared/Used/Linux rows for some instance types,
+  including licensed variants. The loader overwrote one cache key for every
+  match, so the last row won: `t3.micro`, `m6i.large`, and `t3.medium` were
+  overstated by 2.6x to 7.5x. It now keeps the lowest qualifying on-demand row,
+  applies identical filters to the final unterminated CSV line, and has a
+  duplicate-row regression test. See [the incident review](./docs/incidents/2026-08-pricing-drift.md).
+
+- **Azure Linux VM selection could fall through to a Windows price.** Azure's
+  current `skuName` uses `Standard_D2s_v5`, while the selector expected a
+  space-separated shape. When exact matching failed, sorted fallback order
+  selected the $0.188/hr Windows row instead of the $0.096/hr Linux row. SKU
+  comparison is now punctuation-insensitive, prefers canonical `armSkuName`,
+  and preserves the requested OS.
+
+- **Pricing drift coverage existed but never ran in Health.** The daily workflow
+  now runs the full golden-range suite, catalog misses fail instead of reporting
+  a green skip, and the reviewed `p4d.24xlarge` range reflects the live
+  $21.9576/hr rate observed on 2026-08-30.
+
 - **GCP pricing had not refreshed since 2026-04-15.** `scripts/refresh-pricing.ts`
   read `gstatic.com/cloud-site-ux/pricing/data/gcp-compute.json`, an undocumented
   Google asset that has returned 404 since before the first scheduled run on
@@ -98,7 +118,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   Billing Catalog API using "unauthenticated public endpoints", and that bundled
   data is refreshed weekly - true for AWS and Azure, false for GCP for 128 days.
 
-
 ## [1.2.1] - 2026-08-07
 
 ### Fixed
@@ -176,11 +195,13 @@ Hardened the MCP tool surface against the attack classes catalogued in the OWASP
 First stable release. No breaking API changes from 0.5 — this version ratifies the existing surface as SemVer-locked. See [`VERSIONING.md`](./VERSIONING.md#migration-notes) for details.
 
 ### Added
+
 - **`VERSIONING.md`**: Formal stability contract defining the SemVer-locked public surface (12 MCP tools, CLI binaries, package entry points), the change-classification policy, and the 0.x → 1.0 migration notes. (At release this lived in two files, `STABILITY.md` and `MIGRATION.md`; they were later consolidated.)
 - **Smoke integration tests**: Live-API smoke coverage for AWS Bulk Pricing, Azure Retail Prices, and GCP Cloud Billing Catalog, gated behind `RUN_INTEGRATION=1`. New `integration-smoke` CI job runs on manual dispatch and weekly schedule (Mondays 12:00 UTC).
 - **Publish workflow gates**: `npm audit --audit-level=high` and `npm test` now run before `npm publish`, preventing broken or vulnerable releases.
 
 ### Security
+
 - Resolved transitive advisories via npm `overrides`:
   - `hono` → `^4.12.12` (GHSA-26pp-8wgv-hjvm, GHSA-r5rp-j6wh-rvv4, GHSA-xf4j-xp2r-rqqx, GHSA-wmmm-f939-6g9c, GHSA-xpcf-pg52-r92g)
   - `@hono/node-server` → `^1.19.13` (GHSA-92pp-h63x-v22m)
@@ -189,11 +210,13 @@ First stable release. No breaking API changes from 0.5 — this version ratifies
 - `npm audit --audit-level=high` now reports zero vulnerabilities.
 
 ### Packaging
+
 - `VERSIONING.md` and `CHANGELOG.md` are now included in the published npm tarball. (Originally shipped as `STABILITY.md` + `MIGRATION.md`, now merged.)
 
 ## [0.4.0] - 2026-03-28
 
 ### Added
+
 - **Multi-IaC support**: CloudFormation (JSON/YAML), Pulumi (stack export), and Bicep/ARM template parsing via unified `IaCParser` interface with auto-format detection
 - **`analyze_plan` tool**: Parse `terraform plan -json` output for precise before/after cost-of-change analysis
 - **`compare_actual` tool**: Parse `.tfstate` files to compare actual infrastructure costs against estimates
@@ -213,6 +236,7 @@ First stable release. No breaking API changes from 0.5 — this version ratifies
 - **`docs/architecture.md`**: Layered architecture documentation with extension guides (originally at repo root, moved to `docs/` in a later cleanup).
 
 ### Changed
+
 - Refactored `bulk-loader.ts` (929 -> 708 lines) into focused modules: csv-parser, fallback-data
 - Refactored `resource-extractor.ts` (778 -> 299 lines) into per-provider extractors
 - Refactored `retail-client.ts` (614 -> 499 lines) with extracted fallback-data
@@ -220,10 +244,12 @@ First stable release. No breaking API changes from 0.5 — this version ratifies
 - Updated CI pipeline with security audit job and format checking
 
 ### Fixed
+
 - picomatch HIGH severity vulnerability (ReDoS + method injection)
 - Unused imports and variables across codebase (ESLint cleanup)
 
 ### Security
+
 - Resolved picomatch 4.0.0-4.0.3 vulnerability via npm audit fix
 - Added `npm audit --audit-level=high` to CI pipeline
 

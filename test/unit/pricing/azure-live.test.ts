@@ -115,6 +115,47 @@ describe("ARM_REGION_MAP / toArmRegionName", () => {
   });
 });
 
+describe("AzureRetailClient.getComputePrice", () => {
+  let dbPath: string;
+  let cache: PricingCache;
+  let client: AzureRetailClient;
+
+  beforeEach(() => {
+    dbPath = tempDbPath();
+    cache = new PricingCache(dbPath);
+    client = new AzureRetailClient(cache);
+  });
+
+  afterEach(() => {
+    cache?.close();
+    vi.unstubAllGlobals();
+    const dir = join(dbPath, "..");
+    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("selects Linux when Azure returns underscore-style SKU names", async () => {
+    stubFetchOnce([
+      makeItem({
+        productName: "Virtual Machines Dsv5 Series Windows",
+        skuName: "Standard_D2s_v5",
+        retailPrice: 0.188,
+        skuId: "sku-1-windows",
+      }),
+      makeItem({
+        productName: "Virtual Machines Dsv5 Series",
+        skuName: "Standard_D2s_v5",
+        retailPrice: 0.096,
+        skuId: "sku-2-linux",
+      }),
+    ]);
+
+    const result = await client.getComputePrice("Standard_D2s_v5", "eastus", "linux");
+
+    expect(result?.price_per_unit).toBe(0.096);
+    expect(result?.attributes.product_name).toBe("Virtual Machines Dsv5 Series");
+  });
+});
+
 describe("AzureRetailClient.getSpotPrice", () => {
   let dbPath: string;
   let cache: PricingCache;

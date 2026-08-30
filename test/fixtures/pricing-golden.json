@@ -1,6 +1,6 @@
 {
   "$comment": "Golden-file snapshot of expected live-pricing ranges per provider/SKU/region. Ranges are intentionally wide (~+/-5% around the recorded price plus absolute headroom) so normal upstream drift does not fail CI. Regenerate via scripts/update-pricing-golden.ts after refresh-pricing.ts confirms an upstream change is legitimate. Prices are USD/hr for compute/db/gpu and USD/GB-month for storage.",
-  "recorded_at": "2026-04-15",
+  "recorded_at": "2026-08-30",
   "aws": {
     "t3.micro": {
       "us-east-1": { "min": 0.008, "max": 0.015 },
@@ -31,8 +31,8 @@
       "us-west-2": { "min": 0.06, "max": 0.12 }
     },
     "p4d.24xlarge": {
-      "us-east-1": { "min": 28.0, "max": 38.0 },
-      "us-west-2": { "min": 28.0, "max": 38.0 }
+      "us-east-1": { "min": 20.85976, "max": 23.055524 },
+      "us-west-2": { "min": 20.859758, "max": 23.055522 }
     }
   },
   "azure": {

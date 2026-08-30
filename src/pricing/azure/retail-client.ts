@@ -483,12 +483,15 @@ export class AzureRetailClient {
     // Sort by skuId for deterministic selection across runs
     const sorted = [...items].sort((a, b) => (a.skuId ?? "").localeCompare(b.skuId ?? ""));
 
-    // The Retail API's skuName uses "D2s v3" style, while callers pass ARM
-    // names like "Standard_D2s_v3" — normalise before substring matching.
-    const skuFragment = vmSize
-      .toLowerCase()
-      .replace(/^standard_/, "")
-      .replace(/_/g, " ");
+    // Azure currently returns both "D2s v5" and "Standard_D2s_v5" shapes in
+    // skuName. Compare punctuation-insensitively and prefer armSkuName, which
+    // is the canonical value used in the API query.
+    const normalizeSku = (value: string): string =>
+      value
+        .toLowerCase()
+        .replace(/^standard[_\s-]*/, "")
+        .replace(/[^a-z0-9]/g, "");
+    const requestedSku = normalizeSku(vmSize);
     const isWindows = os.toLowerCase().includes("windows");
 
     // Exclude Spot / Low Priority meters: they share the armSkuName but are
@@ -498,22 +501,24 @@ export class AzureRetailClient {
       return !meterLower.includes("low priority") && !meterLower.includes("spot");
     });
 
-    // Prefer exact sku match with the right OS. Windows rows are flagged in
+    // Prefer an exact SKU match with the right OS. Windows rows are flagged in
     // productName ("... Series Windows"), not always in skuName.
-    for (const item of onDemand) {
+    const osMatches = onDemand.filter((item) => {
       const skuLower = (item.skuName ?? "").toLowerCase();
       const hasWindows =
         skuLower.includes("windows") || (item.productName ?? "").toLowerCase().includes("windows");
-      if (
-        skuLower.includes(skuFragment) &&
-        ((isWindows && hasWindows) || (!isWindows && !hasWindows))
-      ) {
-        return item;
-      }
-    }
+      return (isWindows && hasWindows) || (!isWindows && !hasWindows);
+    });
 
-    // Fallback: first on-demand item, then first item overall
-    return onDemand[0] ?? sorted[0];
+    const exact = osMatches.find(
+      (item) =>
+        normalizeSku(item.armSkuName ?? "") === requestedSku ||
+        normalizeSku(item.skuName ?? "") === requestedSku,
+    );
+    if (exact) return exact;
+
+    // Preserve the requested OS even if Azure changes its SKU naming again.
+    return osMatches[0] ?? onDemand[0] ?? sorted[0];
   }
 
   // -------------------------------------------------------------------------
