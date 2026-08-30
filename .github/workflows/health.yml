@@ -23,7 +23,7 @@ on:
   schedule:
     # Daily, 12:07 UTC. Cron here is always UTC regardless of any TZ setting.
     # Offset off the hour so it is not queued behind the top-of-hour spike.
-    - cron: '7 12 * * *'
+    - cron: "7 12 * * *"
   workflow_dispatch:
 
 permissions:
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24.15.0
-          cache: 'npm'
+          cache: "npm"
       - run: npm ci
       - run: npm run build
 
@@ -64,10 +64,19 @@ jobs:
       - name: Live provider pricing APIs still respond
         id: smoke
         env:
-          RUN_INTEGRATION: '1'
+          RUN_INTEGRATION: "1"
         run: |
           set +e
           npx vitest run test/integration/*.smoke.test.ts 2>&1 | tail -60 | tee smoke.txt
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Returned prices remain inside reviewed ranges
+        id: drift
+        env:
+          RUN_INTEGRATION: "1"
+        run: |
+          set +e
+          npx vitest run test/integration/pricing-drift.test.ts 2>&1 | tail -80 | tee drift.txt
           echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: No high or critical advisories in production dependencies
@@ -136,6 +145,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           FRESHNESS: ${{ steps.freshness.outputs.code }}
           SMOKE: ${{ steps.smoke.outputs.code }}
+          DRIFT: ${{ steps.drift.outputs.code }}
           ADVISORIES: ${{ steps.advisories.outputs.code }}
           LOOP: ${{ steps.loop.outputs.code }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -144,7 +154,7 @@ jobs:
           verdict() { [ "${1:-2}" = "0" ] && echo "ok" || echo "FAILING"; }
 
           unhealthy=0
-          for c in "$FRESHNESS" "$SMOKE" "$ADVISORIES" "$LOOP"; do
+          for c in "$FRESHNESS" "$SMOKE" "$DRIFT" "$ADVISORIES" "$LOOP"; do
             [ "${c:-2}" = "0" ] || unhealthy=1
           done
 
@@ -157,12 +167,13 @@ jobs:
             echo "|---|---|---|"
             echo "| Pricing data freshness | $(verdict "$FRESHNESS") | The numbers we ship are recent enough to quote |"
             echo "| Live provider APIs | $(verdict "$SMOKE") | The upstreams we read prices from still answer |"
+            echo "| Live pricing drift | $(verdict "$DRIFT") | Returned prices remain inside reviewed ranges |"
             echo "| Production advisories | $(verdict "$ADVISORIES") | Nothing shipped has a known high/critical CVE |"
             echo "| Refresh loop liveness | $(verdict "$LOOP") | The weekly refresh is actually firing |"
             echo
             echo "Last checked: $(date -u '+%Y-%m-%d %H:%M UTC') - [run log]($RUN_URL)"
             echo
-            for f in freshness.txt smoke.txt advisories.txt; do
+            for f in freshness.txt smoke.txt drift.txt advisories.txt; do
               if [ -f "$f" ]; then
                 echo "<details><summary>$f</summary>"; echo; echo '```'
                 tail -40 "$f"; echo '```'; echo; echo "</details>"; echo
@@ -204,6 +215,7 @@ jobs:
         env:
           FRESHNESS: ${{ steps.freshness.outputs.code }}
           SMOKE: ${{ steps.smoke.outputs.code }}
+          DRIFT: ${{ steps.drift.outputs.code }}
           ADVISORIES: ${{ steps.advisories.outputs.code }}
           LOOP: ${{ steps.loop.outputs.code }}
         run: |
@@ -211,6 +223,7 @@ jobs:
           rc=0
           [ "${FRESHNESS:-2}" = "0" ]  || { echo "::error::bundled pricing data is stale"; rc=1; }
           [ "${SMOKE:-2}" = "0" ]      || { echo "::error::a live provider pricing API did not respond as expected"; rc=1; }
+          [ "${DRIFT:-2}" = "0" ]      || { echo "::error::a live provider price left its reviewed range"; rc=1; }
           [ "${ADVISORIES:-2}" = "0" ] || { echo "::error::high or critical advisory in production dependencies"; rc=1; }
           [ "${LOOP:-2}" = "0" ]       || { echo "::error::the weekly pricing refresh has not run recently, or its last run failed"; rc=1; }
           exit $rc

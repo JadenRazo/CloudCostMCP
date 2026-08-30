@@ -82,10 +82,9 @@ function assertInRange(
   actual: number | null | undefined,
 ): void {
   if (actual === null || actual === undefined || actual <= 0) {
-    console.warn(
-      `SKIP: ${provider}/${sku}/${region} — upstream returned null/zero, treating as catalog miss not drift`,
+    throw new Error(
+      `Price unavailable for ${provider}/${sku}/${region}: upstream returned null/zero`,
     );
-    return;
   }
   if (actual < golden.min || actual > golden.max) {
     reportDrift(provider, sku, region, golden, actual);
