@@ -26,6 +26,11 @@ jobs:
     if: github.repository_owner == 'JadenRazo'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      pricing-pr-branch: ${{ steps.pricing-pr.outputs.pull-request-branch }}
+      fallback-ci-required: >-
+        ${{ steps.app-token.outcome == 'skipped' &&
+            steps.pricing-pr.outputs.pull-request-branch != '' }}
     steps:
       # Mint a GitHub App installation token for the PR.
       #
@@ -110,6 +115,7 @@ jobs:
           fi
 
       - name: Open pricing refresh PR
+        id: pricing-pr
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
@@ -176,3 +182,24 @@ jobs:
         run: |
           echo "Pricing refresh exited ${REFRESH_EXIT:-(step did not run)} — see the 'Run pricing refresh' step logs." >> "$GITHUB_STEP_SUMMARY"
           exit 1
+
+  # Pull-request events raised with GITHUB_TOKEN require manual approval, so
+  # the required `ci` context never appears on the fallback PR. GitHub
+  # explicitly allows GITHUB_TOKEN to start workflow_dispatch runs. Keep the
+  # additional Actions permission isolated from the network-facing refresh job.
+  dispatch-fallback-ci:
+    name: Dispatch CI for fallback PR
+    needs: refresh
+    if: >-
+      ${{ always() &&
+          needs.refresh.outputs.fallback-ci-required == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_BRANCH: ${{ needs.refresh.outputs.pricing-pr-branch }}
+    steps:
+      - name: Dispatch required CI
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
