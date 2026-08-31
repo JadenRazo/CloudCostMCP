@@ -23,11 +23,13 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: jadenrazo/CloudCostMCP/.github/actions/cost-estimate@main
+      # Pin third-party Actions to a reviewed commit in production. This digest
+      # includes the action's immutable setup-node dependency.
+      - uses: jadenrazo/CloudCostMCP/.github/actions/cost-estimate@5e67f7b12ac3fcd6b4113f581c610332f9b00463
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # terraform_dir: "./terraform"  # auto-detected from changed files
