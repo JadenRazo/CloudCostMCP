@@ -1,7 +1,7 @@
 <h1 align="center">CloudCost MCP Server</h1>
 
 <p align="center">
-  Multi-cloud cost analysis for Terraform, CloudFormation, Pulumi, and Bicep/ARM. Live pricing from AWS, Azure, and GCP.
+  Multi-cloud cost analysis for Terraform, CloudFormation, Pulumi, and Bicep/ARM. Live AWS/Azure pricing with bundled GCP pricing snapshots.
   <br />
   Built on the <a href="https://modelcontextprotocol.io">Model Context Protocol</a> for seamless AI agent integration.
 </p>
@@ -28,13 +28,13 @@
 
 ---
 
-CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets AI agents parse infrastructure-as-code across multiple formats (Terraform, CloudFormation, Pulumi, Bicep/ARM), query real-time pricing data, and generate multi-cloud cost comparison reports. It connects directly to public pricing APIs from AWS, Azure, and GCP. No API keys or cloud credentials required.
+CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that lets AI agents parse infrastructure-as-code across multiple formats (Terraform, CloudFormation, Pulumi, Bicep/ARM), query pricing data, and generate multi-cloud cost comparison reports. AWS and Azure pricing are queried from public pricing endpoints; GCP pricing is served from bundled snapshots because Google does not provide CloudCost a credential-free live pricing path. No cloud credentials are required.
 
 ### What it does
 
 - Parses Terraform HCL files, CloudFormation templates, Pulumi stack exports, and Bicep/ARM templates with automatic format detection
 - Extracts resource inventories with variable resolution, including referenced modules and OpenTofu `.tofu` files
-- Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API; GCP from a weekly-refreshed bundled snapshot (Google no longer serves pricing to unauthenticated callers)
+- Queries live on-demand pricing from AWS Bulk Pricing CSV and Azure Retail Prices REST API; GCP from a weekly-refreshed bundled snapshot
 - Maps equivalent resources across AWS, Azure, and GCP (compute, database, storage, networking, Kubernetes, container registries, secrets management, DNS)
 - Generates cost estimates with per-resource breakdowns (monthly and yearly) across multiple currencies
 - Compares costs across all three providers side-by-side in markdown, JSON, CSV, or FOCUS format
@@ -43,6 +43,16 @@ CloudCost MCP is a [Model Context Protocol](https://modelcontextprotocol.io) ser
 - Projects costs over 3, 6, 12, and 36-month horizons with reserved instance comparisons
 - Tags resources for cost attribution and groups report output by team, environment, or any custom label
 - Posts cost estimate comments to pull requests via a reusable GitHub Actions composite action
+
+### Provider pricing support
+
+| Provider | Pricing source | Support level |
+|---|---|---|
+| AWS | Live public pricing APIs + bundled fallback tables | Live |
+| Azure | Live Retail Prices API + bundled fallback tables | Live |
+| GCP | Bundled pricing snapshots + fixed public rates | Supported, but **not live** |
+
+GCP cost estimation still works, but its figures are snapshot-based and should not be described as real-time Google Cloud pricing. See [How Pricing Works](#how-pricing-works) and [Limitations](#limitations) for the freshness model.
 
 ### Supported IaC Formats
 
@@ -61,7 +71,7 @@ CloudCostMCP targets a different surface:
 
 - **Agent-native via MCP.** Models call it as a tool *during* generation. `check_cost_budget` returns `allow` / `warn` / `block` with the specific blocking resources named, fast enough on a warm pricing cache for an agent to veto an expensive config before writing it to disk.
 - **Multi-IaC in one server.** Terraform, CloudFormation, Pulumi, Bicep/ARM — one tool, not four.
-- **Zero credentials.** All pricing comes from public endpoints. No account, no cloud IAM, no API keys.
+- **Zero cloud credentials.** AWS and Azure pricing use public endpoints; GCP pricing uses bundled snapshots. No account, cloud IAM, or cloud API keys are required.
 - **Optimization + what-if scenarios built in.** Right-sizing, reserved-pricing, cross-provider switching, and spot modeling are first-class tools.
 
 The two are complementary. Use Infracost in CI; use CloudCostMCP inside your agent or editor.
@@ -490,7 +500,7 @@ Configuration priority: environment variables > config file > built-in defaults.
   CSV (public)       (public, no auth)      (bundled files)
 ```
 
-Highlights: zero API keys (all providers exposed via public endpoints), SQLite-backed price cache shared across tool calls, streaming ingest for the 267 MB AWS bulk CSV, and a graceful live → fallback → interpolated-table chain so every response carries a `pricing_source` and `confidence` field. Full layer-by-layer walkthrough and extension guides in [docs/architecture.md](./docs/architecture.md).
+Highlights: no cloud credentials required; AWS and Azure use public pricing endpoints, while GCP uses bundled pricing snapshots and fixed public rates. SQLite-backed caching is used by live/fallback pricing paths, AWS bulk CSV ingest is streamed, and every response carries `pricing_source` and `confidence` so callers can distinguish live quotes from bundled or fallback estimates. Full layer-by-layer walkthrough and extension guides in [docs/architecture.md](./docs/architecture.md).
 
 ---
 
