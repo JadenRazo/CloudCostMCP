@@ -31,7 +31,7 @@ src/
 ├── pricing/              Provider adapters, cache, interpolation
 │   ├── aws/              Bulk CSV streaming + JSON + fallback
 │   ├── azure/            Retail Prices REST API + fallback
-│   └── gcp/              Cloud Billing Catalog API + bundled fallback
+│   └── gcp/              Bundled pricing loader + normalizer (no live API path)
 ├── calculator/           Per-resource-type cost calculation
 ├── mapping/              Cross-provider resource/instance/region maps
 ├── reporting/            Markdown, JSON, CSV, FOCUS formatters
@@ -47,7 +47,7 @@ data/
 ├── resource-equivalents.json       Cross-provider resource-type equivalents
 ├── aws-pricing/                    Bundled AWS pricing snapshots (fallback)
 ├── azure-pricing/                  Bundled Azure pricing snapshots (fallback)
-├── gcp-pricing/                    Bundled GCP pricing data (fallback)
+├── gcp-pricing/                    Bundled GCP pricing snapshots (primary GCP source)
 └── instance-types/                 Instance type metadata (vCPU, memory, family)
 
 test/
@@ -66,9 +66,9 @@ For the full layer-by-layer walkthrough and extension guides (new provider, new 
 npx vitest run test/unit/calculator/compute.test.ts
 ```
 
-## Integration tests against live provider APIs
+## Integration tests against external pricing sources
 
-These are gated behind `RUN_INTEGRATION=1` so they don't run in normal `npm test`. Provider smoke checks and the pricing-golden drift suite run daily in the Health workflow:
+These are gated behind `RUN_INTEGRATION=1` so they don't run in normal `npm test`. AWS and Azure checks exercise their live public pricing endpoints. GCP has no credential-free live API path; its checks validate the bundled pricing path and the upstream source used to refresh those snapshots. Provider health checks and the pricing-golden drift suite run in the Health workflow:
 
 ```bash
 RUN_INTEGRATION=1 npm test
