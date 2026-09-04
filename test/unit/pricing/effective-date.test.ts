@@ -1,12 +1,9 @@
 /**
  * Effective-date propagation unit tests.
  *
- * Wave 1 added support for propagating upstream `effectiveStartDate` /
- * `effectiveDate` fields through the normalizers so downstream consumers can
- * tell whether a cached price is current. These tests feed each normalizer a
- * synthetic API response with a known date and assert the normalized output
- * carries it through. A regression that hardcodes `new Date()` or drops the
- * field will be caught here.
+ * These tests cover pricing paths that consume upstream effective/publication
+ * dates. GCP is intentionally absent: CloudCost has no live GCP pricing client
+ * and serves GCP pricing from bundled snapshots instead.
  */
 
 import { describe, it, expect } from "vitest";
@@ -21,11 +18,6 @@ import {
   normalizeAzureDatabase,
   normalizeAzureStorage,
 } from "../../../src/pricing/azure/azure-normalizer.js";
-import {
-  normalizeGcpLiveCompute,
-  normalizeGcpLiveDatabase,
-  normalizeGcpLiveStorage,
-} from "../../../src/pricing/gcp/gcp-normalizer.js";
 import type { AzureRetailPriceItem } from "../../../src/pricing/azure/types.js";
 
 // ---------------------------------------------------------------------------
@@ -90,52 +82,6 @@ describe("Azure normalizers propagate effectiveStartDate", () => {
     });
     expect(result.effective_date).toBeDefined();
     expect(() => new Date(result.effective_date as string)).not.toThrow();
-    expect(Number.isNaN(new Date(result.effective_date as string).getTime())).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// GCP — live normalizers accept an explicit effectiveDate argument
-// ---------------------------------------------------------------------------
-
-describe("GCP live normalizers propagate effectiveDate", () => {
-  it("normalizeGcpLiveCompute carries the effectiveDate argument through", () => {
-    const result = normalizeGcpLiveCompute(
-      "e2-standard-2",
-      0.067006,
-      "us-central1",
-      "ABCD-1234-5678",
-      "2025-09-01T00:00:00Z",
-    );
-    expect(result.effective_date).toBe("2025-09-01T00:00:00.000Z");
-    expect(result.attributes?.sku_id).toBe("ABCD-1234-5678");
-  });
-
-  it("normalizeGcpLiveDatabase carries the effectiveDate argument through", () => {
-    const result = normalizeGcpLiveDatabase(
-      "db-n1-standard-1",
-      0.0965,
-      "us-central1",
-      "SQL-SKU-1",
-      "2025-10-15T00:00:00Z",
-    );
-    expect(result.effective_date).toBe("2025-10-15T00:00:00.000Z");
-  });
-
-  it("normalizeGcpLiveStorage carries the effectiveDate argument through", () => {
-    const result = normalizeGcpLiveStorage(
-      "standard",
-      0.02,
-      "us-central1",
-      "STORAGE-SKU-1",
-      "2026-02-01T00:00:00Z",
-    );
-    expect(result.effective_date).toBe("2026-02-01T00:00:00.000Z");
-  });
-
-  it("defaults to a valid ISO date when effectiveDate is omitted", () => {
-    const result = normalizeGcpLiveCompute("e2-small", 0.02, "us-central1", "SKU-X");
-    expect(result.effective_date).toBeDefined();
     expect(Number.isNaN(new Date(result.effective_date as string).getTime())).toBe(false);
   });
 });
