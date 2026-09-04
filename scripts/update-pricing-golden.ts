@@ -3,9 +3,14 @@
  * update-pricing-golden.ts — Regenerates test/fixtures/pricing-golden.json.
  *
  * For every (provider, SKU, region) combination already listed in the golden
- * file, fetches the current live price and writes a fresh range of +/- 5%
- * around that price. Entries whose upstream fetch returns null or 0 are left
- * untouched so we do not erase historical coverage during a transient outage.
+ * file, reads the current price from the source CloudCost actually uses and
+ * writes a fresh range of +/- 5% around that price. AWS and Azure use their
+ * live public pricing sources; GCP uses the bundled snapshot because CloudCost
+ * has no credential-free live GCP pricing path.
+ *
+ * Entries whose current source returns null or 0 are left untouched so we do
+ * not erase historical coverage during a transient outage or incomplete
+ * bundled refresh.
  *
  * WHEN TO RUN THIS:
  *   This should only be run AFTER `scripts/refresh-pricing.ts` has confirmed a
@@ -26,12 +31,12 @@ import { join } from "node:path";
 import { PricingCache } from "../src/pricing/cache.js";
 import { AwsBulkLoader } from "../src/pricing/aws/bulk-loader.js";
 import { AzureRetailClient } from "../src/pricing/azure/retail-client.js";
-import { CloudBillingClient } from "../src/pricing/gcp/cloud-billing-client.js";
+import { GcpBundledLoader } from "../src/pricing/gcp/bundled-loader.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GOLDEN_PATH = resolve(__dirname, "../test/fixtures/pricing-golden.json");
 
-const TOLERANCE = 0.05; // +/- 5% around the live price
+const TOLERANCE = 0.05; // +/- 5% around the current price
 
 interface GoldenRange {
   min: number;
@@ -59,7 +64,9 @@ function widen(price: number): GoldenRange {
 async function main(): Promise<void> {
   if (process.env.RUN_INTEGRATION !== "1") {
     // eslint-disable-next-line no-console
-    console.error("Refusing to run without RUN_INTEGRATION=1 — this hits live provider APIs.");
+    console.error(
+      "Refusing to run without RUN_INTEGRATION=1 — this hits live AWS/Azure pricing APIs and reads bundled GCP pricing.",
+    );
     process.exit(1);
   }
 
@@ -69,7 +76,7 @@ async function main(): Promise<void> {
 
   const aws = new AwsBulkLoader(cache);
   const azure = new AzureRetailClient(cache);
-  const gcp = new CloudBillingClient(cache);
+  const gcp = new GcpBundledLoader();
 
   let updated = 0;
   let preserved = 0;
@@ -106,8 +113,8 @@ async function main(): Promise<void> {
   for (const [sku, regions] of Object.entries(golden.gcp)) {
     for (const region of Object.keys(regions)) {
       const res = GCP_STORAGE.has(sku)
-        ? await gcp.fetchStorageSkus(sku, region)
-        : await gcp.fetchComputeSkus(sku, region);
+        ? await gcp.getDiskPrice(sku, region)
+        : await gcp.getComputePrice(sku, region);
       const price = res?.price_per_unit;
       if (price && price > 0) {
         golden.gcp[sku][region] = widen(price);
@@ -123,7 +130,7 @@ async function main(): Promise<void> {
 
   // eslint-disable-next-line no-console
   console.log(
-    `Golden file updated. Rewrote ${updated} entries, preserved ${preserved} existing entries that had no live data.`,
+    `Golden file updated. Rewrote ${updated} entries, preserved ${preserved} existing entries that had no current pricing data.`,
   );
 }
 
