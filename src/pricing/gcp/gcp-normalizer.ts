@@ -2,10 +2,10 @@ import type { NormalizedPrice } from "../../types/pricing.js";
 import { resolveEffectiveDate } from "../effective-date.js";
 
 /**
- * Convert GCP pricing data into the canonical NormalizedPrice shape.
+ * Convert bundled GCP pricing data into the canonical NormalizedPrice shape.
  *
- * The `normalizeGcp*` functions handle bundled (JSON file) data.
- * The `normalizeGcpLive*` functions handle data from the Cloud Billing API.
+ * CloudCost has no credential-free live GCP pricing path. All GCP pricing
+ * normalized here comes from bundled data and is explicitly tagged as such.
  */
 
 interface GcpNormalizeSpec {
@@ -17,22 +17,12 @@ interface GcpNormalizeSpec {
   attrKey: string;
 }
 
-interface GcpNormalizeOptions {
-  source: "bundled" | "live";
-  skuId?: string;
-  effectiveDate?: string;
-}
-
-/**
- * Shared body of the GCP normalizers: assembles the canonical NormalizedPrice
- * literal for both bundled and live (Cloud Billing API) data.
- */
+/** Shared body for bundled GCP normalizers. */
 function normalize(
   resourceType: string,
   pricePerUnit: number,
   region: string,
   spec: GcpNormalizeSpec,
-  opts: GcpNormalizeOptions,
 ): NormalizedPrice {
   return {
     provider: "gcp",
@@ -45,10 +35,9 @@ function normalize(
     description: `${spec.descriptionPrefix} ${resourceType}`,
     attributes: {
       [spec.attrKey]: resourceType,
-      ...(opts.skuId !== undefined ? { sku_id: opts.skuId } : {}),
-      pricing_source: opts.source,
+      pricing_source: "bundled",
     },
-    effective_date: resolveEffectiveDate(opts.effectiveDate),
+    effective_date: resolveEffectiveDate(undefined),
   };
 }
 
@@ -80,16 +69,12 @@ const DISK_SPEC: GcpNormalizeSpec = {
   attrKey: "disk_type",
 };
 
-// ---------------------------------------------------------------------------
-// Bundled (JSON file) normalizers
-// ---------------------------------------------------------------------------
-
 export function normalizeGcpCompute(
   machineType: string,
   hourlyPrice: number,
   region: string,
 ): NormalizedPrice {
-  return normalize(machineType, hourlyPrice, region, COMPUTE_SPEC, { source: "bundled" });
+  return normalize(machineType, hourlyPrice, region, COMPUTE_SPEC);
 }
 
 export function normalizeGcpDatabase(
@@ -97,7 +82,7 @@ export function normalizeGcpDatabase(
   hourlyPrice: number,
   region: string,
 ): NormalizedPrice {
-  return normalize(tier, hourlyPrice, region, DATABASE_SPEC, { source: "bundled" });
+  return normalize(tier, hourlyPrice, region, DATABASE_SPEC);
 }
 
 export function normalizeGcpStorage(
@@ -105,7 +90,7 @@ export function normalizeGcpStorage(
   pricePerGb: number,
   region: string,
 ): NormalizedPrice {
-  return normalize(storageClass, pricePerGb, region, STORAGE_SPEC, { source: "bundled" });
+  return normalize(storageClass, pricePerGb, region, STORAGE_SPEC);
 }
 
 export function normalizeGcpDisk(
@@ -113,53 +98,5 @@ export function normalizeGcpDisk(
   pricePerGb: number,
   region: string,
 ): NormalizedPrice {
-  return normalize(diskType, pricePerGb, region, DISK_SPEC, { source: "bundled" });
-}
-
-// ---------------------------------------------------------------------------
-// Live (Cloud Billing API) normalizers
-// These accept the raw unit price from the API and produce the same
-// NormalizedPrice shape but with pricing_source: "live".
-// ---------------------------------------------------------------------------
-
-export function normalizeGcpLiveCompute(
-  machineType: string,
-  pricePerHour: number,
-  region: string,
-  skuId: string,
-  effectiveDate?: string,
-): NormalizedPrice {
-  return normalize(machineType, pricePerHour, region, COMPUTE_SPEC, {
-    source: "live",
-    skuId,
-    effectiveDate,
-  });
-}
-
-export function normalizeGcpLiveDatabase(
-  tier: string,
-  pricePerHour: number,
-  region: string,
-  skuId: string,
-  effectiveDate?: string,
-): NormalizedPrice {
-  return normalize(tier, pricePerHour, region, DATABASE_SPEC, {
-    source: "live",
-    skuId,
-    effectiveDate,
-  });
-}
-
-export function normalizeGcpLiveStorage(
-  storageClass: string,
-  pricePerGbMonth: number,
-  region: string,
-  skuId: string,
-  effectiveDate?: string,
-): NormalizedPrice {
-  return normalize(storageClass.toUpperCase(), pricePerGbMonth, region, STORAGE_SPEC, {
-    source: "live",
-    skuId,
-    effectiveDate,
-  });
+  return normalize(diskType, pricePerGb, region, DISK_SPEC);
 }
