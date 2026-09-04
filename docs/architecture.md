@@ -25,7 +25,7 @@ IaC Files
               |
               +--- AWS:   Bulk CSV streaming + JSON + fallback tables
               +--- Azure: Retail Prices REST API + fallback tables
-              +--- GCP:   Cloud Billing Catalog API + bundled JSON files
+              +--- GCP:   Bundled pricing snapshots + fixed public rates
     v
 [Cost Breakdown]   CostBreakdown (per-resource estimates + by_service totals)
     |
@@ -34,7 +34,7 @@ IaC Files
     |  Markdown, JSON, CSV, FOCUS formatters
     v
 [MCP Tools]        src/tools/
-    |  7 tool handlers with Zod schema validation, stdio transport
+    |  Tool handlers with Zod schema validation, stdio transport
     v
 MCP Client (Claude Desktop, Claude Code, any MCP-compatible agent)
 ```
@@ -71,7 +71,7 @@ All mapping data is loaded once at startup via `src/data/loader.ts` and held in 
 
 ### Pricing Engine (`src/pricing/`)
 
-The pricing engine is the only layer that makes outbound network requests. It follows a strict fallback chain for each provider.
+The pricing engine routes pricing lookups to provider-specific sources. AWS and Azure may make outbound requests to public pricing endpoints and fall back to bundled tables. GCP is intentionally bundled-only because CloudCost has no credential-free live GCP pricing path.
 
 **`PricingEngine` (`pricing-engine.ts`)** is the unified entry point. It holds one `PricingProvider` instance per cloud provider and routes requests based on the `service` string. It is intentionally thin — all pricing logic lives in the provider adapters.
 
@@ -104,13 +104,15 @@ interface PricingProvider {
 
 #### GCP (`src/pricing/gcp/`)
 
-1. **Cloud Billing Catalog API** (primary). Queries `cloudbilling.googleapis.com` using public unauthenticated endpoints. Results are cached for 24 hours.
+GCP has **no live pricing path** in CloudCost. The Cloud Billing Catalog API requires authenticated/registered callers, while CloudCost deliberately ships without cloud credentials. GCP pricing therefore comes from bundled data and fixed public rates.
 
-2. **Bundled pricing data** (fallback). `data/gcp-pricing/` ships with the package and covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types across all major regions. Persistent disk prices (`pd-*`) always use bundled data because they are not catalogued individually in the Cloud Storage service.
+1. **Bundled pricing data** (only path for catalog-backed services). `data/gcp-pricing/` ships with the package and covers Compute Engine machine types, Cloud SQL tiers, Cloud Storage classes, and Persistent Disk types. Compute Engine, Persistent Disk, and Cloud Storage tables are rebuilt by the pricing refresh workflow from the `gcosts` snapshot of the Cloud Billing Catalog; Cloud SQL remains curated separately.
 
-3. **Fixed rates**. Load balancer, Cloud NAT, and GKE control plane pricing use fixed public rates from bundled data; these change infrequently.
+2. **Fixed rates**. Load balancer, Cloud NAT, and GKE control-plane pricing use fixed public rates. These are returned through the same GCP bundled provider and should be treated as estimates rather than live quotes.
 
-**`PricingCache` (`src/pricing/cache.ts`)** is a `better-sqlite3`-backed store shared across all tools per server lifetime. It caches `NormalizedPrice` objects keyed by `(provider, service, resourceType, region)` with a configurable TTL (default: 86400 seconds).
+3. **Source signaling**. GCP catalog-backed prices are tagged `pricing_source: "bundled"` and carry pricing metadata describing the snapshot vintage. Callers should use that metadata when freshness matters.
+
+**`PricingCache` (`src/pricing/cache.ts`)** is a `better-sqlite3`-backed store shared across tools per server lifetime. It caches live/fallback `NormalizedPrice` objects for providers that use the cache, keyed by `(provider, service, resourceType, region)`, with a configurable TTL (default: 86400 seconds).
 
 Every `NormalizedPrice` object carries a `pricing_source` field: `"live"`, `"fallback"`, or `"bundled"`. This surfaces in cost estimates and reports.
 
@@ -151,6 +153,8 @@ When `CLOUDCOST_INCLUDE_DATA_TRANSFER=true`, `CostEngine` appends a synthetic da
 
 The tools layer is the MCP interface. Each tool is a single file exporting a Zod schema and an async handler.
 
+Representative tools include:
+
 | Tool                | Handler file           | Description                                                      |
 | ------------------- | ---------------------- | ---------------------------------------------------------------- |
 | `analyze_terraform` | `analyze-terraform.ts` | Parse HCL, resolve variables, return resource inventory          |
@@ -161,9 +165,9 @@ The tools layer is the MCP interface. Each tool is a single file exporting a Zod
 | `optimize_cost`     | `optimize-cost.ts`     | Right-sizing and reserved pricing recommendations                |
 | `what_if`           | `what-if.ts`           | Hypothetical scenario modeling without modifying Terraform       |
 
-All tools are registered in `src/tools/index.ts` via `server.tool(name, schema.shape, handler)`. A single `PricingCache` and `PricingEngine` are shared across all tools so the SQLite database is opened exactly once per server lifetime.
+All tools are registered through the MCP server registration layer. A single pricing engine is shared across tool calls, with the SQLite cache used by live/fallback providers opened once per server lifetime.
 
-Handlers always return `{ content: [{ type: "text", text: JSON.stringify(result) }] }`.
+Handlers return MCP content payloads containing structured JSON text.
 
 ### Reporting (`src/reporting/`)
 
@@ -180,11 +184,11 @@ Formatters consume a `ComparisonReport` or `CostBreakdown` and return a string i
 
 ### Zero API Keys
 
-All three providers expose public pricing endpoints that require no authentication. The server never reads environment variables for `AWS_ACCESS_KEY_ID`, `AZURE_CLIENT_SECRET`, `GOOGLE_APPLICATION_CREDENTIALS`, or equivalent. This is a hard design constraint: it allows the server to run in any environment without IAM setup and eliminates the risk of credential exposure.
+CloudCost does not require AWS, Azure, or GCP credentials. AWS and Azure pricing are read from public unauthenticated pricing endpoints. GCP is different: its live Cloud Billing Catalog path is not available to unregistered callers, so CloudCost serves GCP estimates from bundled snapshots and fixed public rates instead of requesting Google credentials. The server never reads `AWS_ACCESS_KEY_ID`, `AZURE_CLIENT_SECRET`, `GOOGLE_APPLICATION_CREDENTIALS`, or equivalent cloud credentials for pricing.
 
-### Graceful Fallback Chain
+### Provider-Specific Fallback Behavior
 
-Every pricing lookup goes through a defined fallback chain. If the live source is unavailable (network timeout, 5xx, etc.), the server falls back to built-in tables. If the exact instance type is not in the tables, size interpolation produces an estimate. This means the server always returns a number — callers can evaluate confidence using the `pricing_source` and `confidence` fields on each estimate rather than handling exceptions.
+AWS and Azure use live public pricing sources with bundled/interpolated fallbacks when those sources are unavailable. GCP does not participate in a live-to-fallback chain: its provider is bundled-only. Callers should inspect `pricing_source`, `pricing_metadata`, and `confidence` rather than assuming every provider result is a live quote.
 
 ### Streaming CSV for AWS EC2 Pricing
 
@@ -192,7 +196,7 @@ The AWS EC2 bulk pricing CSV exceeds 267 MB. Loading it into memory for every re
 
 ### Pricing Source Transparency
 
-Every `NormalizedPrice` and `CostEstimate` carries a `pricing_source` field. Report consumers can distinguish live prices from interpolated estimates and act accordingly. The `confidence` field (`high`, `medium`, `low`) provides a coarser signal for UI display.
+Every `NormalizedPrice` and `CostEstimate` carries a `pricing_source` field. Report consumers can distinguish live prices from bundled or interpolated estimates and act accordingly. The `confidence` field (`high`, `medium`, `low`) provides a coarser signal for UI display.
 
 ### Single-Pass Aggregation
 
@@ -254,10 +258,9 @@ See the [Configuration section in README.md](../README.md#configuration) for the
 ### Adding a New MCP Tool
 
 1. Create `src/tools/your-tool.ts`. Export a Zod schema (conventionally named `yourToolSchema`) and an async handler function.
-2. Register it in `src/tools/index.ts` via `server.tool(name, schema.shape, handler)`.
-3. The handler must return `{ content: [{ type: "text", text: JSON.stringify(result) }] }`.
-4. Follow the existing tool pattern — the shape is consistent across all seven tools.
-5. Add tests covering at least the happy path and one error case.
+2. Register it through the server's MCP tool registration layer.
+3. Follow the existing tool result pattern and return structured JSON content.
+4. Add tests covering at least the happy path and one error case.
 
 ## Source Layout Reference
 
@@ -284,7 +287,7 @@ src/
 │   ├── fetch-utils.ts    Shared HTTP fetch helpers
 │   ├── aws/              AwsBulkLoader + normalizer
 │   ├── azure/            AzureRetailClient + normalizer
-│   └── gcp/              CloudBillingClient + GcpBundledLoader + normalizer
+│   └── gcp/              GcpBundledLoader + bundled normalizer
 ├── calculator/           Per-resource-type cost calculation functions
 ├── mapping/              Cross-provider resource, instance, storage, region maps
 └── reporting/            Markdown, JSON, CSV, FOCUS output formatters
@@ -292,6 +295,6 @@ src/
 data/
 ├── instance-map.json     Bidirectional cross-provider resource type mappings
 ├── storage-map.json      Cross-provider storage type mappings
-├── gcp-pricing/          Bundled GCP pricing JSON (fallback when live API fails)
+├── gcp-pricing/          Bundled GCP pricing snapshots
 └── instance-types/       Instance type metadata (vCPU, memory, family)
 ```
