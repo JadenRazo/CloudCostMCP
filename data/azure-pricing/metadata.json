@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-31",
-  "last_verified": "2026-08-31",
+  "last_updated": "2026-09-07",
+  "last_verified": "2026-09-07",
   "refresh_policy": "automated",
   "source": "https://prices.azure.com/api/retail/prices",
   "sku_count": 70,
