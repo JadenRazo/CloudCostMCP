@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: health
+  group: health-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -140,7 +140,9 @@ jobs:
         # `always() &&` is load-bearing: a step `if:` with no status function
         # gets an implicit success() prepended, which is exactly how the refresh
         # workflow's alarm step came to be skipped whenever it was needed.
-        if: always()
+        # The tracking issue describes the default branch. A manual run on a
+        # fix branch must not close it before that fix has been merged.
+        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           GH_TOKEN: ${{ github.token }}
           FRESHNESS: ${{ steps.freshness.outputs.code }}
