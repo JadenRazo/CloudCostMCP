@@ -54,6 +54,18 @@ The production audit after repair has zero findings, including zero moderate
 findings. Regressions exercise proxy trust and forwarded headers, URI and
 cross-family IP parsing, and real MCP initialization/tool calls over stdio.
 
+The full CI audit also exposed two development-only high package findings:
+ESLint → minimatch → brace-expansion 5.0.9, and coverage/build tooling →
+source-map-js 1.2.1. They were patched compatibly to brace-expansion 5.0.12
+(raising its existing override floor) and source-map-js 1.2.2, without a new
+override or suppression. The authoritative advisories are
+[brace rewriting](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr),
+[nested brace recursion](https://github.com/advisories/GHSA-qhr7-859c-m2p7),
+[comma recursion](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p), and
+[indexed source-map offsets](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+Lint, build and coverage exercise these development paths; the final full
+audit is checked in addition to the production gate.
+
 ## Pricing provenance
 
 The established `scripts/refresh-pricing.ts --write` pipeline was run against
