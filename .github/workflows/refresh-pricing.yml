@@ -225,9 +225,10 @@ jobs:
           echo "Pricing refresh exited ${REFRESH_EXIT:-(step did not run)} — see the 'Run pricing refresh' step logs." >> "$GITHUB_STEP_SUMMARY"
           exit 1
 
-  # Pull-request events raised with GITHUB_TOKEN require manual approval, so
-  # the required `ci` context never appears on the fallback PR. GitHub
-  # explicitly allows GITHUB_TOKEN to start workflow_dispatch runs. Keep the
+  # Pull-request events raised with GITHUB_TOKEN can require owner approval.
+  # Dispatch verifies the branch but does not release a quarantined PR-event
+  # run or satisfy its protected check. Keep the approval requirement visible.
+  # GitHub allows GITHUB_TOKEN to start workflow_dispatch runs. Keep the
   # additional Actions permission isolated from the network-facing refresh job.
   dispatch-fallback-ci:
     name: Dispatch CI for fallback PR
@@ -248,3 +249,8 @@ jobs:
           set -euo pipefail
           echo "Dispatching CI for branch $PR_BRANCH from refresh attempt $GITHUB_RUN_ATTEMPT" >> "$GITHUB_STEP_SUMMARY"
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
+          {
+            echo ''
+            echo 'Dispatched CI verifies the branch. It does not approve a pending PR-event run.'
+            echo 'For a pricing PR, inspect its Checks tab. If CI is action_required, an owner must use Approve and run, then wait for the required ci check and review before merging.'
+          } >> "$GITHUB_STEP_SUMMARY"

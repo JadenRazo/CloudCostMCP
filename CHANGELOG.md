@@ -6,7 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-07
+
+### Security
+
+- Patch the MCP SDK OAuth issuer advisory and transitive proxy-addr,
+  fast-uri and ip-address advisories using compatible dependency updates.
+  Also patch development-only brace-expansion and source-map-js advisories.
+  Both production and full dependency audits pass at release verification.
+
 ### Fixed
+
+- Restore completed provider verification through the established refresh
+  pipeline while preserving the 21-day freshness gate. Record source vintage,
+  response SHA-256, retrieval time and completed verification separately.
+- Refuse to certify interrupted AWS streams, invalid or expired GCP snapshots,
+  insufficient source coverage and failed generated fallback validation.
+- Recover a scheduled refresh that never acquired a hosted runner with at most
+  one narrowly scoped retry. Retain acquisition diagnostics, preserve branch
+  protections, and keep Actions write isolated from provider retrieval.
+- Scope refresh liveness to the branch being checked so another branch's preview
+  cannot certify main. Add preview and recovery probes that do not update pricing PRs
+  or issues. The GitHub cost-estimate Action now installs this release.
 
 - **Live AWS EC2 pricing selected order-dependent duplicate rows.** The bulk
   catalog contains several Shared/Used/Linux rows for some instance types,
