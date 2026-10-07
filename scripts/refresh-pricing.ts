@@ -23,11 +23,13 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { spawnSync } from "child_process";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { createHash } from "node:crypto";
 import { parse as parseYaml } from "yaml";
 
 import { parseCsvLine } from "../src/pricing/aws/csv-parser.js";
 import { fetchWithRetry } from "../src/pricing/fetch-utils.js";
 import { GCP_PRICING_SOURCE_URL } from "../src/data/pricing-sources.js";
+import { GATE_MAX_AGE_DAYS, MS_PER_DAY } from "../src/data/freshness.js";
 import {
   EC2_BASE_PRICES,
   RDS_BASE_PRICES,
@@ -48,7 +50,16 @@ const AWS_FALLBACK_PATH = resolve(PROJECT_ROOT, "src/pricing/aws/fallback-data.t
 const AZURE_FALLBACK_PATH = resolve(PROJECT_ROOT, "src/pricing/azure/fallback-data.ts");
 
 const WRITE_MODE = process.argv.includes("--write");
-const REFRESH_SCRIPT_VERSION = "3.0.0";
+const REFRESH_SCRIPT_VERSION = "3.1.0";
+
+interface SourceReceipt {
+  url: string;
+  retrieved_at: string;
+  sha256: string;
+  // Publication/generation/effective date belongs to the source, not our clock.
+  source_vintage?: string;
+}
+const sourceReceipts = new Map<string, SourceReceipt>();
 
 /**
  * Provider-level refresh failures collected during the run. A non-empty list
@@ -314,10 +325,11 @@ function round4(n: number): number {
  * is missing or unparseable — an unknown vintage is never silently replaced
  * with today's date, because that is precisely the lie that hid this outage.
  */
-function gcostsVintage(doc: GcostsDoc): string | null {
+export function gcostsVintage(doc: GcostsDoc): string | null {
   const ts = doc.about?.timestamp;
   if (typeof ts === "number" && Number.isFinite(ts) && ts > 0) {
-    return new Date(ts * 1000).toISOString().split("T")[0];
+    const date = new Date(ts * 1000);
+    if (!Number.isNaN(date.getTime())) return date.toISOString().split("T")[0];
   }
   const generated = doc.about?.generated;
   if (typeof generated === "string") {
@@ -325,6 +337,15 @@ function gcostsVintage(doc: GcostsDoc): string | null {
     if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
   }
   return null;
+}
+
+export function assertSourceVintage(vintage: string | null, now = Date.now()): void {
+  const time = vintage === null ? NaN : Date.parse(vintage);
+  if (!Number.isFinite(time)) throw new Error("source has no usable generation timestamp");
+  if (time > now) throw new Error("source generation timestamp is in the future");
+  if (Math.floor((now - time) / MS_PER_DAY) > GATE_MAX_AGE_DAYS) {
+    throw new Error(`source vintage ${vintage} exceeds the ${GATE_MAX_AGE_DAYS}-day gate`);
+  }
 }
 
 /**
@@ -381,7 +402,13 @@ async function refreshGcpPricing(): Promise<void> {
   try {
     const resp = await fetchWithRetry(GCP_PRICING_URL);
     if (!resp.ok) throw new Error(`GCP pricing fetch failed: ${resp.status}`);
-    doc = parseYaml(await resp.text()) as GcostsDoc;
+    const body = await resp.text();
+    sourceReceipts.set("gcp", {
+      url: GCP_PRICING_URL,
+      retrieved_at: new Date().toISOString(),
+      sha256: createHash("sha256").update(body).digest("hex"),
+    });
+    doc = parseYaml(body) as GcostsDoc;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`  ERROR: GCP pricing refresh failed — existing data is now stale: ${message}`);
@@ -390,12 +417,15 @@ async function refreshGcpPricing(): Promise<void> {
   }
 
   const vintage = gcostsVintage(doc);
-  if (vintage === null) {
-    const message = "gcosts dataset carries no usable about.generated/about.timestamp";
+  try {
+    assertSourceVintage(vintage);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error(`  ERROR: ${message}`);
     refreshFailures.push(`GCP: ${message} (URL: ${GCP_PRICING_URL})`);
     return;
   }
+  sourceReceipts.get("gcp")!.source_vintage = vintage!;
 
   const regions = gcpRegions();
   const machineTypes: Record<string, string> = {};
@@ -481,7 +511,8 @@ async function refreshGcpPricing(): Promise<void> {
   writeProviderMetadata(GCP_DATA_DIR, {
     source: GCP_SOURCE_LABEL,
     sku_count: skuCount,
-    last_updated: vintage,
+    last_updated: vintage!,
+    sources: [sourceReceipts.get("gcp")!],
     curated_datasets: [...GCP_CURATED_DATASETS],
   });
   console.log(`  Wrote 3 GCP data files and data/gcp-pricing/metadata.json`);
@@ -504,6 +535,8 @@ const AWS_CSV_TIMEOUT_MS = 180_000;
 async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
   const url = `${AWS_BULK_BASE}/AmazonEC2/current/${region}/index.csv`;
   const prices = new Map<string, number>();
+  const hash = createHash("sha256");
+  let publicationDate: string | undefined;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AWS_CSV_TIMEOUT_MS);
@@ -533,6 +566,7 @@ async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
+      hash.update(value);
       const chunk = leftover + value;
       const lines = chunk.split("\n");
       leftover = lines.pop() ?? "";
@@ -542,6 +576,8 @@ async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
         if (!line) continue;
 
         if (!headerFound) {
+          const preamble = parseCsvLine(line);
+          if (preamble[0] === "Publication Date") publicationDate = preamble[1];
           if (line.startsWith('"SKU"') || line.startsWith("SKU")) {
             const headers = parseCsvLine(line);
             for (let h = 0; h < headers.length; h++) {
@@ -582,7 +618,17 @@ async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
         if (existing === undefined || p < existing) prices.set(instanceType, p);
       }
     }
+    if (!headerFound) throw new Error("AWS EC2 CSV has no usable header");
+    sourceReceipts.set("aws-ec2", {
+      url,
+      retrieved_at: new Date().toISOString(),
+      sha256: hash.digest("hex"),
+      source_vintage: publicationDate,
+    });
   } catch (err) {
+    // A stream can fail after the coverage floor has been met. Those rows are
+    // not a completed retrieval and must never certify the provider as fresh.
+    prices.clear();
     console.log(
       `  WARNING: AWS EC2 CSV stream failed: ${err instanceof Error ? err.message : String(err)}`,
     );
@@ -600,6 +646,8 @@ async function fetchAwsEc2Prices(region: string): Promise<Map<string, number>> {
 async function fetchAwsRdsPrices(region: string): Promise<Map<string, number>> {
   const url = `${AWS_BULK_BASE}/AmazonRDS/current/${region}/index.csv`;
   const prices = new Map<string, number>();
+  const hash = createHash("sha256");
+  let publicationDate: string | undefined;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AWS_CSV_TIMEOUT_MS);
@@ -624,6 +672,7 @@ async function fetchAwsRdsPrices(region: string): Promise<Map<string, number>> {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
+      hash.update(value);
       const chunk = leftover + value;
       const lines = chunk.split("\n");
       leftover = lines.pop() ?? "";
@@ -632,6 +681,8 @@ async function fetchAwsRdsPrices(region: string): Promise<Map<string, number>> {
         const line = rawLine.trimEnd();
         if (!line) continue;
         if (!headerFound) {
+          const preamble = parseCsvLine(line);
+          if (preamble[0] === "Publication Date") publicationDate = preamble[1];
           if (line.startsWith('"SKU"') || line.startsWith("SKU")) {
             const headers = parseCsvLine(line);
             for (let h = 0; h < headers.length; h++) {
@@ -663,7 +714,15 @@ async function fetchAwsRdsPrices(region: string): Promise<Map<string, number>> {
         if (existing === undefined || p < existing) prices.set(instanceType, p);
       }
     }
+    if (!headerFound) throw new Error("AWS RDS CSV has no usable header");
+    sourceReceipts.set("aws-rds", {
+      url,
+      retrieved_at: new Date().toISOString(),
+      sha256: hash.digest("hex"),
+      source_vintage: publicationDate,
+    });
   } catch (err) {
+    prices.clear();
     console.log(
       `  WARNING: AWS RDS CSV stream failed: ${err instanceof Error ? err.message : String(err)}`,
     );
@@ -760,6 +819,7 @@ async function refreshAwsFallback(): Promise<void> {
     sku_count:
       Object.keys(nextEc2).length + Object.keys(nextRds).length + Object.keys(nextEbs).length,
     curated_datasets: ["EBS_BASE_PRICES (src/pricing/aws/fallback-data.ts)"],
+    sources: [sourceReceipts.get("aws-ec2")!, sourceReceipts.get("aws-rds")!],
   });
   console.log("  Wrote src/pricing/aws/fallback-data.ts and data/aws-pricing/metadata.json");
 }
@@ -833,9 +893,18 @@ const AZURE_REGION = "eastus";
 
 async function azureQuery(filter: string): Promise<AzurePriceItem[]> {
   try {
-    const resp = await fetchWithRetry(`${AZURE_API}?$filter=${encodeURIComponent(filter)}`);
+    const url = `${AZURE_API}?$filter=${encodeURIComponent(filter)}`;
+    const resp = await fetchWithRetry(url);
     if (!resp.ok) return [];
-    const data = (await resp.json()) as { Items: AzurePriceItem[] };
+    const body = await resp.text();
+    const data = JSON.parse(body) as { Items: AzurePriceItem[]; NextPageLink?: string };
+    // Do not certify a truncated result set without fetching its other pages.
+    if (data.NextPageLink) throw new Error("Azure SKU query unexpectedly requires pagination");
+    sourceReceipts.set(url, {
+      url,
+      retrieved_at: new Date().toISOString(),
+      sha256: createHash("sha256").update(body).digest("hex"),
+    });
     return data.Items ?? [];
   } catch {
     return [];
@@ -891,6 +960,10 @@ async function refreshAzureFallback(): Promise<void> {
       continue;
     }
     const rounded = roundPrice(linux.unitPrice);
+    const receipt = sourceReceipts.get(
+      `${AZURE_API}?$filter=${encodeURIComponent(`serviceName eq 'Virtual Machines' and armRegionName eq '${AZURE_REGION}' and priceType eq 'Consumption' and armSkuName eq '${armSku}'`)}`,
+    );
+    if (receipt) receipt.source_vintage = linux.effectiveStartDate;
     nextVm[key] = rounded;
     if (Math.abs(rounded - oldPrice) > 1e-6) {
       vmDiff.push({ action: "CHG", sku: key, before: oldPrice, after: rounded });
@@ -932,6 +1005,7 @@ async function refreshAzureFallback(): Promise<void> {
       "DISK_BASE_PRICES (src/pricing/azure/fallback-data.ts)",
       "DB_BASE_PRICES (src/pricing/azure/fallback-data.ts)",
     ],
+    sources: [...sourceReceipts.values()].filter((receipt) => receipt.url.startsWith(AZURE_API)),
   });
   console.log("  Wrote src/pricing/azure/fallback-data.ts and data/azure-pricing/metadata.json");
 }
@@ -1003,7 +1077,7 @@ function validateRewrittenModule(
         `  stderr: ${result.stderr ?? ""}\n` +
         `  stdout: ${result.stdout ?? ""}`,
     );
-    process.exit(1);
+    throw new Error("Rewritten fallback module failed validation");
   }
 }
 
@@ -1034,14 +1108,20 @@ function writeProviderMetadata(
     sku_count: number;
     last_updated?: string;
     curated_datasets?: string[];
+    sources: SourceReceipt[];
   },
 ): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const today = new Date().toISOString().split("T")[0];
+  if (extra.sources.some((receipt) => !receipt)) {
+    throw new Error("Cannot verify pricing without completed source retrievals");
+  }
   const curated = extra.curated_datasets ?? [];
   const meta = {
     last_updated: extra.last_updated ?? today,
     last_verified: today,
+    verified_at: new Date().toISOString(),
+    sources: extra.sources,
     refresh_policy: "automated",
     source: extra.source,
     sku_count: extra.sku_count,
@@ -1057,7 +1137,9 @@ function writeProviderMetadata(
 // Main
 // ---------------------------------------------------------------------------
 
-async function main() {
+export async function main() {
+  refreshFailures.length = 0;
+  sourceReceipts.clear();
   console.log(`=== CloudCostMCP Pricing Refresh — ${new Date().toISOString().split("T")[0]} ===`);
   console.log(`Mode: ${WRITE_MODE ? "WRITE" : "report-only"}\n`);
 
@@ -1083,7 +1165,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exitCode = 1;
+  });
+}

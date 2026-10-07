@@ -1,10 +1,299 @@
 {
-  "last_updated": "2026-09-28",
-  "last_verified": "2026-09-28",
+  "last_updated": "2026-10-07",
+  "last_verified": "2026-10-07",
+  "verified_at": "2026-10-07T03:46:10.090Z",
+  "sources": [
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B1s'",
+      "retrieved_at": "2026-10-07T03:45:08.582Z",
+      "sha256": "559175617d0e57f568ba0263463629ffe72b14114b0ac600807b43d82829b86c",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B1ms'",
+      "retrieved_at": "2026-10-07T03:45:09.188Z",
+      "sha256": "2e29a4d58fca7049895496fe090b163741a2c4fa49ca274de08f426010ce3d68",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B2s'",
+      "retrieved_at": "2026-10-07T03:45:09.250Z",
+      "sha256": "9d844b56083dd8b91e01f605cfb141b6f547fc5e8de3510f7fd067f071f8ba3d",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B2ms'",
+      "retrieved_at": "2026-10-07T03:45:09.311Z",
+      "sha256": "4a89ca3d8fcae4da4f2286f66fd048860d6a9a2b12cf912abb3f15d1f3111d10",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B4ms'",
+      "retrieved_at": "2026-10-07T03:45:09.378Z",
+      "sha256": "bff533194f1c78f5a1d02c412251e4bb554b05ac7a4553041f714d14bf9dc3c2",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B8ms'",
+      "retrieved_at": "2026-10-07T03:45:21.479Z",
+      "sha256": "4c98e460e2e27ea65b2a224602a3ac34bff39278851c01acaf1861d59c025d1b",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B12ms'",
+      "retrieved_at": "2026-10-07T03:45:21.559Z",
+      "sha256": "04b5b6b8425210650a625c5b3b9d3e270ca551c61f93c91d1b24936ea1d25c02",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_B16ms'",
+      "retrieved_at": "2026-10-07T03:45:21.623Z",
+      "sha256": "ab6acf45e00e5478f26772b1541acce10607ed05a376bb808270c7ab2df1d99b",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D2s_v4'",
+      "retrieved_at": "2026-10-07T03:45:24.393Z",
+      "sha256": "bb940cf28d27f545778e1acf5155fc0bb2c3f6b06e07fef1f3d7bda3e22243d6",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D4s_v4'",
+      "retrieved_at": "2026-10-07T03:45:24.484Z",
+      "sha256": "1b75e12abbeef0a864c29dc9231c979d71304474e4a757dbe9e193f7f49b50f1",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D8s_v4'",
+      "retrieved_at": "2026-10-07T03:45:24.586Z",
+      "sha256": "c38da945f8eaff80c59a0e4b06d4338a18444ccf0e6016b26c91eeb7bebf706a",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D2s_v5'",
+      "retrieved_at": "2026-10-07T03:45:30.110Z",
+      "sha256": "dcfdf0844a7d056d0e4c433346a3a8c52f395b2492735c0edf380f017096ca97",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D4s_v5'",
+      "retrieved_at": "2026-10-07T03:45:35.943Z",
+      "sha256": "45aefd40695ccdb81a88405663ece7201a44314499fe2789c3b85a6340ed89c1",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D8s_v5'",
+      "retrieved_at": "2026-10-07T03:45:40.254Z",
+      "sha256": "01fe8e0f697782a107d16ea8698f47b588ebe94077eaab93f5c24be11e0bd342",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D16s_v5'",
+      "retrieved_at": "2026-10-07T03:45:42.155Z",
+      "sha256": "cb9c3cc4664feefd7522559570e5b17a88f39306efe094deec6de08f20f71c9d",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D32s_v5'",
+      "retrieved_at": "2026-10-07T03:45:43.147Z",
+      "sha256": "66db518cb296606e378c7fe972f2fa59e39dce8129d6cbc3181900e226ebd8ed",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D2ds_v5'",
+      "retrieved_at": "2026-10-07T03:45:43.222Z",
+      "sha256": "d0dd5bc2d55431426f71d53b71703566b26dd7576ab140b871887a087f86d75f",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D4ds_v5'",
+      "retrieved_at": "2026-10-07T03:45:43.300Z",
+      "sha256": "6bd66e809e24a5bbd161472481b364d0409c3bb1424448fa938240f983dd8644",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D8ds_v5'",
+      "retrieved_at": "2026-10-07T03:45:46.895Z",
+      "sha256": "159e3a9813503a76f06f20ba0c731b3c2508a9cf291a0ead4f7db1ed02213c58",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D2ps_v5'",
+      "retrieved_at": "2026-10-07T03:45:47.181Z",
+      "sha256": "a8259d9c484ae663871053004fc57d31407bc36f3880a9b5cf92688a1dba7c04",
+      "source_vintage": "2022-09-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D4ps_v5'",
+      "retrieved_at": "2026-10-07T03:45:47.314Z",
+      "sha256": "2c71ea279cbd8ae4c25918bc9a54ccdaf2f7d0ed555df56f9c0b6dbd0cbda15a",
+      "source_vintage": "2022-09-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E2s_v5'",
+      "retrieved_at": "2026-10-07T03:45:47.525Z",
+      "sha256": "d0c3f082c2c56ff0903c5f55551af57a269ad3648008ed0ffc8326c708050d95",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E4s_v5'",
+      "retrieved_at": "2026-10-07T03:45:47.614Z",
+      "sha256": "91d27d51275d3dcf56fd0851c8d46fc864db8248081f509e40946b43cd00bfb9",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E8s_v5'",
+      "retrieved_at": "2026-10-07T03:45:47.685Z",
+      "sha256": "2b231a8de3a36bb5fe964328aabbc8dcfc97b9c1ba4281d242729bfd7583b042",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E16s_v5'",
+      "retrieved_at": "2026-10-07T03:45:58.637Z",
+      "sha256": "d119bc9098120af74968905bb75304968a9beaf2ef652373c5e04cd64300c641",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E32s_v5'",
+      "retrieved_at": "2026-10-07T03:45:58.734Z",
+      "sha256": "16aa28519013eb47c59fdbc03ec6457b605d3d75e3495ef92eb809722044d835",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E2ds_v5'",
+      "retrieved_at": "2026-10-07T03:45:58.827Z",
+      "sha256": "222f5690d1d49ca1c2e0fb6bac37b410394d3da99db7af6e2ebd7b0a6a510529",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E4ds_v5'",
+      "retrieved_at": "2026-10-07T03:45:58.938Z",
+      "sha256": "03002a82649315e0170dda038a9ad297c8985d7a05173717c8e0b5fde9bb53f8",
+      "source_vintage": "2021-11-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_F2s_v2'",
+      "retrieved_at": "2026-10-07T03:45:59.029Z",
+      "sha256": "7961250edff8b0ba385e677e9c89dbf4aa173b4a2caae3005863dc80a8c7ee7e",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_F4s_v2'",
+      "retrieved_at": "2026-10-07T03:45:59.643Z",
+      "sha256": "557664e739e4ad7ba9431da53996c1612d2280b4d379a345940436c196355c3a",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_F8s_v2'",
+      "retrieved_at": "2026-10-07T03:45:59.715Z",
+      "sha256": "1a7d858937f2bfb8bda70bafb2b2f79ac7960c49b5f30981b3d5a0efbecda250",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_F16s_v2'",
+      "retrieved_at": "2026-10-07T03:45:59.806Z",
+      "sha256": "e97e72f1c078ee2141623a541fd2cba43c3113e41adfd16c454397ad7e8dcdc6",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_F32s_v2'",
+      "retrieved_at": "2026-10-07T03:45:59.898Z",
+      "sha256": "7c0ef41cb628f75f1b61a1ea7f96d484ee1907d0a416e567d1488d35a17bf5df",
+      "source_vintage": "2025-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_L8s_v3'",
+      "retrieved_at": "2026-10-07T03:46:00.264Z",
+      "sha256": "db54747bdf257212ad6367d78ed55b6d0b208aa73c4b820ee476c1fc1677c6e0",
+      "source_vintage": "2022-06-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_L16s_v3'",
+      "retrieved_at": "2026-10-07T03:46:00.411Z",
+      "sha256": "52586b4574c5e455f9ee2a6aac8ca50e235882370d8a281472d88a2f1414afce",
+      "source_vintage": "2022-06-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_Nc4as_t4_v3'",
+      "retrieved_at": "2026-10-07T03:46:00.499Z",
+      "sha256": "d05e6f94eecce83d548e0b39f3f76ef094c8653c0b9747f93828be4ad6134691"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_Nc8as_t4_v3'",
+      "retrieved_at": "2026-10-07T03:46:04.629Z",
+      "sha256": "d05e6f94eecce83d548e0b39f3f76ef094c8653c0b9747f93828be4ad6134691"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E2ps_v5'",
+      "retrieved_at": "2026-10-07T03:46:06.172Z",
+      "sha256": "37ac0cbdcc8c915ecf0e550865f37d48ab4c47948e8b31fee92d1a8b52aedf9e",
+      "source_vintage": "2022-09-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E4ps_v5'",
+      "retrieved_at": "2026-10-07T03:46:06.252Z",
+      "sha256": "5401c457246066518a1ccbc56289ff04595bf5e33689275b9976db415c0053ae",
+      "source_vintage": "2022-09-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E8ps_v5'",
+      "retrieved_at": "2026-10-07T03:46:06.331Z",
+      "sha256": "689bbc8962c1ee7cdda7472331f845c974f2e2f7398b36aa1a33276225fca645",
+      "source_vintage": "2022-09-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D2s_v6'",
+      "retrieved_at": "2026-10-07T03:46:06.406Z",
+      "sha256": "e70d127eeadeba941cd2247ded07731e14075432ec0b2c3db07580bddbe9eac0",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D4s_v6'",
+      "retrieved_at": "2026-10-07T03:46:07.145Z",
+      "sha256": "446c6154ee20f1da9b8bff9dac41c17308c0db78378d097a5df8e00104c6913a",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D8s_v6'",
+      "retrieved_at": "2026-10-07T03:46:07.234Z",
+      "sha256": "342bede565b6d6b19c4854d82a0705026add296eb9295d3a63f2646aaa70a62e",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_D16s_v6'",
+      "retrieved_at": "2026-10-07T03:46:07.304Z",
+      "sha256": "5218b3728ecfd21716687627826cde771fc4524e7434f5de811f2f23ce17d8d1",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E2s_v6'",
+      "retrieved_at": "2026-10-07T03:46:07.382Z",
+      "sha256": "4c3d1a293a3217ff6edc980669d0ad331e529a9d8965045a4e834a863a4cb582",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E4s_v6'",
+      "retrieved_at": "2026-10-07T03:46:08.397Z",
+      "sha256": "e758e5e943818ca2bd87499ae3c5fe46555be2c2aecad849b487dd2b920008fc",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E8s_v6'",
+      "retrieved_at": "2026-10-07T03:46:08.464Z",
+      "sha256": "6af29dff2a977ae575eb73864e840385a9c9a3745e6999b98ad5aaf333bda4fa",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    },
+    {
+      "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'%20and%20armSkuName%20eq%20'Standard_E16s_v6'",
+      "retrieved_at": "2026-10-07T03:46:08.541Z",
+      "sha256": "9eaf62ba223fa4e1ce690554b9e39afe6a1a7536cf011447ab2f4648a5aa7555",
+      "source_vintage": "2024-10-01T00:00:00Z"
+    }
+  ],
   "refresh_policy": "automated",
   "source": "https://prices.azure.com/api/retail/prices",
   "sku_count": 70,
-  "refresh_script_version": "3.0.0",
+  "refresh_script_version": "3.1.0",
   "currency": "USD",
   "curated_datasets": [
     "DISK_BASE_PRICES (src/pricing/azure/fallback-data.ts)",

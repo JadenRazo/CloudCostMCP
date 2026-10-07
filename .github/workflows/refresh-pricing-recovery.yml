@@ -1,0 +1,55 @@
+name: Recover Pricing Refresh
+
+on:
+  workflow_run:
+    workflows: [Refresh Pricing]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: "Completed refresh run to diagnose (manual previews must match this commit)"
+        type: string
+        required: true
+      retry:
+        description: "Apply one retry only for a proven acquisition failure or preview probe"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-recovery-${{ github.event.workflow_run.id || inputs.run-id }}
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.repository_owner == 'JadenRazo'
+    # Different, explicit hosted image from the pricing job.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read
+      actions: write
+    steps:
+      # Automatic recovery runs trusted default-branch code. Never check out
+      # the triggering branch or read its artifacts using this Actions token.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Diagnose and recover an unallocated refresh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run-id }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          MANUAL_SHA: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
+          APPLY: ${{ github.event_name == 'workflow_run' || inputs.retry }}
+        run: node scripts/refresh-recovery.mjs
+      - name: Retain acquisition and handoff diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: refresh-recovery-${{ github.run_id }}
+          path: refresh-recovery.json
+          retention-days: 14
