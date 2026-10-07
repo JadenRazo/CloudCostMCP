@@ -1,17 +1,17 @@
 {
   "last_updated": "2026-10-07",
   "last_verified": "2026-10-07",
-  "verified_at": "2026-10-07T03:45:00.896Z",
+  "verified_at": "2026-10-07T06:00:57.034Z",
   "sources": [
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv",
-      "retrieved_at": "2026-10-07T03:44:59.464Z",
+      "retrieved_at": "2026-10-07T06:00:56.209Z",
       "sha256": "3b72dd89fc32fa9c9f148373663221c28124abab29d366fe4577fcbee655e736",
       "source_vintage": "2026-10-06T17:24:54Z"
     },
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/us-east-1/index.csv",
-      "retrieved_at": "2026-10-07T03:44:59.767Z",
+      "retrieved_at": "2026-10-07T06:00:56.679Z",
       "sha256": "6c216380d45af7df6376624ac5f63e321168c29717efe938ccb26737be4fea60",
       "source_vintage": "2026-10-06T22:40:50Z"
     }
