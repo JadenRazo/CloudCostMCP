@@ -40,6 +40,8 @@ jobs:
     permissions:
       contents: read
       issues: write
+      actions: read
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -96,14 +98,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          last=$(gh run list --workflow refresh-pricing.yml --limit 1 \
-                   --json createdAt,conclusion --jq '.[0] | "\(.createdAt) \(.conclusion)"' || echo "")
+          exec > >(tee loop.txt) 2>&1
+          runs=$(gh run list --workflow refresh-pricing.yml --branch "$GITHUB_REF_NAME" --limit 1 \
+                   --json databaseId,createdAt,conclusion,headSha,status || echo "[]")
+          last=$(jq -r '.[0] | select(. != null) | "\(.createdAt) \(.conclusion)"' <<< "$runs")
           echo "last refresh run: ${last:-none}"
           if [ -z "$last" ]; then
             echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
           fi
           when=${last%% *}
           verdict=${last##* }
+          run_id=$(jq -r '.[0].databaseId' <<< "$runs")
+          echo "run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id"
+          echo "commit: $(jq -r '.[0].headSha' <<< "$runs")"
+          if [ "$verdict" != "success" ] && [ "$verdict" != "null" ]; then
+            if jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100"); then
+              jq '.jobs[] | {name,conclusion,runner_id,steps: [.steps[] | {name,conclusion}]}' <<< "$jobs"
+              refresh_id=$(jq -r '.jobs[] | select(.name == "refresh") | .id' <<< "$jobs")
+              if [ -n "$refresh_id" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/check-runs/$refresh_id/annotations" \
+                  --jq '.[] | {annotation_level,message}' || echo "annotations unavailable"
+              fi
+            else
+              echo "job diagnostics unavailable"
+            fi
+          fi
 
           # `date -d` on a value we did not construct, under `set -e`, kills the
           # step before it can write `code`, and the gate then reports "the
@@ -175,7 +194,7 @@ jobs:
             echo
             echo "Last checked: $(date -u '+%Y-%m-%d %H:%M UTC') - [run log]($RUN_URL)"
             echo
-            for f in freshness.txt smoke.txt drift.txt advisories.txt; do
+            for f in freshness.txt smoke.txt drift.txt advisories.txt loop.txt; do
               if [ -f "$f" ]; then
                 echo "<details><summary>$f</summary>"; echo; echo '```'
                 tail -40 "$f"; echo '```'; echo; echo "</details>"; echo

@@ -6,10 +6,19 @@ name: Refresh Pricing
 
 on:
   schedule:
-    # Mondays 12:00 UTC — avoids weekend quiet hours and still hits before
-    # the US business day so any follow-up investigation is same-day.
-    - cron: "0 12 * * 1"
+    # Mondays 12:17 UTC — avoids the top-of-hour queue and weekend quiet hours.
+    # Before the US business day so any follow-up investigation is same-day.
+    - cron: "17 12 * * 1"
   workflow_dispatch:
+    inputs:
+      preview:
+        description: "Refresh and dispatch CI without updating a PR or issue"
+        type: boolean
+        default: true
+      exercise-recovery:
+        description: "Fail the first preview attempt before any pricing/PR writes"
+        type: boolean
+        default: false
 
 concurrency:
   group: refresh-pricing
@@ -24,14 +33,20 @@ jobs:
   refresh:
     # Guard so forks don't try to open PRs/issues on schedule.
     if: github.repository_owner == 'JadenRazo'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
-      pricing-pr-branch: ${{ steps.pricing-pr.outputs.pull-request-branch }}
+      pricing-pr-branch: ${{ steps.handoff.outputs.branch }}
       fallback-ci-required: >-
-        ${{ steps.app-token.outcome == 'skipped' &&
-            steps.pricing-pr.outputs.pull-request-branch != '' }}
+        ${{ steps.handoff.outputs.branch != '' &&
+            (inputs.preview || steps.app-token.outcome == 'skipped') }}
     steps:
+      - name: Exercise recovery boundary
+        if: inputs.preview && inputs.exercise-recovery && github.run_attempt == 1
+        run: |
+          echo "::error title=Refresh recovery probe::Preview stopped before pricing or PR writes; exercise one bounded retry."
+          exit 75
+
       # Mint a GitHub App installation token for the PR.
       #
       # Without this, create-pull-request falls back to GITHUB_TOKEN and pushes
@@ -48,7 +63,7 @@ jobs:
       # lands safely before the App exists.
       - name: Mint app token
         id: app-token
-        if: vars.PRICING_BOT_CLIENT_ID != ''
+        if: (github.event_name == 'schedule' || !inputs.preview) && vars.PRICING_BOT_CLIENT_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.PRICING_BOT_CLIENT_ID }}
@@ -85,8 +100,8 @@ jobs:
         # data and puts an annotation on the run.
         run: |
           set +e
-          npx tsx scripts/refresh-pricing.ts --write
-          code=$?
+          npx tsx scripts/refresh-pricing.ts --write 2>&1 | tee refresh.txt
+          code=${PIPESTATUS[0]}
           set -e
           echo "exit=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" != "0" ]; then
@@ -100,6 +115,7 @@ jobs:
       - name: Summarize changes
         id: diff
         run: |
+          git diff --stat -- src/pricing data/aws-pricing data/azure-pricing data/gcp-pricing > refresh-diff.txt
           if git diff --quiet -- src/pricing data/aws-pricing data/azure-pricing data/gcp-pricing; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No pricing changes detected." >> "$GITHUB_STEP_SUMMARY"
@@ -116,7 +132,7 @@ jobs:
 
       - name: Open pricing refresh PR
         id: pricing-pr
-        if: steps.diff.outputs.changed == 'true'
+        if: (github.event_name == 'schedule' || !inputs.preview) && steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token || github.token }}
@@ -137,8 +153,34 @@ jobs:
             data/gcp-pricing
           delete-branch: true
 
+      - name: Select downstream branch
+        id: handoff
+        if: ${{ !cancelled() && steps.refresh.outputs.exit != '' }}
+        env:
+          PREVIEW: ${{ inputs.preview }}
+          EVENT: ${{ github.event_name }}
+          PR_BRANCH: ${{ steps.pricing-pr.outputs.pull-request-branch }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$PREVIEW" = "true" ]; then
+            echo "branch=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "Preview: provider files were refreshed on the runner; no PR or issue updated." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$PR_BRANCH" ]; then
+            echo "branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Retain refresh evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pricing-refresh-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            refresh.txt
+            refresh-diff.txt
+            data/*-pricing/metadata.json
+          retention-days: 14
+
       - name: File issue on refresh failure
-        if: ${{ !cancelled() && (steps.refresh.outputs.exit != '0' || failure()) }}
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || !inputs.preview) && (steps.refresh.outputs.exit != '0' || failure()) }}
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -193,7 +235,7 @@ jobs:
     if: >-
       ${{ always() &&
           needs.refresh.outputs.fallback-ci-required == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 2
     permissions:
       actions: write
@@ -202,4 +244,7 @@ jobs:
       PR_BRANCH: ${{ needs.refresh.outputs.pricing-pr-branch }}
     steps:
       - name: Dispatch required CI
-        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
+        run: |
+          set -euo pipefail
+          echo "Dispatching CI for branch $PR_BRANCH from refresh attempt $GITHUB_RUN_ATTEMPT" >> "$GITHUB_STEP_SUMMARY"
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
