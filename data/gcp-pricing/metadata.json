@@ -1,11 +1,11 @@
 {
   "last_updated": "2026-09-24",
   "last_verified": "2026-10-07",
-  "verified_at": "2026-10-07T03:44:48.854Z",
+  "verified_at": "2026-10-07T06:00:52.796Z",
   "sources": [
     {
       "url": "https://raw.githubusercontent.com/Cyclenerd/google-cloud-pricing-cost-calculator/master/pricing.yml",
-      "retrieved_at": "2026-10-07T03:44:43.158Z",
+      "retrieved_at": "2026-10-07T06:00:51.148Z",
       "sha256": "e1486169090e92367ea7c4c271c7e5eec7b5655c9d4b995bdc7302e1bf30914f",
       "source_vintage": "2026-09-24"
     }
