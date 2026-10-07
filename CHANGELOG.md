@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- Select refresh liveness from the current workflow's paginated REST history
+  by branch and creation time, with diagnostics. A hosted health query had
+  selected an 85-day-old failure despite newer successful refreshes.
 - Restore completed provider verification through the established refresh
   pipeline while preserving the 21-day freshness gate. Record source vintage,
   response SHA-256, retrieval time and completed verification separately.

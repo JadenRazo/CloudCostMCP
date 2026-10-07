@@ -99,8 +99,11 @@ jobs:
         run: |
           set -euo pipefail
           exec > >(tee loop.txt) 2>&1
-          runs=$(gh run list --workflow refresh-pricing.yml --branch "$GITHUB_REF_NAME" --limit 1 \
-                   --json databaseId,createdAt,conclusion,headSha,status || echo "[]")
+          gh --version
+          if ! runs=$(node scripts/latest-refresh-run.mjs); then
+            echo "could not determine the latest refresh from the current workflow's REST history"
+            echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           last=$(jq -r '.[0] | select(. != null) | "\(.createdAt) \(.conclusion)"' <<< "$runs")
           echo "last refresh run: ${last:-none}"
           if [ -z "$last" ]; then

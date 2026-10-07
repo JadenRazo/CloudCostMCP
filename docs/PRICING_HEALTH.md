@@ -5,6 +5,17 @@ runs Monday at 12:17 UTC. Both schedules remain subject to GitHub runner and
 schedule availability. Inspect the tracking health issue and recent runs;
 a successful CI build alone does not establish current pricing or audit health.
 
+During deployment, [Health run 37588000478](https://github.com/JadenRazo/CloudCostMCP/actions/runs/37588000478)
+passed freshness, API, drift and audit, but its hosted `gh run list --limit 1`
+selected July 13 run 29258028417, ignoring newer successful main refreshes.
+The same CLI query with the maintainer token did not reproduce that selection;
+the underlying CLI/API response difference is not established. Health now
+resolves the active workflow's ID, requests its explicit branch's paginated
+[REST history](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow),
+validates timestamps and selects by creation time. It records the workflow,
+branch, run count and selected commit. It never selects only successful runs
+or orders by rerun time, and unknown API/selection failures remain unhealthy.
+
 ## Review and merge the refreshed data
 
 Refresh Pricing fetches the configured provider sources, validates coverage and
