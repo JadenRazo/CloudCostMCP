@@ -2,7 +2,9 @@
 
 Scope: [issue #51](https://github.com/JadenRazo/CloudCostMCP/issues/51),
 continuing [PR #49](https://github.com/JadenRazo/CloudCostMCP/pull/49).
-No deployment, credential changes, protection changes or automatic merge.
+This is the predeployment investigation record. Deployment was subsequently
+authorized; see the [operating runbook](../PRICING_HEALTH.md). No credential or
+protection changes or automatic merge were made.
 
 ## Confirmed causes
 

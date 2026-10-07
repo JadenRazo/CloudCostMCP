@@ -126,6 +126,10 @@ describe("workflow recovery and preview contract", () => {
     expect(workflow.jobs["dispatch-fallback-ci"].permissions).toEqual({ actions: "write" });
     expect(workflow.permissions.actions).toBeUndefined();
     expect(workflow.jobs["dispatch-fallback-ci"].if).toContain("always()");
+    expect(workflow.jobs["dispatch-fallback-ci"].steps[0].run).toContain("Approve and run");
+    expect(workflow.jobs["dispatch-fallback-ci"].steps[0].run).toContain(
+      "It does not approve a pending PR-event run",
+    );
   });
   it("runs recovery with trusted code, no PR credentials and a single run scope", () => {
     const workflow = parse(readFileSync(".github/workflows/refresh-pricing-recovery.yml", "utf8"));
