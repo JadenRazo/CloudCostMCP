@@ -87,6 +87,8 @@ jobs:
 
       - name: Run pricing refresh (write mode)
         id: refresh
+        env:
+          GCP_PRICING_API_KEY: ${{ secrets.GCP_PRICING_API_KEY }}
         # A provider-level failure exits non-zero but still writes the providers
         # that succeeded, so the job has to keep going for those changes to reach
         # a PR.
@@ -177,6 +179,11 @@ jobs:
             refresh.txt
             refresh-diff.txt
             data/*-pricing/metadata.json
+            data/gcp-pricing/compute-engine.json
+            data/gcp-pricing/persistent-disk.json
+            data/gcp-pricing/cloud-storage.json
+            src/pricing/aws/fallback-data.ts
+            src/pricing/azure/fallback-data.ts
           retention-days: 14
 
       - name: File issue on refresh failure

@@ -1,0 +1,335 @@
+{
+  "e2-micro": {
+    "cpu": 0.25,
+    "ram": 1
+  },
+  "e2-small": {
+    "cpu": 0.5,
+    "ram": 2
+  },
+  "e2-medium": {
+    "cpu": 1,
+    "ram": 4
+  },
+  "e2-standard-2": {
+    "cpu": 2,
+    "ram": 8
+  },
+  "e2-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "e2-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "e2-standard-16": {
+    "cpu": 16,
+    "ram": 64
+  },
+  "e2-highcpu-2": {
+    "cpu": 2,
+    "ram": 2
+  },
+  "e2-highcpu-4": {
+    "cpu": 4,
+    "ram": 4
+  },
+  "e2-highcpu-8": {
+    "cpu": 8,
+    "ram": 8
+  },
+  "e2-highmem-2": {
+    "cpu": 2,
+    "ram": 16
+  },
+  "e2-highmem-4": {
+    "cpu": 4,
+    "ram": 32
+  },
+  "e2-highmem-8": {
+    "cpu": 8,
+    "ram": 64
+  },
+  "n2-standard-2": {
+    "cpu": 2,
+    "ram": 8
+  },
+  "n2-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "n2-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "n2-standard-16": {
+    "cpu": 16,
+    "ram": 64
+  },
+  "n2-standard-32": {
+    "cpu": 32,
+    "ram": 128
+  },
+  "n2-highcpu-2": {
+    "cpu": 2,
+    "ram": 2
+  },
+  "n2-highcpu-4": {
+    "cpu": 4,
+    "ram": 4
+  },
+  "n2-highcpu-8": {
+    "cpu": 8,
+    "ram": 8
+  },
+  "n2-highmem-2": {
+    "cpu": 2,
+    "ram": 16
+  },
+  "n2-highmem-4": {
+    "cpu": 4,
+    "ram": 32
+  },
+  "n2-highmem-8": {
+    "cpu": 8,
+    "ram": 64
+  },
+  "n2d-standard-2": {
+    "cpu": 2,
+    "ram": 8
+  },
+  "n2d-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "n2d-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "n2d-standard-16": {
+    "cpu": 16,
+    "ram": 64
+  },
+  "n2d-highcpu-2": {
+    "cpu": 2,
+    "ram": 2
+  },
+  "n2d-highcpu-4": {
+    "cpu": 4,
+    "ram": 4
+  },
+  "n2d-highmem-2": {
+    "cpu": 2,
+    "ram": 16
+  },
+  "n2d-highmem-4": {
+    "cpu": 4,
+    "ram": 32
+  },
+  "c2-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "c2-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "c2-standard-16": {
+    "cpu": 16,
+    "ram": 64
+  },
+  "c2-standard-30": {
+    "cpu": 30,
+    "ram": 120
+  },
+  "c2-standard-60": {
+    "cpu": 60,
+    "ram": 240
+  },
+  "c2d-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "c2d-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "a2-highgpu-1g": {
+    "cpu": 12,
+    "ram": 85,
+    "a100": 1
+  },
+  "a2-highgpu-2g": {
+    "cpu": 24,
+    "ram": 170,
+    "a100": 2
+  },
+  "a2-highgpu-4g": {
+    "cpu": 48,
+    "ram": 340,
+    "a100": 4
+  },
+  "a2-highgpu-8g": {
+    "cpu": 96,
+    "ram": 680,
+    "a100": 8
+  },
+  "a2-megagpu-16g": {
+    "cpu": 96,
+    "ram": 1360,
+    "a100": 16
+  },
+  "a2-ultragpu-1g": {
+    "cpu": 12,
+    "ram": 170,
+    "a100-80gb": 1,
+    "local-ssd": 375
+  },
+  "a2-ultragpu-2g": {
+    "cpu": 24,
+    "ram": 340,
+    "a100-80gb": 2,
+    "local-ssd": 750
+  },
+  "a2-ultragpu-4g": {
+    "cpu": 48,
+    "ram": 680,
+    "a100-80gb": 4,
+    "local-ssd": 1500
+  },
+  "a2-ultragpu-8g": {
+    "cpu": 96,
+    "ram": 1360,
+    "a100-80gb": 8,
+    "local-ssd": 3000
+  },
+  "c3-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "c3-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "c3-standard-22": {
+    "cpu": 22,
+    "ram": 88
+  },
+  "c3-highcpu-4": {
+    "cpu": 4,
+    "ram": 8
+  },
+  "c3-highcpu-8": {
+    "cpu": 8,
+    "ram": 16
+  },
+  "c3-highcpu-22": {
+    "cpu": 22,
+    "ram": 44
+  },
+  "c3-highmem-4": {
+    "cpu": 4,
+    "ram": 32
+  },
+  "c3-highmem-8": {
+    "cpu": 8,
+    "ram": 64
+  },
+  "c3-highmem-22": {
+    "cpu": 22,
+    "ram": 176
+  },
+  "c4-standard-4": {
+    "cpu": 4,
+    "ram": 15
+  },
+  "c4-standard-8": {
+    "cpu": 8,
+    "ram": 30
+  },
+  "c4-standard-16": {
+    "cpu": 16,
+    "ram": 60
+  },
+  "c4-highcpu-4": {
+    "cpu": 4,
+    "ram": 8
+  },
+  "c4-highcpu-8": {
+    "cpu": 8,
+    "ram": 16
+  },
+  "c4-highmem-4": {
+    "cpu": 4,
+    "ram": 31
+  },
+  "c4-highmem-8": {
+    "cpu": 8,
+    "ram": 62
+  },
+  "n4-standard-2": {
+    "cpu": 2,
+    "ram": 8
+  },
+  "n4-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "n4-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "n4-standard-16": {
+    "cpu": 16,
+    "ram": 64
+  },
+  "n4-standard-32": {
+    "cpu": 32,
+    "ram": 128
+  },
+  "n4-highcpu-2": {
+    "cpu": 2,
+    "ram": 4
+  },
+  "n4-highcpu-4": {
+    "cpu": 4,
+    "ram": 8
+  },
+  "n4-highcpu-8": {
+    "cpu": 8,
+    "ram": 16
+  },
+  "n4-highmem-2": {
+    "cpu": 2,
+    "ram": 16
+  },
+  "n4-highmem-4": {
+    "cpu": 4,
+    "ram": 32
+  },
+  "n4-highmem-8": {
+    "cpu": 8,
+    "ram": 64
+  },
+  "t2d-standard-1": {
+    "cpu": 1,
+    "ram": 4
+  },
+  "t2d-standard-2": {
+    "cpu": 2,
+    "ram": 8
+  },
+  "t2d-standard-4": {
+    "cpu": 4,
+    "ram": 16
+  },
+  "t2d-standard-8": {
+    "cpu": 8,
+    "ram": 32
+  },
+  "t2d-standard-16": {
+    "cpu": 16,
+    "ram": 64
+  }
+}

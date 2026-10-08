@@ -68,7 +68,7 @@ npx vitest run test/unit/calculator/compute.test.ts
 
 ## Integration tests against external pricing sources
 
-These are gated behind `RUN_INTEGRATION=1` so they don't run in normal `npm test`. AWS and Azure checks exercise their live public pricing endpoints. GCP has no credential-free live API path; its checks validate the bundled pricing path and the upstream source used to refresh those snapshots. Provider health checks and the pricing-golden drift suite run in the Health workflow:
+These are gated behind `RUN_INTEGRATION=1` so they don't run in normal `npm test`. AWS and Azure checks exercise their live public pricing endpoints. GCP checks run the owned generator against the official catalog and compare assembled prices with bundled values. Set `GCP_PRICING_API_KEY` securely in the environment for that integration suite; the daily Health workflow supplies the repository secret only to its smoke step. Provider health checks and the pricing-golden drift suite run in the Health workflow:
 
 ```bash
 RUN_INTEGRATION=1 npm test

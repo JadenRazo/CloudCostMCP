@@ -109,6 +109,33 @@ describe("refresh recovery policy", () => {
 });
 
 describe("workflow recovery and preview contract", () => {
+  it("gives the catalog secret only to provider refresh and daily smoke steps", () => {
+    const refresh = parse(readFileSync(".github/workflows/refresh-pricing.yml", "utf8"));
+    const health = parse(readFileSync(".github/workflows/health.yml", "utf8"));
+    const key = "${{ secrets.GCP_PRICING_API_KEY }}";
+    expect(refresh.env).toBeUndefined();
+    expect(refresh.jobs.refresh.env).toBeUndefined();
+    expect(
+      refresh.jobs.refresh.steps
+        .filter(
+          (s: { env?: { GCP_PRICING_API_KEY?: string } }) => s.env?.GCP_PRICING_API_KEY === key,
+        )
+        .map((s: { name: string }) => s.name),
+    ).toEqual(["Run pricing refresh (write mode)"]);
+    expect(
+      health.jobs.health.steps
+        .filter(
+          (s: { env?: { GCP_PRICING_API_KEY?: string } }) => s.env?.GCP_PRICING_API_KEY === key,
+        )
+        .map((s: { name: string }) => s.name),
+    ).toEqual(["Live provider pricing APIs still respond"]);
+    expect(JSON.stringify(refresh.jobs["dispatch-fallback-ci"])).not.toContain(
+      "GCP_PRICING_API_KEY",
+    );
+    expect(readFileSync(".github/workflows/refresh-pricing-recovery.yml", "utf8")).not.toContain(
+      "GCP_PRICING_API_KEY",
+    );
+  });
   it("keeps dispatch permission isolated and preview PR/issue writes disabled", () => {
     const workflow = parse(readFileSync(".github/workflows/refresh-pricing.yml", "utf8"));
     const refresh = workflow.jobs.refresh;
