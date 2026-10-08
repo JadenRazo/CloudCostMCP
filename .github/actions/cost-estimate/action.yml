@@ -38,7 +38,7 @@ runs:
       # shipped 1.2.1, so the action was estimating costs with a build four
       # months and two releases behind - including one that could not start at
       # all (the duplicate-shebang bug fixed in 1.2.1).
-      run: npm install -g @jadenrazo/cloudcost-mcp@1.2.2
+      run: npm install -g @jadenrazo/cloudcost-mcp@1.2.3
 
     # All ${{ inputs.* }} and other attacker-influenceable values are passed
     # to bash via env: vars and referenced as "$VAR" — never interpolated

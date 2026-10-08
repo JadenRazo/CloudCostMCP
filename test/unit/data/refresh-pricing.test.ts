@@ -201,6 +201,17 @@ describe("pricing refresh certification", () => {
     expect(writesFor("azure")).toHaveLength(1);
     expect(process.exitCode).toBe(1);
   });
+  it("cannot certify old values preserved after a regional component disappears", async () => {
+    const partial = structuredClone(gcp);
+    delete partial.compute.instance["e2-standard-2"].cost["us-central1"];
+    mocks.catalog.mockResolvedValue(partial);
+    await run();
+    expect(writesFor("gcp")).toHaveLength(0);
+    expect(
+      mocks.write.mock.calls.some(([path]) => String(path).includes("data/gcp-pricing/")),
+    ).toBe(false);
+    expect(process.exitCode).toBe(1);
+  });
   it("does not certify an unreachable Azure endpoint", async () => {
     const original = mocks.fetch.getMockImplementation()!;
     mocks.fetch.mockImplementation((url: string) =>

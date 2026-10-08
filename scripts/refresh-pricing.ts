@@ -349,6 +349,7 @@ function buildGcpTable(
   matched: number;
   added: number;
   changed: number;
+  missing: string[];
 } {
   const filePath = resolve(GCP_DATA_DIR, fileName);
   const existing = JSON.parse(readFileSync(filePath, "utf-8")) as Record<
@@ -360,12 +361,16 @@ function buildGcpTable(
   let matched = 0;
   let added = 0;
   let changed = 0;
+  const missing: string[] = [];
 
   for (const region of regions) {
     const row: Record<string, number> = { ...(existing[region] ?? {}) };
     for (const [bundledName, sourceKey] of Object.entries(skuMap)) {
       const price = gcostsPrice(section?.[sourceKey], region, field);
-      if (price === null) continue;
+      if (price === null) {
+        if (row[bundledName] !== undefined) missing.push(`${region}/${bundledName}`);
+        continue;
+      }
       const rounded = round4(price);
       const before = row[bundledName];
       if (before === undefined) added++;
@@ -376,7 +381,7 @@ function buildGcpTable(
     if (Object.keys(row).length > 0) table[region] = row;
   }
 
-  return { table, matched, added, changed };
+  return { table, matched, added, changed, missing };
 }
 
 async function refreshGcpPricing(): Promise<void> {
@@ -436,6 +441,14 @@ async function refreshGcpPricing(): Promise<void> {
     doc.storage?.bucket,
     "month",
   );
+
+  const missing = [compute, disk, storage].flatMap((built) => built.missing);
+  if (missing.length) {
+    const message = `catalog did not verify ${missing.length} existing prices: ${missing.slice(0, 8).join(", ")}`;
+    refreshFailures.push(`GCP: ${message}`);
+    console.error(`  ERROR: ${message}; no GCP files or metadata written`);
+    return;
+  }
 
   // Sanity floors. A fetch that succeeds but parses to nothing is the failure
   // mode a liveness check cannot see: `last_verified` would stay fresh while the
