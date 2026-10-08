@@ -1,11 +1,11 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { stringify } from "yaml";
 import compute from "../../../data/gcp-pricing/compute-engine.json" with { type: "json" };
 import multipliers from "../../../data/region-price-multipliers.json" with { type: "json" };
 import { EC2_BASE_PRICES, RDS_BASE_PRICES } from "../../../src/pricing/aws/fallback-data.js";
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
+  catalog: vi.fn(),
   write: vi.fn(),
   spawn: vi.fn(() => ({ status: 0 })),
 }));
@@ -16,8 +16,13 @@ vi.mock("fs", async (original) => ({
 vi.mock("child_process", () => ({ spawnSync: mocks.spawn }));
 vi.mock("../../../src/pricing/fetch-utils.js", () => ({ fetchWithRetry: mocks.fetch }));
 
+vi.mock("../../../src/pricing/gcp/catalog.js", () => ({ generateCatalog: mocks.catalog }));
+
 const gcp = {
-  about: { timestamp: Date.parse("2026-10-01T12:00:00Z") / 1000 },
+  about: {
+    generated: "2026-10-01T12:00:00.000Z",
+    timestamp: Date.parse("2026-10-01T12:00:00Z") / 1000,
+  },
   compute: {
     instance: Object.fromEntries(
       Object.keys(compute["us-central1"]).map((sku) => [
@@ -32,6 +37,17 @@ const gcp = {
     storage: Object.fromEntries(
       ["hdd", "ssd", "balanced", "extreme"].map((sku) => [sku, { cost: {} }]),
     ),
+  },
+  catalog: {
+    generator: "CloudCostMCP/gcp-catalog@1",
+    sources: [
+      {
+        url: "https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus",
+        retrieved_at: "2026-10-07T12:00:00.000Z",
+        source_vintage: "2026-10-01",
+        sha256: "a".repeat(64),
+      },
+    ],
   },
   storage: {
     bucket: Object.fromEntries(
@@ -82,6 +98,8 @@ async function run() {
 
 beforeEach(() => {
   mocks.fetch.mockReset();
+  mocks.catalog.mockReset();
+  mocks.catalog.mockResolvedValue(gcp);
   mocks.write.mockClear();
   mocks.spawn.mockClear();
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -90,7 +108,6 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   process.exitCode = 0;
   mocks.fetch.mockImplementation(async (url: string) => {
-    if (url.includes("pricing.yml")) return new Response(stringify(gcp));
     if (url.includes("amazonaws.com")) return new Response(awsCsv(url.includes("AmazonRDS")));
     return new Response(
       JSON.stringify({
@@ -120,6 +137,11 @@ describe("pricing refresh certification", () => {
     expect(meta.last_updated).toBe("2026-10-01");
     expect(meta.last_verified).toBe("2026-10-07");
     expect(meta.verified_at).toBe("2026-10-07T12:00:00.000Z");
+    expect(meta.generated_at).toBe("2026-10-01T12:00:00.000Z");
+    expect(meta.generator).toBe("CloudCostMCP/gcp-catalog@1");
+    expect(meta.generator_inputs).toMatchObject({
+      upstream_revision: "ac8edd2734343d1f43a759694c7a3569cea6931f",
+    });
     const sources = meta.sources as Array<Record<string, string>>;
     expect(sources[0].source_vintage).toBe("2026-10-01");
     expect(sources[0].retrieved_at).toBe("2026-10-07T12:00:00.000Z");
@@ -137,10 +159,7 @@ describe("pricing refresh certification", () => {
         kind === "empty"
           ? { about: gcp.about }
           : { ...gcp, about: kind === "missing" ? {} : { timestamp } };
-      const original = mocks.fetch.getMockImplementation()!;
-      mocks.fetch.mockImplementation((url: string) =>
-        url.includes("pricing.yml") ? Promise.resolve(new Response(stringify(doc))) : original(url),
-      );
+      mocks.catalog.mockResolvedValue(doc);
       await run();
       expect(writesFor("gcp")).toHaveLength(0);
       expect(writesFor("aws")).toHaveLength(1);
@@ -169,6 +188,28 @@ describe("pricing refresh certification", () => {
     await run();
     expect(writesFor("aws")).toHaveLength(0);
     expect(writesFor("gcp")).toHaveLength(1);
+    expect(process.exitCode).toBe(1);
+  });
+  it("does not advance GCP dates or prices when authenticated generation fails", async () => {
+    mocks.catalog.mockRejectedValue(new Error("Catalog second page: HTTP 403"));
+    await run();
+    expect(writesFor("gcp")).toHaveLength(0);
+    expect(
+      mocks.write.mock.calls.some(([path]) => String(path).includes("data/gcp-pricing/")),
+    ).toBe(false);
+    expect(writesFor("aws")).toHaveLength(1);
+    expect(writesFor("azure")).toHaveLength(1);
+    expect(process.exitCode).toBe(1);
+  });
+  it("cannot certify old values preserved after a regional component disappears", async () => {
+    const partial = structuredClone(gcp);
+    delete partial.compute.instance["e2-standard-2"].cost["us-central1"];
+    mocks.catalog.mockResolvedValue(partial);
+    await run();
+    expect(writesFor("gcp")).toHaveLength(0);
+    expect(
+      mocks.write.mock.calls.some(([path]) => String(path).includes("data/gcp-pricing/")),
+    ).toBe(false);
     expect(process.exitCode).toBe(1);
   });
   it("does not certify an unreachable Azure endpoint", async () => {

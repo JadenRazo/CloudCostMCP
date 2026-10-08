@@ -9,16 +9,8 @@
  * dead upstream fails a test instead of silently freezing the bundled data.
  */
 
-/**
- * gcosts (Cyclenerd/google-cloud-pricing-cost-calculator, Apache-2.0) — a
- * weekly regeneration of the Google Cloud Billing Catalog into a single YAML
- * document. Google retired every key-free bulk pricing source it used to
- * publish, and cloudbilling.googleapis.com rejects unregistered callers, so
- * this is the only source that keeps GCP data refreshable without shipping
- * credentials.
- */
-export const GCP_PRICING_SOURCE_URL =
-  "https://raw.githubusercontent.com/Cyclenerd/google-cloud-pricing-cost-calculator/master/pricing.yml";
+/** Official Cloud Billing Catalog API; the refresh job supplies a restricted key. */
+export const GCP_PRICING_SOURCE_URL = "https://cloudbilling.googleapis.com/v1/services";
 
 /** AWS Bulk Pricing API — genuinely anonymous. */
 export const AWS_PRICING_SOURCE_URL = "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws";

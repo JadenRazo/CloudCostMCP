@@ -36,12 +36,21 @@ does not release that approval gate. Production PR #52 demonstrated this:
 Do not add credentials, auto-approve quarantined runs or change protections to
 avoid this review requirement. No automatic merge is configured.
 
-GCP uses the established gcosts snapshot of Google's catalog, not an anonymous
-direct Google API fetch. Its current September 24 vintage is preserved.
-An upstream snapshot must advance before it exceeds 21 days; retrieval of the
-same expired snapshot must fail and alert. Curated EBS, Azure disk/database and
-GCP Cloud SQL tables are outside automated provider certification and remain
-reported separately by freshness validation.
+GCP pricing generation is owned by this repository. The refresh and daily GCP
+smoke steps use the repository's `GCP_PRICING_API_KEY`, restricted to Cloud
+Billing API in project `cloudcost-pricing`. Consumer packages need no key.
+The generator retrieves every Compute Engine and Cloud Storage catalog page,
+then applies pinned Apache-2.0 mappings and machine definitions. There is no
+external snapshot build dependency and no Go/Perl/apt dependency. Google API
+failure, missing components, changed currency/units, ambiguous mappings and
+incomplete pagination leave GCP metadata unchanged and fail the run.
+
+Inspect `sources` for provider effective time, completed retrieval, page/SKU
+counts and hashes. `generated_at` records successful snapshot generation;
+`verified_at` records consumer validation. `generator_inputs` identifies the
+pinned inputs. The 21-day gate still applies. Curated EBS, Azure disk/database
+and GCP Cloud SQL tables remain outside automated certification and are
+reported separately. See [generator maintenance](../scripts/gcp/README.md).
 
 ## Recover a failed refresh
 

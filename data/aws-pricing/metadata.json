@@ -1,17 +1,17 @@
 {
-  "last_updated": "2026-10-07",
-  "last_verified": "2026-10-07",
-  "verified_at": "2026-10-07T06:00:57.034Z",
+  "last_updated": "2026-10-08",
+  "last_verified": "2026-10-08",
+  "verified_at": "2026-10-08T04:36:37.471Z",
   "sources": [
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv",
-      "retrieved_at": "2026-10-07T06:00:56.209Z",
-      "sha256": "3b72dd89fc32fa9c9f148373663221c28124abab29d366fe4577fcbee655e736",
-      "source_vintage": "2026-10-06T17:24:54Z"
+      "retrieved_at": "2026-10-08T04:36:36.878Z",
+      "sha256": "7b8df10121784165b0fadf4def5e0fca87dc380cc78a5d50cf383060c61f8fab",
+      "source_vintage": "2026-10-07T16:54:08Z"
     },
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/us-east-1/index.csv",
-      "retrieved_at": "2026-10-07T06:00:56.679Z",
+      "retrieved_at": "2026-10-08T04:36:37.168Z",
       "sha256": "6c216380d45af7df6376624ac5f63e321168c29717efe938ccb26737be4fea60",
       "source_vintage": "2026-10-06T22:40:50Z"
     }
@@ -19,7 +19,7 @@
   "refresh_policy": "automated",
   "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws",
   "sku_count": 142,
-  "refresh_script_version": "3.1.0",
+  "refresh_script_version": "4.0.0",
   "currency": "USD",
   "curated_datasets": [
     "EBS_BASE_PRICES (src/pricing/aws/fallback-data.ts)"

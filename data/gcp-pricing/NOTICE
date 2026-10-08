@@ -1,0 +1,9 @@
+GCP pricing generation reuses gcosts mapping rules and selected machine
+definitions from Cyclenerd/google-cloud-pricing-cost-calculator, revision
+ac8edd2734343d1f43a759694c7a3569cea6931f.
+Copyright 2022-2025 Nils Knieling. Licensed under Apache License 2.0; see LICENSE.
+
+CloudCostMCP adapts the required on-demand generator to TypeScript, retrieves
+current pricing directly from Google's Catalog API and validates complete
+pagination and instance components. See scripts/gcp/README.md in the source
+repository for maintained inputs, changes and provenance.

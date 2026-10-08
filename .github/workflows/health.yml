@@ -67,6 +67,7 @@ jobs:
         id: smoke
         env:
           RUN_INTEGRATION: "1"
+          GCP_PRICING_API_KEY: ${{ secrets.GCP_PRICING_API_KEY }}
         run: |
           set +e
           npx vitest run test/integration/*.smoke.test.ts 2>&1 | tail -60 | tee smoke.txt

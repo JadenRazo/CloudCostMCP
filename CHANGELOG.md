@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-08
+
+### Fixed
+
+- GCP pricing is generated directly from Google's authenticated Cloud Billing
+  Catalog under this repository's control. Pinned Apache-2.0 mappings preserve
+  the existing whole-instance, GPU, local SSD and storage calculations.
+- Every catalog page and existing bundled price must validate before GCP files
+  or timestamps advance. Source effective time, retrieval, generation and
+  verification are distinct; the 21-day freshness gate remains unchanged.
+- Daily GCP health uses the same authenticated generator and compares CPU/GPU
+  and storage prices with the shipped bundle. Credentials remain confined to
+  refresh and smoke steps; package users need no key.
+
+### Verified
+
+- October 8 authenticated preview fetched 33,428 Compute Engine SKUs across
+  34 pages and 1,229 Cloud Storage SKUs across 2 pages. All 3,251 supported
+  bundled prices matched current Google data; the generated snapshot is fresh.
+- Regression coverage exercises truncated pagination, duplicate mappings,
+  currency/units, incomplete GPU instances and unchanged metadata on failure.
+
 ## [1.2.2] - 2026-10-07
 
 ### Security
