@@ -1,19 +1,19 @@
 {
-  "last_updated": "2026-10-08",
-  "last_verified": "2026-10-08",
-  "verified_at": "2026-10-08T04:36:37.471Z",
+  "last_updated": "2026-10-26",
+  "last_verified": "2026-10-26",
+  "verified_at": "2026-10-26T18:43:06.169Z",
   "sources": [
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv",
-      "retrieved_at": "2026-10-08T04:36:36.878Z",
-      "sha256": "7b8df10121784165b0fadf4def5e0fca87dc380cc78a5d50cf383060c61f8fab",
-      "source_vintage": "2026-10-07T16:54:08Z"
+      "retrieved_at": "2026-10-26T18:43:05.327Z",
+      "sha256": "91a62cdbcd357bd64d3cb42deb1ae81c1e0b7a1e5325e3b5ac5442879b06e93d",
+      "source_vintage": "2026-10-23T22:13:55Z"
     },
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/us-east-1/index.csv",
-      "retrieved_at": "2026-10-08T04:36:37.168Z",
-      "sha256": "6c216380d45af7df6376624ac5f63e321168c29717efe938ccb26737be4fea60",
-      "source_vintage": "2026-10-06T22:40:50Z"
+      "retrieved_at": "2026-10-26T18:43:05.795Z",
+      "sha256": "06d14dbb5398f993a3faf975dd6a8330894641f591ba0056e7694bca6dc70675",
+      "source_vintage": "2026-10-20T00:32:32Z"
     }
   ],
   "refresh_policy": "automated",
